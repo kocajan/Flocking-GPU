@@ -1,0 +1,19 @@
+# Build output
+/build/
+*.o
+*.a
+*.so
+*.out
+
+# Executables (adjust name if needed)
+flocking
+
+# ImGui runtime config
+imgui.ini
+
+# Editor / OS junk
+*.swp
+*.swo
+*~
+.DS_Store
+
