@@ -1,16 +1,32 @@
 #include "core/VersionManager.hpp"
 
-VersionManager::VersionManager(const std::vector<VersionConfig>& versions) {
-    for (const auto& v : versions) {
+VersionManager::VersionManager(const std::vector<VersionConfig>& versionsInput) {
+    assert(!versionsInput.empty());
+
+    std::vector<std::string> versionIds;
+    versionIds.reserve(versionsInput.size());
+
+    for (const auto& v : versionsInput) {
         assert(configs.find(v.versionId) == configs.end());
 
+        // Build SimConfig for this version
         SimConfig cfg;
         for (const auto& param : v.parameters) {
             cfg.add(param); // copy parameter template
         }
 
         configs.emplace(v.versionId, std::move(cfg));
+        versionIds.push_back(v.versionId);
     }
+
+    // Create enum parameter for version selection
+    versions = ConfigParameter::Enum(
+        "version",
+        "Version",
+        "Simulation version",
+        versionIds.front(),   // default = first version
+        versionIds            // options
+    );
 }
 
 bool VersionManager::hasVersion(const VersionId& version) const {

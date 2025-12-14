@@ -2,10 +2,12 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include <cassert>
 
 #include "config/SimConfig.hpp"
 #include "config/VersionConfig.hpp"
+#include "config/ConfigParameter.hpp"
 
 class VersionManager {
 public:
@@ -16,19 +18,13 @@ private:
     std::unordered_map<VersionId, SimConfig> configs;
 
 public:
-    // --------------------------------------------------------
-    // Construction
-    // --------------------------------------------------------
+    // Version selector parameter (enum)
+    ConfigParameter versions;
 
-    // Takes parsed version configs and builds SimConfigs
+public:
     explicit VersionManager(const std::vector<VersionConfig>& versions);
 
-    // --------------------------------------------------------
-    // Queries
-    // --------------------------------------------------------
-
     bool hasVersion(const VersionId& version) const;
-    
     std::vector<VersionId> getAvailableVersions() const;
 
     const SimConfig& getSimConfig(const VersionId& version) const;

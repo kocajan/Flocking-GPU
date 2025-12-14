@@ -3,8 +3,6 @@
 #include "app/Application.hpp"
 
 #include "gui/GUI.hpp"
-#include "core/SimulationState.hpp"
-#include "core/SimulationUpdate.hpp"
 #include "config/SimConfig.hpp"
 #include "config/ConfigParameter.hpp"
 #include "core/VersionManager.hpp"
@@ -12,6 +10,7 @@
 #include "config/SimStateConfigLoader.hpp"
 #include "config/SimStateConfig.hpp"
 #include "core/SimState.hpp"
+#include "core/SimulationUpdate.hpp"
 
 
 void Application::run() {
@@ -21,58 +20,39 @@ void Application::run() {
         return;
     }
 
-    // Load default simulation state configuration
-    const SimStateConfig simStateConfig = loadSimStateConfig("cfg/initial_simulation_state.json");
-    SimState simState(simStateConfig);
-
-    // Load version configurations
     const std::vector<VersionConfig> versionConfigs = loadVersionConfigs("cfg/versions.json");
     VersionManager versionManager(versionConfigs);
 
-    // Get available versions
-    const std::vector<std::string> availableVersions = versionManager.getAvailableVersions();
+    const SimStateConfig simStateConfig = loadSimStateConfig("cfg/initial_simulation_state.json");
+    SimState simState(simStateConfig, versionManager.versions);
 
-    // If no versions, exit
-    if (availableVersions.empty()) {
-        std::cerr << "No versions available!" << std::endl;
-        return;
-    }
+    std::string currentVersion = simState.version.string();
+    SimConfig simConfig = versionManager.getSimConfig(currentVersion);
 
-    // Select version
-    int currentVersionIndex = 0;
-    std::string currentVersion = availableVersions[currentVersionIndex];
+    gui.initializeImGui();
 
-    // Save it to the simState
-    simState.currentVersion = currentVersion;
-    simState.currentVersionIndex = currentVersionIndex;
-
-    gui.initializeImGui(versionManager.getSimConfig(currentVersion), simState);
-
-    SimulationState state;
     while (gui.isRunning()) {
         gui.clearInteractions();
         gui.beginFrame();
-        
-        const SimConfig& cfg = gui.getSimConfig();
 
-        if (!gui.isPaused()) {
-            updateSimulationDummy(state);
+        updateSimulationDummy(simState, simConfig, gui.getInteractions());
+
+        // Check whether version has changed
+        if (simState.version.string() != currentVersion) {
+            currentVersion = simState.version.string();
+            simConfig = versionManager.getSimConfig(currentVersion);
         }
 
-        gui.render(state);
+        gui.render(simConfig, simState);
         gui.endFrame();
 
-        // If version changed, update sim config
-        if (currentVersionIndex != gui.getCurrentVersionIdx()) {
-            currentVersionIndex = gui.getCurrentVersionIdx();
-            currentVersion = availableVersions[currentVersionIndex];
-            gui.setSimConfig(versionManager.getSimConfig(currentVersion));
-        }
-
         // Print the parameters (they might be custom based on the version) Put them on one line so I can see changes easily
-        std::cout << "Version: " << currentVersion << " | ";
-        std::cout << "IsPaused: " << (gui.isPaused() ? "true" : "false") << " | ";
-        for (const auto& param : cfg.getParameters()) {
+        std::cout << "Version: " << simState.version.string() << " | ";
+        std::cout << "IsPaused: " << (simState.paused.binary() ? "true" : "false") << " | ";
+        std::cout << "BoidCount: " << simState.boidCount.number() << " | ";
+        std::cout << "LeftMouseEffect: " << simState.leftMouseEffect.string() << " | ";
+        std::cout << "RightMouseEffect: " << simState.rightMouseEffect.string() << " | ";
+        for (const auto& param : simConfig.getParameters()) {
             if (param.type == ParamType::Number) {
                 std::cout << param.name << "=" << param.number() << " ";
             } else if (param.type == ParamType::Binary) {

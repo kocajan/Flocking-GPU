@@ -10,7 +10,7 @@ public:
     // --------------------------------------------------------
     // Construction
     // --------------------------------------------------------
-    explicit SimState(const SimStateConfig& config);
+    explicit SimState(const SimStateConfig& config, ConfigParameter versionParam);
 
     // --------------------------------------------------------
     // Unpacked parameters (still ConfigParameter)
@@ -31,11 +31,12 @@ public:
     // --------------------------------------------------------
     // Additional runtime-only state (later)
     // --------------------------------------------------------
-    std::string currentVersion = "";
-    int currentVersionIndex = 0;
+    ConfigParameter version;
+    int tick;
+    std::vector<std::vector<float>> grid;
 
     // --------------------------------------------------------
     // Utilities
     // --------------------------------------------------------
-    void resetFromConfig(const SimStateConfig& config);
+    void resetFromConfig(const SimStateConfig& config, ConfigParameter versionParam);
 };

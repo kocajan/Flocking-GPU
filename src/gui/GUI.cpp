@@ -1,4 +1,5 @@
 #include "gui/GUI.hpp"
+#include "gui/GuiParameterRenderer.hpp"
 
 #include <cstdio>
 #include <cmath>
@@ -11,7 +12,7 @@
 #include "imgui/imgui_impl_opengl3.h"
 #include "imgui/imgui_stdlib.h"
 
-#include "core/SimulationState.hpp"
+#include "core/SimState.hpp"
 
 // ============================================================
 // Static
@@ -70,11 +71,7 @@ bool GUI::initializePlatform(const char* title) {
 // ImGui init
 // ============================================================
 
-void GUI::initializeImGui(SimConfig initialSimConfig, const std::vector<std::string>& allVersions, int initialVersionIndex) {
-    simConfig = std::move(initialSimConfig);
-    availableVersions = std::move(allVersions);
-    currentVersionIndex = initialVersionIndex;
-
+void GUI::initializeImGui() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
@@ -109,9 +106,9 @@ void GUI::beginFrame() {
     updateGridRect(fbw, fbh);
 }
 
-void GUI::render(const SimulationState& state) {
-    renderGrid(state);
-    renderControlGui();
+void GUI::render(SimConfig& simConfig, SimState& simState) {
+    renderGrid(simState);
+    renderControlGui(simConfig, simState);
 }
 
 void GUI::endFrame() {
@@ -141,71 +138,34 @@ void GUI::shutdown() {
 // ============================================================
 // GUI rendering
 // ============================================================
-
-void GUI::renderControlGui() {
+void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
     ImGui::Begin("Simulation");
+    ImGui::Separator();
 
     // --------------------------------------------------------
     // Version selector
     // --------------------------------------------------------
-    if (!availableVersions.empty()) {
-        std::vector<const char*> versionLabels;
-        versionLabels.reserve(availableVersions.size());
-
-        for (const auto& v : availableVersions)
-            versionLabels.push_back(v.c_str());
-
-        ImGui::Combo(
-            "Version",
-            &currentVersionIndex,
-            versionLabels.data(),
-            static_cast<int>(versionLabels.size())
-        );
-    }
+    renderParameter(simState.version);
 
     // --------------------------------------------------------
-    // Pause toggle
+    // Simulation state (explicit)
     // --------------------------------------------------------
-    ImGui::Checkbox("Paused", &isPausedFlag);
+    ImGui::TextUnformatted("Simulation State");
+    renderParameter(simState.paused);
+    renderParameter(simState.boidCount);
+    renderParameter(simState.leftMouseEffect);
+    renderParameter(simState.rightMouseEffect);
+
     ImGui::Separator();
 
     // --------------------------------------------------------
-    // Parameters
+    // Version-specific parameters (generic)
     // --------------------------------------------------------
+    ImGui::TextUnformatted("Version Parameters");
     for (auto& p : simConfig.getParameters()) {
-        switch (p.type) {
-        case ParamType::Number: {
-            auto& r = std::get<NumberRange>(p.range);
-            ImGui::SliderFloat(p.label.c_str(), &p.number(), r.min, r.max);
-            break;
-        }
-        case ParamType::Binary:
-            ImGui::Checkbox(p.label.c_str(), &p.binary());
-            break;
-
-        case ParamType::String:
-            ImGui::InputText(p.label.c_str(), &p.string());
-            break;
-
-        case ParamType::Enum: {
-            auto& r = std::get<EnumRange>(p.range);
-            std::string& cur = p.string();
-
-            int idx = 0;
-            for (int i = 0; i < (int)r.options.size(); ++i)
-                if (r.options[i] == cur) idx = i;
-
-            std::vector<const char*> labels;
-            for (auto& s : r.options) labels.push_back(s.c_str());
-
-            if (ImGui::Combo(p.label.c_str(), &idx, labels.data(), (int)labels.size()))
-                cur = r.options[idx];
-            break;
-        }
-
-        case ParamType::Custom:
-            break;
-        }
+        ImGui::PushID(&p);
+        renderParameter(p);
+        ImGui::PopID();
     }
 
     ImGui::Separator();
@@ -213,13 +173,16 @@ void GUI::renderControlGui() {
     ImGui::End();
 }
 
-void GUI::renderGrid(const SimulationState& state) {
+
+void GUI::renderGrid(SimState& simState) {
     ImDrawList* draw = ImGui::GetBackgroundDrawList();
 
-    for (int y = 0; y < state.height; ++y) {
-        for (int x = 0; x < state.width; ++x) {
-            int c = int(state.grid[y][x] * 255.0f);
+    int height = simState.worldY.number();
+    int width  = simState.worldX.number();
 
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int c = int(simState.grid[y][x] * 255.0f);
             ImVec2 p0(
                 gridRect.originX + x * gridRect.cellSize,
                 gridRect.originY + y * gridRect.cellSize
@@ -341,24 +304,4 @@ void GUI::clearInteractions() {
 
 const std::vector<InteractionEvent>& GUI::getInteractions() const {
     return interactions;
-}
-
-const SimConfig& GUI::getSimConfig() const {
-    return simConfig;
-}
-
-void GUI::setSimConfig(const SimConfig& cfg) {
-    simConfig = cfg;
-}
-
-int GUI::getCurrentVersionIdx() const {
-    return currentVersionIndex;
-}
-
-const std::string& GUI::getCurrentVersion() const {
-    return availableVersions[currentVersionIndex];
-}
-
-bool GUI::isPaused() const {
-    return isPausedFlag;
 }

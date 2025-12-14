@@ -70,7 +70,7 @@
       "name": "world_x",
       "label": "World X Size",
       "description": "World size in X dimension",
-      "default": 300,
+      "default": 30,
       "min": 50,
       "max": 2000,
       "step": 10
@@ -80,7 +80,7 @@
       "name": "world_y",
       "label": "World Y Size",
       "description": "World size in Y dimension",
-      "default": 200,
+      "default": 20,
       "min": 50,
       "max": 2000,
       "step": 10
@@ -90,7 +90,7 @@
       "name": "world_z",
       "label": "World Z Size",
       "description": "World size in Z dimension (used in 3D mode)",
-      "default": 200,
+      "default": 20,
       "min": 50,
       "max": 2000,
       "step": 10

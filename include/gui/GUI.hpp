@@ -5,6 +5,7 @@
 #include <string>
 
 #include "config/SimConfig.hpp"
+#include "core/SimState.hpp"
 
 struct SimulationState;
 struct GLFWwindow;
@@ -34,12 +35,12 @@ public:
     // Platform / lifecycle
     // --------------------------------------------------------
     bool initializePlatform(const char* title);
-    void initializeImGui(SimConfig initialSimConfig, const std::vector<std::string>& allVersions, int initialVersionIndex);
+    void initializeImGui();
 
     bool isRunning() const;
 
     void beginFrame();
-    void render(const SimulationState& state);
+    void render(SimConfig& simConfig, SimState& simState);
     void endFrame();
 
     void shutdown();
@@ -50,25 +51,12 @@ public:
     void clearInteractions();
     const std::vector<InteractionEvent>& getInteractions() const;
 
-    // --------------------------------------------------------
-    // Simulation config
-    // --------------------------------------------------------
-    const SimConfig& getSimConfig() const;
-    void setSimConfig(const SimConfig& cfg);
-
-    // Current version getters
-    int getCurrentVersionIdx() const;
-    const std::string& getCurrentVersion() const;
-
-    // getting pause state
-    bool isPaused() const;
-
 private:
     // --------------------------------------------------------
     // Internal helpers
     // --------------------------------------------------------
-    void renderControlGui();
-    void renderGrid(const SimulationState& state);
+    void renderControlGui(SimConfig& simConfig, SimState& simState);
+    void renderGrid(SimState& simState);
     void updateGridRect(int fbw, int fbh);
 
     bool screenToGridWorld(float sx, float sy, float& wx, float& wy) const;
@@ -86,12 +74,6 @@ private:
     // State
     // --------------------------------------------------------
     GLFWwindow* window = nullptr;
-    SimConfig simConfig;
-
-    std::vector<std::string> availableVersions;
-    int currentVersionIndex = 0;
-
-    bool isPausedFlag = false;
 
     struct GridScreenRect {
         float originX = 0.0f;
