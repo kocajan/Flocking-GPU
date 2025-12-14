@@ -1,46 +1,15 @@
+#include <iostream>
+
 #include "app/Application.hpp"
 
 #include "gui/GUI.hpp"
 #include "core/SimulationState.hpp"
 #include "core/SimulationUpdate.hpp"
-#include "core/SimConfig.hpp"
-#include "core/ConfigParameter.hpp"
+#include "config/SimConfig.hpp"
+#include "config/ConfigParameter.hpp"
+#include "core/VersionManager.hpp"
+#include "config/VersionConfigLoader.hpp"
 
-// ------------------------------------------------------------
-
-static SimConfig makeDefaultSimConfig() {
-    SimConfig cfg;
-
-    cfg.add(ConfigParameter::Binary(
-        "paused", "Paused", "Pause simulation", false
-    ));
-
-    cfg.add(ConfigParameter::Number(
-        "time_scale", "Time scale", "Simulation speed multiplier",
-        1.0f, 0.0f, 4.0f, 0.01f
-    ));
-
-    cfg.add(ConfigParameter::Enum(
-        "color_scheme", "Color Scheme", "Grid color scheme",
-        "Grayscale",
-        {"Grayscale", "Heatmap", "Blue-Red"}
-    ));
-
-    cfg.add(ConfigParameter::String(
-        "username", "Username", "Name of the user",
-        "Guest", true
-    ));
-
-    cfg.add(ConfigParameter::String(
-        "mode", "Mode", "Operating mode",
-        "Normal", false,
-        {"Normal", "Advanced", "Expert"}
-    ));
-
-    return cfg;
-}
-
-// ------------------------------------------------------------
 
 void Application::run() {
     GUI gui;
@@ -48,21 +17,53 @@ void Application::run() {
     if (!gui.initializePlatform("Flocking"))
         return;
 
-    gui.initializeImGui(makeDefaultSimConfig());
+    const auto versionConfigs = loadVersionConfigs("cfg/versions.json");
+    VersionManager versionManager(versionConfigs);
+
+    // Get available versions
+    const std::vector<std::string> availableVersions = versionManager.getAvailableVersions();
+
+    // Select version
+    int currentVersionIndex = 0;
+    std::string currentVersion = availableVersions.empty() ? "" : availableVersions[currentVersionIndex];
+
+    gui.initializeImGui(versionManager.getSimConfig(currentVersion), availableVersions, currentVersionIndex);
 
     SimulationState state;
 
     while (gui.isRunning()) {
         gui.clearInteractions();
         gui.beginFrame();
-
+        
         const SimConfig& cfg = gui.getSimConfig();
-        if (!cfg.binary("paused")) {
+
+        if (!gui.isPaused()) {
             updateSimulationDummy(state);
         }
 
         gui.render(state);
         gui.endFrame();
+
+        // If version changed, update sim config
+        if (currentVersionIndex != gui.getCurrentVersionIdx()) {
+            currentVersionIndex = gui.getCurrentVersionIdx();
+            currentVersion = availableVersions[currentVersionIndex];
+            gui.setSimConfig(versionManager.getSimConfig(currentVersion));
+        }
+
+        // Print the parameters (they might be custom based on the version) Put them on one line so I can see changes easily
+        std::cout << "Version: " << currentVersion << " | ";
+        std::cout << "IsPaused: " << (gui.isPaused() ? "true" : "false") << " | ";
+        for (const auto& param : cfg.params) {
+            if (param.type == ParamType::Number) {
+                std::cout << param.name << "=" << param.number() << " ";
+            } else if (param.type == ParamType::Binary) {
+                std::cout << param.name << "=" << (param.binary() ? "true" : "false") << " ";
+            } else if (param.type == ParamType::String || param.type == ParamType::Enum) {
+                std::cout << param.name << "=" << param.string() << " ";
+            }
+        }
+        std::cout << std::endl;
     }
 
     gui.shutdown();

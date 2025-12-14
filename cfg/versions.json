@@ -1,0 +1,99 @@
+{
+  "versions": [
+    {
+      "id": "v1",
+      "parameters": [
+        {
+          "type": "binary",
+          "name": "fast_mode",
+          "label": "Fast Mode",
+          "description": "Enable fast mode",
+          "default": false
+        },
+        {
+          "type": "number",
+          "name": "time_scale",
+          "label": "Time scale",
+          "description": "Simulation speed multiplier",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 4.0,
+          "step": 0.01
+        },
+        {
+          "type": "enum",
+          "name": "color_scheme",
+          "label": "Color Scheme",
+          "description": "Grid color scheme",
+          "default": "Grayscale",
+          "options": ["Grayscale", "Heatmap", "Blue-Red"]
+        },
+        {
+          "type": "string",
+          "name": "username",
+          "label": "Username",
+          "description": "Name of the user",
+          "default": "Guest",
+          "freeText": true
+        },
+        {
+          "type": "string",
+          "name": "mode",
+          "label": "Mode",
+          "description": "Operating mode",
+          "default": "Normal",
+          "freeText": false,
+          "options": ["Normal", "Advanced", "Expert"]
+        }
+      ]
+    },
+    {
+      "id": "v2",
+      "parameters": [
+        {
+          "type": "binary",
+          "name": "auto_step",
+          "label": "Auto Step",
+          "description": "Automatically advance simulation steps",
+          "default": true
+        },
+        {
+          "type": "number",
+          "name": "step_interval",
+          "label": "Step Interval",
+          "description": "Time between simulation steps (seconds)",
+          "default": 0.5,
+          "min": 0.05,
+          "max": 2.0,
+          "step": 0.05
+        },
+        {
+          "type": "number",
+          "name": "agent_count",
+          "label": "Agent Count",
+          "description": "Number of agents in the simulation",
+          "default": 250,
+          "min": 10,
+          "max": 2000,
+          "step": 10
+        },
+        {
+          "type": "enum",
+          "name": "behavior_model",
+          "label": "Behavior Model",
+          "description": "Agent behavior algorithm",
+          "default": "Boids",
+          "options": ["Boids", "RandomWalk", "FollowLeader"]
+        },
+        {
+          "type": "string",
+          "name": "scenario_name",
+          "label": "Scenario Name",
+          "description": "Scenario identifier",
+          "default": "Experiment_A",
+          "freeText": true
+        }
+      ]
+    }
+  ]
+}

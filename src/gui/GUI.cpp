@@ -70,8 +70,10 @@ bool GUI::initializePlatform(const char* title) {
 // ImGui init
 // ============================================================
 
-void GUI::initializeImGui(SimConfig initialSimConfig) {
+void GUI::initializeImGui(SimConfig initialSimConfig, const std::vector<std::string>& allVersions, int initialVersionIndex) {
     simConfig = std::move(initialSimConfig);
+    availableVersions = std::move(allVersions);
+    currentVersionIndex = initialVersionIndex;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -143,6 +145,33 @@ void GUI::shutdown() {
 void GUI::renderControlGui() {
     ImGui::Begin("Simulation");
 
+    // --------------------------------------------------------
+    // Version selector
+    // --------------------------------------------------------
+    if (!availableVersions.empty()) {
+        std::vector<const char*> versionLabels;
+        versionLabels.reserve(availableVersions.size());
+
+        for (const auto& v : availableVersions)
+            versionLabels.push_back(v.c_str());
+
+        ImGui::Combo(
+            "Version",
+            &currentVersionIndex,
+            versionLabels.data(),
+            static_cast<int>(versionLabels.size())
+        );
+    }
+
+    // --------------------------------------------------------
+    // Pause toggle
+    // --------------------------------------------------------
+    ImGui::Checkbox("Paused", &isPausedFlag);
+    ImGui::Separator();
+
+    // --------------------------------------------------------
+    // Parameters
+    // --------------------------------------------------------
     for (auto& p : simConfig.params) {
         switch (p.type) {
         case ParamType::Number: {
@@ -320,4 +349,16 @@ const SimConfig& GUI::getSimConfig() const {
 
 void GUI::setSimConfig(const SimConfig& cfg) {
     simConfig = cfg;
+}
+
+int GUI::getCurrentVersionIdx() const {
+    return currentVersionIndex;
+}
+
+const std::string& GUI::getCurrentVersion() const {
+    return availableVersions[currentVersionIndex];
+}
+
+bool GUI::isPaused() const {
+    return isPausedFlag;
 }

@@ -2,8 +2,9 @@
 
 #include <vector>
 #include <cstdint>
+#include <string>
 
-#include "core/SimConfig.hpp"
+#include "config/SimConfig.hpp"
 
 struct SimulationState;
 struct GLFWwindow;
@@ -33,7 +34,7 @@ public:
     // Platform / lifecycle
     // --------------------------------------------------------
     bool initializePlatform(const char* title);
-    void initializeImGui(SimConfig initialSimConfig);
+    void initializeImGui(SimConfig initialSimConfig, const std::vector<std::string>& allVersions, int initialVersionIndex);
 
     bool isRunning() const;
 
@@ -54,6 +55,13 @@ public:
     // --------------------------------------------------------
     const SimConfig& getSimConfig() const;
     void setSimConfig(const SimConfig& cfg);
+
+    // Current version getters
+    int getCurrentVersionIdx() const;
+    const std::string& getCurrentVersion() const;
+
+    // getting pause state
+    bool isPaused() const;
 
 private:
     // --------------------------------------------------------
@@ -79,6 +87,11 @@ private:
     // --------------------------------------------------------
     GLFWwindow* window = nullptr;
     SimConfig simConfig;
+
+    std::vector<std::string> availableVersions;
+    int currentVersionIndex = 0;
+
+    bool isPausedFlag = false;
 
     struct GridScreenRect {
         float originX = 0.0f;
