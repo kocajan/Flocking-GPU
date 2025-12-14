@@ -5,5 +5,4 @@
 #include "config/VersionConfig.hpp"
 #include <nlohmann/json.hpp>
 
-std::vector<VersionConfig>
-parseVersionConfigs(const nlohmann::json& root);
+std::vector<VersionConfig> parseVersionConfigs(const nlohmann::json& root);

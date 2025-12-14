@@ -172,7 +172,7 @@ void GUI::renderControlGui() {
     // --------------------------------------------------------
     // Parameters
     // --------------------------------------------------------
-    for (auto& p : simConfig.params) {
+    for (auto& p : simConfig.getParameters()) {
         switch (p.type) {
         case ParamType::Number: {
             auto& r = std::get<NumberRange>(p.range);

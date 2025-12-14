@@ -1,0 +1,99 @@
+{
+  "parameters": [
+    {
+      "type": "number",
+      "name": "dt",
+      "label": "Time Step",
+      "description": "Simulation time step (delta time)",
+      "default": 0.016,
+      "min": 0.001,
+      "max": 0.1,
+      "step": 0.001
+    },
+    {
+      "type": "binary",
+      "name": "paused",
+      "label": "Paused",
+      "description": "Pause the simulation",
+      "default": false
+    },
+    {
+      "type": "enum",
+      "name": "dimensions",
+      "label": "Dimensions",
+      "description": "Simulation dimensionality",
+      "default": "2D",
+      "options": ["2D", "3D"]
+    },
+    {
+      "type": "number",
+      "name": "boid_count",
+      "label": "Number of Boids",
+      "description": "Initial number of boids",
+      "default": 1000,
+      "min": 50,
+      "max": 5000,
+      "step": 50
+    },
+    {
+      "type": "enum",
+      "name": "left_mouse_effect",
+      "label": "Left Mouse Effect",
+      "description": "Action triggered by left mouse button",
+      "default": "Attract",
+      "options": [
+        "Spawn Predator",
+        "Delete Predator",
+        "Draw Obstacle",
+        "Erase Obstacle",
+        "Attract",
+        "Repel"
+      ]
+    },
+    {
+      "type": "enum",
+      "name": "right_mouse_effect",
+      "label": "Right Mouse Effect",
+      "description": "Action triggered by right mouse button",
+      "default": "Repel",
+      "options": [
+        "Spawn Predator",
+        "Delete Predator",
+        "Draw Obstacle",
+        "Erase Obstacle",
+        "Attract",
+        "Repel"
+      ]
+    },
+    {
+      "type": "number",
+      "name": "world_x",
+      "label": "World X Size",
+      "description": "World size in X dimension",
+      "default": 300,
+      "min": 50,
+      "max": 2000,
+      "step": 10
+    },
+    {
+      "type": "number",
+      "name": "world_y",
+      "label": "World Y Size",
+      "description": "World size in Y dimension",
+      "default": 200,
+      "min": 50,
+      "max": 2000,
+      "step": 10
+    },
+    {
+      "type": "number",
+      "name": "world_z",
+      "label": "World Z Size",
+      "description": "World size in Z dimension (used in 3D mode)",
+      "default": 200,
+      "min": 50,
+      "max": 2000,
+      "step": 10
+    }
+  ]
+}

@@ -3,8 +3,7 @@
 #include "json/JsonLoader.hpp"
 #include "json/VersionJsonParser.hpp"
 
-std::vector<VersionConfig>
-loadVersionConfigs(const std::string& jsonPath) {
+std::vector<VersionConfig> loadVersionConfigs(const std::string& jsonPath) {
     // Step 1: load JSON
     const auto root = JsonLoader::loadFromFile(jsonPath);
 

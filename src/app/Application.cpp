@@ -9,28 +9,46 @@
 #include "config/ConfigParameter.hpp"
 #include "core/VersionManager.hpp"
 #include "config/VersionConfigLoader.hpp"
+#include "config/SimStateConfigLoader.hpp"
+#include "config/SimStateConfig.hpp"
+#include "core/SimState.hpp"
 
 
 void Application::run() {
     GUI gui;
 
-    if (!gui.initializePlatform("Flocking"))
+    if (!gui.initializePlatform("Flocking")) {
         return;
+    }
 
-    const auto versionConfigs = loadVersionConfigs("cfg/versions.json");
+    // Load default simulation state configuration
+    const SimStateConfig simStateConfig = loadSimStateConfig("cfg/initial_simulation_state.json");
+    SimState simState(simStateConfig);
+
+    // Load version configurations
+    const std::vector<VersionConfig> versionConfigs = loadVersionConfigs("cfg/versions.json");
     VersionManager versionManager(versionConfigs);
 
     // Get available versions
     const std::vector<std::string> availableVersions = versionManager.getAvailableVersions();
 
+    // If no versions, exit
+    if (availableVersions.empty()) {
+        std::cerr << "No versions available!" << std::endl;
+        return;
+    }
+
     // Select version
     int currentVersionIndex = 0;
-    std::string currentVersion = availableVersions.empty() ? "" : availableVersions[currentVersionIndex];
+    std::string currentVersion = availableVersions[currentVersionIndex];
 
-    gui.initializeImGui(versionManager.getSimConfig(currentVersion), availableVersions, currentVersionIndex);
+    // Save it to the simState
+    simState.currentVersion = currentVersion;
+    simState.currentVersionIndex = currentVersionIndex;
+
+    gui.initializeImGui(versionManager.getSimConfig(currentVersion), simState);
 
     SimulationState state;
-
     while (gui.isRunning()) {
         gui.clearInteractions();
         gui.beginFrame();
@@ -54,7 +72,7 @@ void Application::run() {
         // Print the parameters (they might be custom based on the version) Put them on one line so I can see changes easily
         std::cout << "Version: " << currentVersion << " | ";
         std::cout << "IsPaused: " << (gui.isPaused() ? "true" : "false") << " | ";
-        for (const auto& param : cfg.params) {
+        for (const auto& param : cfg.getParameters()) {
             if (param.type == ParamType::Number) {
                 std::cout << param.name << "=" << param.number() << " ";
             } else if (param.type == ParamType::Binary) {
