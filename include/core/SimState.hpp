@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "boids/Boid.hpp"
 #include "config/SimStateConfig.hpp"
 #include "config/ConfigParameter.hpp"
 
@@ -17,6 +18,7 @@ public:
     // --------------------------------------------------------
     ConfigParameter dt;
     ConfigParameter paused;
+    ConfigParameter device;
     ConfigParameter dimensions;
 
     ConfigParameter boidCount;
@@ -33,7 +35,7 @@ public:
     // --------------------------------------------------------
     ConfigParameter version;
     int tick;
-    std::vector<std::vector<float>> grid;
+    std::vector<Boid> boids;
 
     // --------------------------------------------------------
     // Utilities

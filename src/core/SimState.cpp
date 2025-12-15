@@ -18,6 +18,7 @@ void SimState::resetFromConfig(const SimStateConfig& config, ConfigParameter ver
     // Copy parameters by name from config
     dt               = config.get("dt");
     paused           = config.get("paused");
+    device           = config.get("device");
     dimensions       = config.get("dimensions");
 
     boidCount        = config.get("boid_count");
@@ -33,8 +34,5 @@ void SimState::resetFromConfig(const SimStateConfig& config, ConfigParameter ver
     version = versionParam;
     tick = 0;
 
-    // Create a grid based on dimensions
-    int width = worldX.number();
-    int height = worldY.number();
-    grid = std::vector<std::vector<float>>(height, std::vector<float>(width, 0.0f));
+    boids.clear();
 }

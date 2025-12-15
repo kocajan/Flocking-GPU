@@ -26,6 +26,14 @@
       "options": ["2D", "3D"]
     },
     {
+      "type": "enum",
+      "name": "device",
+      "label": "Device",
+      "description": "Computation device",
+      "default": "CPU",
+      "options": ["CPU", "GPU"]
+    },
+    {
       "type": "number",
       "name": "boid_count",
       "label": "Number of Boids",
@@ -70,7 +78,7 @@
       "name": "world_x",
       "label": "World X Size",
       "description": "World size in X dimension",
-      "default": 30,
+      "default": 300,
       "min": 50,
       "max": 2000,
       "step": 10
@@ -80,7 +88,7 @@
       "name": "world_y",
       "label": "World Y Size",
       "description": "World size in Y dimension",
-      "default": 20,
+      "default": 200,
       "min": 50,
       "max": 2000,
       "step": 10
@@ -90,7 +98,7 @@
       "name": "world_z",
       "label": "World Z Size",
       "description": "World size in Z dimension (used in 3D mode)",
-      "default": 20,
+      "default": 200,
       "min": 50,
       "max": 2000,
       "step": 10

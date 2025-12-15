@@ -88,7 +88,7 @@ bool GUI::isRunning() const {
     return window && !glfwWindowShouldClose(window);
 }
 
-void GUI::beginFrame() {
+void GUI::beginFrame(float worldW, float worldH) {
     clearInteractions();
     glfwPollEvents();
 
@@ -103,11 +103,11 @@ void GUI::beginFrame() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    updateGridRect(fbw, fbh);
+    updateWorldView(fbw, fbh, worldW, worldH);
 }
 
 void GUI::render(SimConfig& simConfig, SimState& simState) {
-    renderGrid(simState);
+    renderWorld(simState);
     renderControlGui(simConfig, simState);
 }
 
@@ -136,32 +136,26 @@ void GUI::shutdown() {
 }
 
 // ============================================================
-// GUI rendering
+// GUI panels
 // ============================================================
+
 void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
     ImGui::Begin("Simulation");
     ImGui::Separator();
 
-    // --------------------------------------------------------
-    // Version selector
-    // --------------------------------------------------------
     renderParameter(simState.version);
 
-    // --------------------------------------------------------
-    // Simulation state (explicit)
-    // --------------------------------------------------------
     ImGui::TextUnformatted("Simulation State");
     renderParameter(simState.paused);
+    renderParameter(simState.device);
+    renderParameter(simState.dimensions);
     renderParameter(simState.boidCount);
     renderParameter(simState.leftMouseEffect);
     renderParameter(simState.rightMouseEffect);
 
     ImGui::Separator();
-
-    // --------------------------------------------------------
-    // Version-specific parameters (generic)
-    // --------------------------------------------------------
     ImGui::TextUnformatted("Version Parameters");
+
     for (auto& p : simConfig.getParameters()) {
         ImGui::PushID(&p);
         renderParameter(p);
@@ -173,61 +167,91 @@ void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
     ImGui::End();
 }
 
+// ============================================================
+// World rendering
+// ============================================================
 
-void GUI::renderGrid(SimState& simState) {
+ImVec2 GUI::worldToScreen(const Vec3& p) const {
+    return ImVec2(
+        worldView.originX + p.x * worldView.pixelsPerWorldUnit,
+        worldView.originY + p.y * worldView.pixelsPerWorldUnit
+    );
+}
+
+
+static inline float depthScale(float z, float worldZ) {
+    if (z < 0.0f || z > worldZ) return 0.0f;
+    return 1.0f - (z / worldZ);
+}
+
+void GUI::renderWorld(SimState& simState) {
     ImDrawList* draw = ImGui::GetBackgroundDrawList();
 
-    int height = simState.worldY.number();
-    int width  = simState.worldX.number();
+    const float worldW = simState.worldX.number();
+    const float worldH = simState.worldY.number();
+    const float worldZ = simState.worldZ.number();
 
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            int c = int(simState.grid[y][x] * 255.0f);
-            ImVec2 p0(
-                gridRect.originX + x * gridRect.cellSize,
-                gridRect.originY + y * gridRect.cellSize
-            );
+    // World bounds
+    draw->AddRect(
+        ImVec2(worldView.originX, worldView.originY),
+        ImVec2(
+            worldView.originX + worldView.viewWpx,
+            worldView.originY + worldView.viewHpx
+        ),
+        IM_COL32(120, 120, 120, 255)
+    );
 
-            ImVec2 p1(
-                p0.x + gridRect.cellSize,
-                p0.y + gridRect.cellSize
-            );
+    // Boids
+    for (const Boid& b : simState.boids) {
+        if (b.pos.x < 0 || b.pos.x > worldW) continue;
+        if (b.pos.y < 0 || b.pos.y > worldH) continue;
+        if (b.pos.z < 0 || b.pos.z > worldZ) continue;
 
-            draw->AddRectFilled(p0, p1, IM_COL32(c, c, c, 255));
-            draw->AddRect(p0, p1, IM_COL32(40, 40, 40, 255));
-        }
+        const float z = depthScale(b.pos.z, worldZ);
+        if (z <= 0.0f) continue;
+
+        const ImVec2 p = worldToScreen(b.pos);
+
+        const float radiusPx = b.radius * worldView.pixelsPerWorldUnit * (0.3f + 0.7f * z);
+
+        const ImU32 col = IM_COL32(
+            int(b.color.r * 255.0f),
+            int(b.color.g * 255.0f),
+            int(b.color.b * 255.0f),
+            int(b.color.a * 255.0f)
+        );
+
+        draw->AddCircleFilled(p, radiusPx, col, 12);
     }
 }
 
 // ============================================================
-// Grid helpers
+// World view helpers
 // ============================================================
 
-void GUI::updateGridRect(int fbw, int fbh) {
+void GUI::updateWorldView(int fbw, int fbh, float worldW, float worldH) {
     const float pad = 24.0f;
 
-    const float availW = fbw - 2 * pad;
-    const float availH = fbh - 2 * pad;
+    const float availW = fbw - 2.0f * pad;
+    const float availH = fbh - 2.0f * pad;
 
-    const int gw = 30;
-    const int gh = 20;
+    const float scale = std::min(availW / worldW, availH / worldH);
 
-    float cell = std::floor(std::min(availW / gw, availH / gh));
+    worldView.pixelsPerWorldUnit = scale;
+    worldView.viewWpx = worldW * scale;
+    worldView.viewHpx = worldH * scale;
 
-    gridRect.cellSize = cell;
-    gridRect.gridWpx  = cell * gw;
-    gridRect.gridHpx  = cell * gh;
-    gridRect.originX = (fbw - gridRect.gridWpx) * 0.5f;
-    gridRect.originY = (fbh - gridRect.gridHpx) * 0.5f;
+    worldView.originX = (fbw - worldView.viewWpx) * 0.5f;
+    worldView.originY = (fbh - worldView.viewHpx) * 0.5f;
 }
 
-bool GUI::screenToGridWorld(float sx, float sy, float& wx, float& wy) const {
-    if (sx < gridRect.originX || sy < gridRect.originY) return false;
-    if (sx >= gridRect.originX + gridRect.gridWpx) return false;
-    if (sy >= gridRect.originY + gridRect.gridHpx) return false;
+bool GUI::screenToWorld(float sx, float sy, float& wx, float& wy) const {
+    if (sx < worldView.originX || sy < worldView.originY) return false;
+    if (sx >= worldView.originX + worldView.viewWpx) return false;
+    if (sy >= worldView.originY + worldView.viewHpx) return false;
 
-    wx = (sx - gridRect.originX) / gridRect.cellSize;
-    wy = (sy - gridRect.originY) / gridRect.cellSize;
+    wx = (sx - worldView.originX) / worldView.pixelsPerWorldUnit;
+    wy = (sy - worldView.originY) / worldView.pixelsPerWorldUnit;
     return true;
 }
 
@@ -262,8 +286,13 @@ void GUI::mouseButtonCallback(GLFWwindow*, int button, int action, int) {
         instance->pressY = (float)my;
 
         float wx, wy;
-        if (instance->screenToGridWorld(instance->pressX, instance->pressY, wx, wy))
-            instance->interactions.push_back({ InteractionType::MouseClickOnGrid, wx, wy });
+        if (instance->screenToWorld(instance->pressX, instance->pressY, wx, wy)) {
+            instance->interactions.push_back({
+                InteractionType::MouseClickOnWorld,
+                wx,
+                wy
+            });
+        }
     }
 
     if (action == GLFW_RELEASE) {
@@ -280,8 +309,8 @@ void GUI::cursorPosCallback(GLFWwindow*, double mx, double my) {
     if (io.WantCaptureMouse)
         return;
 
-    float dx = (float)mx - instance->pressX;
-    float dy = (float)my - instance->pressY;
+    const float dx = (float)mx - instance->pressX;
+    const float dy = (float)my - instance->pressY;
 
     if (!instance->dragActive) {
         if (dx * dx + dy * dy < DRAG_THRESHOLD_PX2)
@@ -290,8 +319,13 @@ void GUI::cursorPosCallback(GLFWwindow*, double mx, double my) {
     }
 
     float wx, wy;
-    if (instance->screenToGridWorld((float)mx, (float)my, wx, wy))
-        instance->interactions.push_back({ InteractionType::MouseDragOnGrid, wx, wy });
+    if (instance->screenToWorld((float)mx, (float)my, wx, wy)) {
+        instance->interactions.push_back({
+            InteractionType::MouseDragOnWorld,
+            wx,
+            wy
+        });
+    }
 }
 
 // ============================================================

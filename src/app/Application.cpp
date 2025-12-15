@@ -10,8 +10,7 @@
 #include "config/SimStateConfigLoader.hpp"
 #include "config/SimStateConfig.hpp"
 #include "core/SimState.hpp"
-#include "core/SimulationUpdate.hpp"
-
+#include "simulator/SimulationUpdate.hpp"
 
 void Application::run() {
     GUI gui;
@@ -31,11 +30,14 @@ void Application::run() {
 
     gui.initializeImGui();
 
+    float worldX = simState.worldX.number();
+    float worldY = simState.worldY.number();
+
     while (gui.isRunning()) {
         gui.clearInteractions();
-        gui.beginFrame();
+        gui.beginFrame(worldX, worldY);
 
-        updateSimulationDummy(simState, simConfig, gui.getInteractions());
+        simulationUpdate(simState, simConfig, gui.getInteractions());
 
         // Check whether version has changed
         if (simState.version.string() != currentVersion) {

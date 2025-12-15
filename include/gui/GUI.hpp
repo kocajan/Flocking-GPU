@@ -7,6 +7,8 @@
 #include "config/SimConfig.hpp"
 #include "core/SimState.hpp"
 
+#include "imgui/imgui.h"
+
 struct SimulationState;
 struct GLFWwindow;
 
@@ -15,8 +17,8 @@ struct GLFWwindow;
 // ============================================================
 
 enum class InteractionType : uint8_t {
-    MouseClickOnGrid,
-    MouseDragOnGrid
+    MouseClickOnWorld,
+    MouseDragOnWorld
 };
 
 struct InteractionEvent {
@@ -31,62 +33,47 @@ struct InteractionEvent {
 
 class GUI {
 public:
-    // --------------------------------------------------------
-    // Platform / lifecycle
-    // --------------------------------------------------------
     bool initializePlatform(const char* title);
     void initializeImGui();
 
     bool isRunning() const;
 
-    void beginFrame();
+    void beginFrame(float worldW, float worldH);
     void render(SimConfig& simConfig, SimState& simState);
     void endFrame();
 
     void shutdown();
 
-    // --------------------------------------------------------
-    // Interactions
-    // --------------------------------------------------------
     void clearInteractions();
     const std::vector<InteractionEvent>& getInteractions() const;
 
 private:
-    // --------------------------------------------------------
-    // Internal helpers
-    // --------------------------------------------------------
     void renderControlGui(SimConfig& simConfig, SimState& simState);
-    void renderGrid(SimState& simState);
-    void updateGridRect(int fbw, int fbh);
+    void renderWorld(SimState& simState);
 
-    bool screenToGridWorld(float sx, float sy, float& wx, float& wy) const;
+    void updateWorldView(int fbw, int fbh, float worldW, float worldH);
+    bool screenToWorld(float sx, float sy, float& wx, float& wy) const;
 
-    // --------------------------------------------------------
-    // GLFW callbacks
-    // --------------------------------------------------------
     static void glfwErrorCallback(int, const char*);
     static void keyCallback(GLFWwindow*, int, int, int, int);
     static void mouseButtonCallback(GLFWwindow*, int, int, int);
     static void cursorPosCallback(GLFWwindow*, double, double);
+    ImVec2 worldToScreen(const Vec3& p) const;
 
 private:
-    // --------------------------------------------------------
-    // State
-    // --------------------------------------------------------
     GLFWwindow* window = nullptr;
 
-    struct GridScreenRect {
+    struct WorldViewRect {
         float originX = 0.0f;
         float originY = 0.0f;
-        float cellSize = 1.0f;
-        float gridWpx = 0.0f;
-        float gridHpx = 0.0f;
+        float pixelsPerWorldUnit = 1.0f;
+        float viewWpx = 0.0f;
+        float viewHpx = 0.0f;
     };
 
-    GridScreenRect gridRect{};
+    WorldViewRect worldView{};
     std::vector<InteractionEvent> interactions;
 
-    // Drag state
     bool mousePressed = false;
     bool dragActive = false;
     float pressX = 0.0f;
