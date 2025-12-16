@@ -22,7 +22,7 @@
       "name": "dimensions",
       "label": "Dimensions",
       "description": "Simulation dimensionality",
-      "default": "2D",
+      "default": "3D",
       "options": ["2D", "3D"]
     },
     {
@@ -35,13 +35,23 @@
     },
     {
       "type": "number",
-      "name": "boid_count",
-      "label": "Number of Boids",
-      "description": "Initial number of boids",
+      "name": "basic_boid_count",
+      "label": "Number of Basic Boids",
+      "description": "Initial number of basic boids",
       "default": 1000,
-      "min": 50,
+      "min": 0,
       "max": 5000,
       "step": 50
+    },
+    {
+      "type": "number",
+      "name": "predator_boid_count",
+      "label": "Number of Predator Boids",
+      "description": "Initial number of predator boids",
+      "default": 0,
+      "min": 0,
+      "max": 100,
+      "step": 1
     },
     {
       "type": "enum",
@@ -78,7 +88,7 @@
       "name": "world_x",
       "label": "World X Size",
       "description": "World size in X dimension",
-      "default": 300,
+      "default": 1000,
       "min": 50,
       "max": 2000,
       "step": 10
@@ -88,7 +98,7 @@
       "name": "world_y",
       "label": "World Y Size",
       "description": "World size in Y dimension",
-      "default": 200,
+      "default": 500,
       "min": 50,
       "max": 2000,
       "step": 10
@@ -98,10 +108,24 @@
       "name": "world_z",
       "label": "World Z Size",
       "description": "World size in Z dimension (used in 3D mode)",
-      "default": 200,
+      "default": 500,
       "min": 50,
       "max": 2000,
       "step": 10
+    },
+    {
+      "type": "binary",
+      "name": "delete_obstacles",
+      "label": "Delete Obstacles",
+      "description": "Delete obstacles in the simulation",
+      "default": false
+    },
+    {
+      "type": "binary",
+      "name": "reset_version_settings",
+      "label": "Reset Version Settings",
+      "description": "Reset version settings to default values",
+      "default": false
     }
   ]
 }

@@ -8,37 +8,57 @@
 
 class SimState {
 public:
-    // --------------------------------------------------------
-    // Construction
-    // --------------------------------------------------------
     explicit SimState(const SimStateConfig& config, ConfigParameter versionParam);
 
-    // --------------------------------------------------------
-    // Unpacked parameters (still ConfigParameter)
-    // --------------------------------------------------------
+    // Initial configuration (for resets)
+    SimStateConfig initialConfig;
+    ConfigParameter initialVersionParam;
+
+    // Parameters from config
     ConfigParameter dt;
     ConfigParameter paused;
     ConfigParameter device;
     ConfigParameter dimensions;
 
-    ConfigParameter boidCount;
+    ConfigParameter basicBoidCountTarget;
+    ConfigParameter predatorBoidCountTarget;
 
     ConfigParameter leftMouseEffect;
     ConfigParameter rightMouseEffect;
+
+    ConfigParameter resetVersionSettings;
+    ConfigParameter deleteObstacles;
 
     ConfigParameter worldX;
     ConfigParameter worldY;
     ConfigParameter worldZ;
 
-    // --------------------------------------------------------
-    // Additional runtime-only state (later)
-    // --------------------------------------------------------
+    // Additional runtime state
+    // - Version parameter containing current version and available versions
     ConfigParameter version;
-    int tick;
+
+    // - Simulation tick counter
+    uint64_t tick;
+
+    // - Boid population
     std::vector<Boid> boids;
 
-    // --------------------------------------------------------
-    // Utilities
-    // --------------------------------------------------------
-    void resetFromConfig(const SimStateConfig& config, ConfigParameter versionParam);
+    // - Boid type counters
+    uint64_t basicBoidCount;
+    uint64_t predatorBoidCount;
+    uint64_t obstacleBoidCount;
+
+    // - Boid type indices
+    std::vector<size_t> basicBoidIndices;
+    std::vector<size_t> predatorBoidIndices;
+    std::vector<size_t> obstacleBoidIndices;
+
+    // - Free boid indices for reuse
+    std::vector<size_t> freeBoidIndices;
+
+    // Reset from configuration
+    void resetToNewConfig(const SimStateConfig& config, ConfigParameter versionParam);
+
+    // Reset to initial configuration
+    void resetToDefaults();
 };

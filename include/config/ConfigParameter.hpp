@@ -5,10 +5,7 @@
 #include <vector>
 #include <cassert>
 
-// ============================================================
 // High-level parameter type (semantic, not primitive)
-// ============================================================
-
 enum class ParamType {
     Number,     // numeric value with range and step size
     Binary,     // true / false
@@ -17,10 +14,17 @@ enum class ParamType {
     Custom      // user-defined type
 };
 
-// ============================================================
-// Value storage
-// ============================================================
+// Preferred rendering style for GUI
+enum class ParamRender {
+    Checkbox,       // Binary
+    Button,         // Binary
+    ToggleButton,   // Binary (stateful)
+    Slider,         // Number
+    Drag,           // Number
+    Input           // String
+};
 
+// Value storage
 using ParamValue = std::variant<
     bool,
     int,
@@ -28,10 +32,7 @@ using ParamValue = std::variant<
     std::string
 >;
 
-// ============================================================
 // Range / domain definitions
-// ============================================================
-
 // ---------- Number ----------
 struct NumberRange {
     float min = 0.0f;
@@ -61,10 +62,7 @@ struct CustomRange {
     void* userData = nullptr;                  // opaque payload
 };
 
-// ============================================================
 // Unified range container
-// ============================================================
-
 using ParamRange = std::variant<
     NumberRange,
     BinaryRange,
@@ -73,36 +71,28 @@ using ParamRange = std::variant<
     CustomRange
 >;
 
-// ============================================================
-// Configuration parameter class
-// ============================================================
-
 class ConfigParameter {
 public:
-    // --------------------------------------------------------
-    // Identity / metadata (ALWAYS PRESENT)
-    // --------------------------------------------------------
+    // Identity / metadata
     std::string name;            // stable identifier (e.g. "time_scale")
     std::string label;           // UI label (e.g. "Time scale")
     std::string description;     // documentation / tooltip
+    
+    // Type
     ParamType type;
 
-    // --------------------------------------------------------
     // Value
-    // --------------------------------------------------------
     ParamValue value;
     ParamValue defaultValue;
 
-    // --------------------------------------------------------
     // Range / domain
-    // --------------------------------------------------------
     ParamRange range;
 
-public:
-    // ========================================================
-    // Factory constructors
-    // ========================================================
+    // Render
+    ParamRender render;
 
+public:
+    // Factory constructors
     static ConfigParameter Number(
         std::string name,
         std::string label,
@@ -110,7 +100,8 @@ public:
         float defaultValue,
         float min,
         float max,
-        float step
+        float step,
+        ParamRender render = ParamRender::Drag
     ) {
         return {
             std::move(name),
@@ -119,7 +110,8 @@ public:
             ParamType::Number,
             defaultValue,
             defaultValue,
-            NumberRange{min, max, step}
+            NumberRange{min, max, step},
+            render
         };
     }
 
@@ -127,7 +119,8 @@ public:
         std::string name,
         std::string label,
         std::string description,
-        bool defaultValue
+        bool defaultValue,
+        ParamRender render = ParamRender::Checkbox
     ) {
         return {
             std::move(name),
@@ -136,7 +129,8 @@ public:
             ParamType::Binary,
             defaultValue,
             defaultValue,
-            BinaryRange{}
+            BinaryRange{},
+            render
         };
     }
 
@@ -146,7 +140,8 @@ public:
         std::string description,
         std::string defaultValue,
         bool freeText = true,
-        std::vector<std::string> options = {}
+        std::vector<std::string> options = {},
+        ParamRender render = ParamRender::Input
     ) {
         return {
             std::move(name),
@@ -155,7 +150,8 @@ public:
             ParamType::String,
             defaultValue,
             defaultValue,
-            StringRange{freeText, std::move(options)}
+            StringRange{freeText, std::move(options)},
+            render
         };
     }
 
@@ -164,7 +160,8 @@ public:
         std::string label,
         std::string description,
         std::string defaultValue,
-        std::vector<std::string> options
+        std::vector<std::string> options,
+        ParamRender render = ParamRender::Input
     ) {
         assert(!options.empty());
 
@@ -175,7 +172,8 @@ public:
             ParamType::Enum,
             defaultValue,
             defaultValue,
-            EnumRange{std::move(options)}
+            EnumRange{std::move(options)},
+            render
         };
     }
 
@@ -184,7 +182,8 @@ public:
         std::string label,
         std::string description,
         ParamValue defaultValue,
-        CustomRange range
+        CustomRange range,
+        ParamRender render = ParamRender::Input
     ) {
         return {
             std::move(name),
@@ -193,14 +192,12 @@ public:
             ParamType::Custom,
             defaultValue,
             defaultValue,
-            range
+            range,
+            render
         };
     }
 
-    // ========================================================
-    // Typed accessors
-    // ========================================================
-
+    // Define typed accessors for value
     float& number() {
         assert(type == ParamType::Number);
         return std::get<float>(value);
@@ -231,10 +228,7 @@ public:
         return std::get<std::string>(value);
     }
 
-    // ========================================================
-    // Utilities
-    // ========================================================
-
+    // Reset to default value
     void reset() {
         value = defaultValue;
     }

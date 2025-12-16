@@ -45,25 +45,10 @@ void Application::run() {
             simConfig = versionManager.getSimConfig(currentVersion);
         }
 
+        printf("Reset Initial Settings: %d\n", simState.resetVersionSettings.binary());
+
         gui.render(simConfig, simState);
         gui.endFrame();
-
-        // Print the parameters (they might be custom based on the version) Put them on one line so I can see changes easily
-        std::cout << "Version: " << simState.version.string() << " | ";
-        std::cout << "IsPaused: " << (simState.paused.binary() ? "true" : "false") << " | ";
-        std::cout << "BoidCount: " << simState.boidCount.number() << " | ";
-        std::cout << "LeftMouseEffect: " << simState.leftMouseEffect.string() << " | ";
-        std::cout << "RightMouseEffect: " << simState.rightMouseEffect.string() << " | ";
-        for (const auto& param : simConfig.getParameters()) {
-            if (param.type == ParamType::Number) {
-                std::cout << param.name << "=" << param.number() << " ";
-            } else if (param.type == ParamType::Binary) {
-                std::cout << param.name << "=" << (param.binary() ? "true" : "false") << " ";
-            } else if (param.type == ParamType::String || param.type == ParamType::Enum) {
-                std::cout << param.name << "=" << param.string() << " ";
-            }
-        }
-        std::cout << std::endl;
     }
 
     gui.shutdown();

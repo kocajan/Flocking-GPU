@@ -149,9 +149,12 @@ void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
     renderParameter(simState.paused);
     renderParameter(simState.device);
     renderParameter(simState.dimensions);
-    renderParameter(simState.boidCount);
+    renderParameter(simState.basicBoidCountTarget);
+    renderParameter(simState.predatorBoidCountTarget);
     renderParameter(simState.leftMouseEffect);
     renderParameter(simState.rightMouseEffect);
+    renderParameter(simState.resetVersionSettings);
+    renderParameter(simState.deleteObstacles);
 
     ImGui::Separator();
     ImGui::TextUnformatted("Version Parameters");

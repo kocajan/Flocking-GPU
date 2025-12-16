@@ -26,16 +26,16 @@ float randRange(float a, float b) {
 }
 
 // ------------------------------------------------------------
-// Bird spawn / removal helpers
+// Basic spawn / removal helpers
 // ------------------------------------------------------------
-void spawnBirds(SimState& simState, int count) {
+void spawnBasics(SimState& simState, int count) {
     const float worldX = simState.worldX.number();
     const float worldY = simState.worldY.number();
     const float worldZ = simState.worldZ.number();
 
     for (int i = 0; i < count; ++i) {
         Boid b{};
-        b.type = BoidType::Bird;
+        b.type = BoidType::Basic;
 
         // random position in world bounds
         b.pos = {
@@ -46,9 +46,9 @@ void spawnBirds(SimState& simState, int count) {
 
         // random initial velocity
         b.vel = {
-            randRange(-1.0f, 1.0f),
-            randRange(-1.0f, 1.0f),
-            randRange(-1.0f, 1.0f)
+            randRange(-100.0f, 100.0f),
+            randRange(-100.0f, 100.0f),
+            randRange(-100.0f, 100.0f)
         };
 
         b.acc = {0.0f, 0.0f, 0.0f};
@@ -56,7 +56,7 @@ void spawnBirds(SimState& simState, int count) {
         // Give a default color (white)
         b.color = {1.0f, 1.0f, 1.0f, 1.0f};
 
-        // default bird parameters (temporary hardcoded)
+        // default Basic parameters (temporary hardcoded)
         b.radius = 2.0f;
         b.maxSpeed = 50.0f;
         b.maxForce = 10.0f;
@@ -75,10 +75,10 @@ void spawnBirds(SimState& simState, int count) {
     }
 }
 
-void removeBirds(SimState& simState, int count) {
+void removeBasics(SimState& simState, int count) {
     for (int i = 0; i < count; ++i) {
         for (size_t j = 0; j < simState.boids.size(); ++j) {
-            if (simState.boids[j].type == BoidType::Bird) {
+            if (simState.boids[j].type == BoidType::Basic) {
                 // swap-with-last removal
                 simState.boids[j] = simState.boids.back();
                 simState.boids.pop_back();
@@ -94,11 +94,11 @@ void removeBirds(SimState& simState, int count) {
 // Public entry point
 // ------------------------------------------------------------
 void regulateBoidPopulation(SimState& simState) {
-    const int target = simState.boidCount.number();
+    const int target = simState.basicBoidCountTarget.number();
 
     int current = 0;
     for (const Boid& b : simState.boids) {
-        if (b.type == BoidType::Bird)
+        if (b.type == BoidType::Basic)
             current++;
     }
 
@@ -106,10 +106,10 @@ void regulateBoidPopulation(SimState& simState) {
 
     if (delta > 0) {
         const int spawn = std::min(delta, MAX_SPAWN_PER_FRAME);
-        spawnBirds(simState, spawn);
+        spawnBasics(simState, spawn);
     }
     else if (delta < 0) {
         const int remove = std::min(-delta, MAX_DESPAWN_PER_FRAME);
-        removeBirds(simState, remove);
+        removeBasics(simState, remove);
     }
 }

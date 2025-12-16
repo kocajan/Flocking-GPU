@@ -6,7 +6,7 @@ struct Vec3 {
 };
 
 enum class BoidType : uint8_t {
-    Bird,
+    Basic,
     Predator,
     Obstacle,
     Custom
