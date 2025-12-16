@@ -9,6 +9,8 @@ enum class BoidType : uint8_t {
     Basic,
     Predator,
     Obstacle,
+    PhantomAttractor,
+    PhantomRepeller,
     Custom
 };
 

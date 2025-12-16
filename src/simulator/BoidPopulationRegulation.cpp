@@ -3,18 +3,14 @@
 
 #include <algorithm>
 #include <random>
+#include <cassert>
 
 namespace {
 
-// ------------------------------------------------------------
-// Tuning constants (hardcoded for now)
-// ------------------------------------------------------------
-constexpr int MAX_SPAWN_PER_FRAME   = 20;
-constexpr int MAX_DESPAWN_PER_FRAME = 20;
+// ============================================================
+// Random helpers
+// ============================================================
 
-// ------------------------------------------------------------
-// Random helpers (CPU only, simple)
-// ------------------------------------------------------------
 float rand01() {
     static std::mt19937 rng{ std::random_device{}() };
     static std::uniform_real_distribution<float> dist(0.0f, 1.0f);
@@ -25,91 +21,143 @@ float randRange(float a, float b) {
     return a + (b - a) * rand01();
 }
 
-// ------------------------------------------------------------
-// Basic spawn / removal helpers
-// ------------------------------------------------------------
-void spawnBasics(SimState& simState, int count) {
-    const float worldX = simState.worldX.number();
-    const float worldY = simState.worldY.number();
-    const float worldZ = simState.worldZ.number();
+// ============================================================
+// Color parsing
+// ============================================================
 
-    for (int i = 0; i < count; ++i) {
-        Boid b{};
-        b.type = BoidType::Basic;
+Color parseColorString(const std::string& s) {
+    if (s == "White")  return {1,1,1,1};
+    if (s == "Black")  return {0,0,0,1};
+    if (s == "Red")    return {1,0,0,1};
+    if (s == "Green")  return {0,1,0,1};
+    if (s == "Blue")   return {0,0,1,1};
+    return {0.5f,0.5f,0.5f,1};
+}
 
-        // random position in world bounds
-        b.pos = {
-            randRange(0.0f, worldX),
-            randRange(0.0f, worldY),
-            randRange(0.0f, worldZ)
-        };
+// ============================================================
+// Free-list allocation
+// ============================================================
 
-        // random initial velocity
-        b.vel = {
-            randRange(-100.0f, 100.0f),
-            randRange(-100.0f, 100.0f),
-            randRange(-100.0f, 100.0f)
-        };
+size_t allocateBoidSlot(SimState& s) {
+    if (!s.freeBoidIndices.empty()) {
+        size_t idx = s.freeBoidIndices.back();
+        s.freeBoidIndices.pop_back();
+        return idx;
+    }
+    s.boids.emplace_back();
+    return s.boids.size() - 1;
+}
 
-        b.acc = {0.0f, 0.0f, 0.0f};
+void freeBoidSlot(SimState& s, size_t idx) {
+#ifndef NDEBUG
+    assert(idx < s.boids.size());
+#endif
+    s.boids[idx].type = BoidType::Custom;
+    s.freeBoidIndices.push_back(idx);
+}
 
-        // Give a default color (white)
-        b.color = {1.0f, 1.0f, 1.0f, 1.0f};
+// ============================================================
+// Spawn / Remove (GENERIC)
+// ============================================================
 
-        // default Basic parameters (temporary hardcoded)
-        b.radius = 2.0f;
-        b.maxSpeed = 50.0f;
-        b.maxForce = 10.0f;
+void spawnBoids(
+    SimState& s,
+    BoidType type,
+    std::vector<size_t>& indices,
+    uint64_t& count,
+    int howMany,
+    ConfigParameter& radius,
+    ConfigParameter& color
+) {
+    const float wx = s.worldX.number();
+    const float wy = s.worldY.number();
+    const float wz = s.worldZ.number();
 
-        b.alignmentWeight  = 1.0f;
-        b.cohesionWeight   = 1.0f;
-        b.separationWeight = 1.2f;
+    for (int i = 0; i < howMany; ++i) {
+        size_t idx = allocateBoidSlot(s);
+        Boid& b = s.boids[idx];
 
-        // If running in 2D, lock Z
-        if (simState.dimensions.string() == "2D") {
-            b.pos.z = 0.0f;
-            b.vel.z = 0.0f;
+        b.type = type;
+        b.pos  = { randRange(0,wx), randRange(0,wy), randRange(0,wz) };
+        b.vel  = { randRange(-100,100), randRange(-100,100), randRange(-100,100) };
+        b.acc  = {0,0,0};
+
+        b.radius = radius.number();
+        b.color  = parseColorString(color.string());
+
+        if (s.dimensions.string() == "2D") {
+            b.pos.z = 0;
+            b.vel.z = 0;
         }
 
-        simState.boids.push_back(b);
+        indices.push_back(idx);
+        ++count;
     }
 }
 
-void removeBasics(SimState& simState, int count) {
-    for (int i = 0; i < count; ++i) {
-        for (size_t j = 0; j < simState.boids.size(); ++j) {
-            if (simState.boids[j].type == BoidType::Basic) {
-                // swap-with-last removal
-                simState.boids[j] = simState.boids.back();
-                simState.boids.pop_back();
-                break;
-            }
-        }
+void removeBoids(
+    SimState& s,
+    std::vector<size_t>& indices,
+    uint64_t& count,
+    int howMany
+) {
+    while (howMany-- > 0 && !indices.empty()) {
+        size_t idx = indices.back();
+        indices.pop_back();
+        freeBoidSlot(s, idx);
+        --count;
     }
 }
 
-} // anonymous namespace
+// ============================================================
+// Regulation
+// ============================================================
 
-// ------------------------------------------------------------
-// Public entry point
-// ------------------------------------------------------------
-void regulateBoidPopulation(SimState& simState) {
-    const int target = simState.basicBoidCountTarget.number();
-
-    int current = 0;
-    for (const Boid& b : simState.boids) {
-        if (b.type == BoidType::Basic)
-            current++;
-    }
-
-    const int delta = target - current;
+void regulateType(
+    SimState& s,
+    BoidType type,
+    std::vector<size_t>& indices,
+    uint64_t& count,
+    ConfigParameter& target,
+    ConfigParameter& radius,
+    ConfigParameter& color
+) {
+    const int tgt   = (int)target.number();
+    const int cur   = (int)count;
+    const int delta = tgt - cur;
+    const int maxΔ  = (int)s.maxBoidPopulationChangeRate.number();
 
     if (delta > 0) {
-        const int spawn = std::min(delta, MAX_SPAWN_PER_FRAME);
-        spawnBasics(simState, spawn);
+        spawnBoids(s, type, indices, count, std::min(delta, maxΔ), radius, color);
+    } else if (delta < 0) {
+        removeBoids(s, indices, count, std::min(-delta, maxΔ));
     }
-    else if (delta < 0) {
-        const int remove = std::min(-delta, MAX_DESPAWN_PER_FRAME);
-        removeBasics(simState, remove);
-    }
+}
+
+} // namespace
+
+// ============================================================
+// Public entry point
+// ============================================================
+
+void regulateBoidPopulation(SimState& s) {
+    regulateType(
+        s,
+        BoidType::Basic,
+        s.basicBoidIndices,
+        s.basicBoidCount,
+        s.basicBoidCountTarget,
+        s.basicBoidRadius,
+        s.basicBoidColor
+    );
+
+    regulateType(
+        s,
+        BoidType::Predator,
+        s.predatorBoidIndices,
+        s.predatorBoidCount,
+        s.predatorBoidCountTarget,
+        s.predatorRadius,
+        s.predatorBoidColor
+    );
 }

@@ -16,12 +16,12 @@ enum class ParamType {
 
 // Preferred rendering style for GUI
 enum class ParamRender {
-    Checkbox,       // Binary
-    Button,         // Binary
-    ToggleButton,   // Binary (stateful)
-    Slider,         // Number
-    Drag,           // Number
-    Input           // String
+    Checkbox,
+    Button,
+    ToggleButton,
+    Slider,         
+    Drag,
+    Input
 };
 
 // Value storage

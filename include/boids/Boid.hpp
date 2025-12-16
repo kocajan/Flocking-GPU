@@ -9,13 +9,6 @@ struct Boid {
 
     BoidType type;
 
-    float radius;
-    float maxSpeed;
-    float maxForce;
-
-    float alignmentWeight;
-    float cohesionWeight;
-    float separationWeight;
-
     Color color;
+    float radius;
 };

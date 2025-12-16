@@ -2,14 +2,12 @@
 
 #include <vector>
 #include <cstdint>
-#include <string>
 
 #include "config/SimConfig.hpp"
 #include "core/SimState.hpp"
 
 #include "imgui/imgui.h"
 
-struct SimulationState;
 struct GLFWwindow;
 
 // ============================================================
@@ -17,8 +15,8 @@ struct GLFWwindow;
 // ============================================================
 
 enum class InteractionType : uint8_t {
-    MouseClickOnWorld,
-    MouseDragOnWorld
+    LeftClickOnWorld,
+    RightClickOnWorld
 };
 
 struct InteractionEvent {
@@ -58,6 +56,7 @@ private:
     static void keyCallback(GLFWwindow*, int, int, int, int);
     static void mouseButtonCallback(GLFWwindow*, int, int, int);
     static void cursorPosCallback(GLFWwindow*, double, double);
+
     ImVec2 worldToScreen(const Vec3& p) const;
 
 private:
@@ -76,8 +75,10 @@ private:
 
     bool mousePressed = false;
     bool dragActive = false;
+    int activeMouseButton = -1;
+
     float pressX = 0.0f;
     float pressY = 0.0f;
-
+    
     static GUI* instance;
 };

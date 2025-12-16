@@ -45,7 +45,10 @@ void Application::run() {
             simConfig = versionManager.getSimConfig(currentVersion);
         }
 
-        printf("Reset Initial Settings: %d\n", simState.resetVersionSettings.binary());
+        // Check whether to reset to default settings
+        if (simState.resetVersionSettings.binary()) {
+            simState.resetToDefaults();
+        }
 
         gui.render(simConfig, simState);
         gui.endFrame();

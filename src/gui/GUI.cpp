@@ -20,7 +20,8 @@
 
 GUI* GUI::instance = nullptr;
 
-static constexpr float DRAG_THRESHOLD_PX  = 6.0f;
+// Larger threshold to avoid jitter
+static constexpr float DRAG_THRESHOLD_PX  = 12.0f;
 static constexpr float DRAG_THRESHOLD_PX2 = DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX;
 
 // ============================================================
@@ -141,11 +142,12 @@ void GUI::shutdown() {
 
 void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
     ImGui::Begin("Simulation");
-    ImGui::Separator();
 
     renderParameter(simState.version);
 
+    ImGui::Separator();
     ImGui::TextUnformatted("Simulation State");
+
     renderParameter(simState.paused);
     renderParameter(simState.device);
     renderParameter(simState.dimensions);
@@ -167,6 +169,7 @@ void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
 
     ImGui::Separator();
     ImGui::Text("Interactions: %zu", interactions.size());
+
     ImGui::End();
 }
 
@@ -175,12 +178,11 @@ void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
 // ============================================================
 
 ImVec2 GUI::worldToScreen(const Vec3& p) const {
-    return ImVec2(
+    return {
         worldView.originX + p.x * worldView.pixelsPerWorldUnit,
         worldView.originY + p.y * worldView.pixelsPerWorldUnit
-    );
+    };
 }
-
 
 static inline float depthScale(float z, float worldZ) {
     if (z < 0.0f || z > worldZ) return 0.0f;
@@ -196,37 +198,57 @@ void GUI::renderWorld(SimState& simState) {
 
     // World bounds
     draw->AddRect(
-        ImVec2(worldView.originX, worldView.originY),
-        ImVec2(
-            worldView.originX + worldView.viewWpx,
-            worldView.originY + worldView.viewHpx
-        ),
+        { worldView.originX, worldView.originY },
+        { worldView.originX + worldView.viewWpx,
+          worldView.originY + worldView.viewHpx },
         IM_COL32(120, 120, 120, 255)
     );
 
-    // Boids
-    for (const Boid& b : simState.boids) {
-        if (b.pos.x < 0 || b.pos.x > worldW) continue;
-        if (b.pos.y < 0 || b.pos.y > worldH) continue;
-        if (b.pos.z < 0 || b.pos.z > worldZ) continue;
+    auto drawBoidByIndex = [&](size_t idx) {
+        if (idx >= simState.boids.size())
+            return;
+
+        const Boid& b = simState.boids[idx];
+
+        // World bounds check
+        if (b.pos.x < 0 || b.pos.x > worldW) return;
+        if (b.pos.y < 0 || b.pos.y > worldH) return;
+        if (b.pos.z < 0 || b.pos.z > worldZ) return;
 
         const float z = depthScale(b.pos.z, worldZ);
-        if (z <= 0.0f) continue;
+        if (z <= 0.0f) return;
 
         const ImVec2 p = worldToScreen(b.pos);
+        const float r =
+            b.radius * worldView.pixelsPerWorldUnit * (0.3f + 0.7f * z);
 
-        const float radiusPx = b.radius * worldView.pixelsPerWorldUnit * (0.3f + 0.7f * z);
-
-        const ImU32 col = IM_COL32(
-            int(b.color.r * 255.0f),
-            int(b.color.g * 255.0f),
-            int(b.color.b * 255.0f),
-            int(b.color.a * 255.0f)
+        draw->AddCircleFilled(
+            p,
+            r,
+            IM_COL32(
+                int(b.color.r * 255.0f),
+                int(b.color.g * 255.0f),
+                int(b.color.b * 255.0f),
+                int(b.color.a * 255.0f)
+            ),
+            12
         );
+    };
 
-        draw->AddCircleFilled(p, radiusPx, col, 12);
+    // Render only boids tracked by SimState
+    for (size_t idx : simState.basicBoidIndices) {
+        drawBoidByIndex(idx);
+    }
+
+    for (size_t idx : simState.predatorBoidIndices) {
+        drawBoidByIndex(idx);
+    }
+
+    for (size_t idx : simState.obstacleBoidIndices) {
+        drawBoidByIndex(idx);
     }
 }
+
 
 // ============================================================
 // World view helpers
@@ -272,7 +294,11 @@ void GUI::keyCallback(GLFWwindow* w, int key, int, int action, int) {
 }
 
 void GUI::mouseButtonCallback(GLFWwindow*, int button, int action, int) {
-    if (!instance || button != GLFW_MOUSE_BUTTON_LEFT)
+    if (!instance)
+        return;
+
+    if (button != GLFW_MOUSE_BUTTON_LEFT &&
+        button != GLFW_MOUSE_BUTTON_RIGHT)
         return;
 
     ImGuiIO& io = ImGui::GetIO();
@@ -280,26 +306,30 @@ void GUI::mouseButtonCallback(GLFWwindow*, int button, int action, int) {
         return;
 
     if (action == GLFW_PRESS) {
+        instance->mousePressed = true;
+        instance->activeMouseButton = button;
+        instance->dragActive = false;
+
         double mx, my;
         glfwGetCursorPos(glfwGetCurrentContext(), &mx, &my);
 
-        instance->mousePressed = true;
-        instance->dragActive = false;
         instance->pressX = (float)mx;
         instance->pressY = (float)my;
 
         float wx, wy;
         if (instance->screenToWorld(instance->pressX, instance->pressY, wx, wy)) {
-            instance->interactions.push_back({
-                InteractionType::MouseClickOnWorld,
-                wx,
-                wy
-            });
+            InteractionType type =
+                (button == GLFW_MOUSE_BUTTON_LEFT)
+                    ? InteractionType::LeftClickOnWorld
+                    : InteractionType::RightClickOnWorld;
+
+            instance->interactions.push_back({ type, wx, wy });
         }
     }
 
     if (action == GLFW_RELEASE) {
         instance->mousePressed = false;
+        instance->activeMouseButton = -1;
         instance->dragActive = false;
     }
 }
@@ -322,13 +352,15 @@ void GUI::cursorPosCallback(GLFWwindow*, double mx, double my) {
     }
 
     float wx, wy;
-    if (instance->screenToWorld((float)mx, (float)my, wx, wy)) {
-        instance->interactions.push_back({
-            InteractionType::MouseDragOnWorld,
-            wx,
-            wy
-        });
-    }
+    if (!instance->screenToWorld((float)mx, (float)my, wx, wy))
+        return;
+
+    InteractionType type =
+        (instance->activeMouseButton == GLFW_MOUSE_BUTTON_LEFT)
+            ? InteractionType::LeftClickOnWorld
+            : InteractionType::RightClickOnWorld;
+
+    instance->interactions.push_back({ type, wx, wy });
 }
 
 // ============================================================

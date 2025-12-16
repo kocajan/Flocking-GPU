@@ -33,6 +33,16 @@ public:
     ConfigParameter worldY;
     ConfigParameter worldZ;
 
+    ConfigParameter basicBoidColor;
+    ConfigParameter predatorBoidColor;
+    ConfigParameter obstacleBoidColor;
+
+    ConfigParameter obstacleRadius;
+    ConfigParameter predatorRadius;
+    ConfigParameter basicBoidRadius;
+
+    ConfigParameter maxBoidPopulationChangeRate;
+
     // Additional runtime state
     // - Version parameter containing current version and available versions
     ConfigParameter version;
@@ -52,6 +62,7 @@ public:
     std::vector<size_t> basicBoidIndices;
     std::vector<size_t> predatorBoidIndices;
     std::vector<size_t> obstacleBoidIndices;
+    std::vector<size_t> phantomBoidIndices;
 
     // - Free boid indices for reuse
     std::vector<size_t> freeBoidIndices;

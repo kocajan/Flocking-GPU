@@ -126,6 +126,70 @@
       "label": "Reset Version Settings",
       "description": "Reset version settings to default values",
       "default": false
+    },
+    {
+      "type": "enum",
+      "name": "basic_boid_color",
+      "label": "Basic Boid Color",
+      "description": "Color of basic boids",
+      "default": "White",
+      "options": ["White", "Red", "Green", "Blue", "Yellow"]
+    },
+    {
+      "type": "enum",
+      "name": "predator_boid_color",
+      "label": "Predator Boid Color",
+      "description": "Color of predator boids",
+      "default": "Red",
+      "options": ["Red", "White", "Green", "Blue", "Yellow"]
+    },
+    {
+      "type": "enum",
+      "name": "obstacle_color",
+      "label": "Obstacle Color",
+      "description": "Color of obstacles",
+      "default": "Gray",
+      "options": ["Gray", "Black", "Brown", "DarkGreen"]
+    },
+    {
+      "type": "number",
+      "name": "obstacle_radius",
+      "label": "Obstacle Radius",
+      "description": "Radius of obstacles drawn with mouse",
+      "default": 10,
+      "min": 1,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "type": "number",
+      "name": "basic_boid_radius",
+      "label": "Basic Boid Radius",
+      "description": "Radius of basic boids",
+      "default": 2,
+      "min": 1,
+      "max": 10,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "name": "predator_boid_radius",
+      "label": "Predator Boid Radius",
+      "description": "Radius of predator boids",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "name": "max_boid_population_change_rate",
+      "label": "Max Boid Population Change Rate",
+      "description": "Maximum number of boids that can be spawned or removed per second",
+      "default": 20,
+      "min": 1,
+      "max": 100,
+      "step": 1
     }
   ]
 }
