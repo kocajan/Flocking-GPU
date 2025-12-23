@@ -46,7 +46,13 @@ void Application::run() {
 
         // Check whether to reset to default settings
         if (simState.resetVersionSettings.binary()) {
+            simConfig.resetAll();
+        }
+
+        // Check whether to reset simulation
+        if (simState.resetSimulation.binary()) {
             simState.resetToDefaults();
+            simConfig.resetAll();
         }
 
         gui.render(simConfig, simState);

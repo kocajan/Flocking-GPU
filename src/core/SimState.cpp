@@ -24,8 +24,10 @@ void SimState::resetToNewConfig(const SimStateConfig& config, ConfigParameter ve
     rightMouseEffect = config.get("right_mouse_effect");
 
     resetVersionSettings = config.get("reset_version_settings");
+    resetSimulation = config.get("reset_simulation");
     deleteObstacles = config.get("delete_obstacles");
     resetVersionSettings.render = ParamRender::Button;
+    resetSimulation.render = ParamRender::Button;
     deleteObstacles.render = ParamRender::Button;
 
     worldX = config.get("world_x");

@@ -27,6 +27,7 @@ public:
     ConfigParameter rightMouseEffect;
 
     ConfigParameter resetVersionSettings;
+    ConfigParameter resetSimulation;
     ConfigParameter deleteObstacles;
 
     ConfigParameter worldX;

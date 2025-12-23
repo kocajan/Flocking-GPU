@@ -167,6 +167,7 @@ void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
     renderParameter(simState.leftMouseEffect);
     renderParameter(simState.rightMouseEffect);
     renderParameter(simState.resetVersionSettings);
+    renderParameter(simState.resetSimulation);
     renderParameter(simState.deleteObstacles);
 
     ImGui::Separator();

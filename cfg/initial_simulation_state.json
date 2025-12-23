@@ -128,6 +128,13 @@
       "default": false
     },
     {
+      "type": "binary",
+      "name": "reset_simulation",
+      "label": "Reset Simulation",
+      "description": "Reset simulation",
+      "default": false
+    },
+    {
       "type": "enum",
       "name": "basic_boid_color",
       "label": "Basic Boid Color",
