@@ -53,7 +53,6 @@ void SimState::resetToNewConfig(const SimStateConfig& config, ConfigParameter ve
     basicBoidIndices.clear();   
     predatorBoidIndices.clear();
     obstacleBoidIndices.clear();
-    phantomBoidIndices.clear();
     freeBoidIndices.clear();
 }
 

@@ -2,12 +2,12 @@
 
 // Forward declarations
 void regulateBoidPopulation(SimState& simState);
-void applyInteractions(SimState& simState, const std::vector<InteractionEvent>& interactions);
+void applyInteraction(SimState& simState, const MouseInteractionEvent& interaction);
 void simulationStep(SimState& simState, const SimConfig& simConfig);
 
-void simulationUpdate(SimState& simState, const SimConfig& simConfig, const std::vector<InteractionEvent>& interactions) {
+void simulationUpdate(SimState& simState, const SimConfig& simConfig, const MouseInteractionEvent& interaction) {
     // Apply GUI and input interactions
-    applyInteractions(simState, interactions);
+    applyInteraction(simState, interaction);
 
     // Regulate population (allowed while paused)
     regulateBoidPopulation(simState);

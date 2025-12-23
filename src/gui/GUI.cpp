@@ -20,10 +20,6 @@
 
 GUI* GUI::instance = nullptr;
 
-// Larger threshold to avoid jitter
-static constexpr float DRAG_THRESHOLD_PX  = 12.0f;
-static constexpr float DRAG_THRESHOLD_PX2 = DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX;
-
 // ============================================================
 // Platform init
 // ============================================================
@@ -63,7 +59,6 @@ bool GUI::initializePlatform(const char* title) {
 
     glfwSetKeyCallback(window, keyCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
-    glfwSetCursorPosCallback(window, cursorPosCallback);
 
     return true;
 }
@@ -90,8 +85,24 @@ bool GUI::isRunning() const {
 }
 
 void GUI::beginFrame(float worldW, float worldH) {
-    clearInteractions();
     glfwPollEvents();
+
+    // Continuous interaction while mouse is pressed
+    interaction.active = false;
+    if (mousePressed) {
+        double mx, my;
+        glfwGetCursorPos(window, &mx, &my);
+
+        float wx, wy;
+        if (screenToWorld((float)mx, (float)my, wx, wy)) {
+            MouseInteractionType type = (activeMouseButton == GLFW_MOUSE_BUTTON_LEFT) ? 
+                MouseInteractionType::LeftClickOnWorld : MouseInteractionType::RightClickOnWorld;
+            interaction.type = type;
+            interaction.active = true;
+            interaction.worldX = wx;
+            interaction.worldY = wy;
+        }
+    }
 
     int fbw, fbh;
     glfwGetFramebufferSize(window, &fbw, &fbh);
@@ -168,7 +179,7 @@ void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
     }
 
     ImGui::Separator();
-    ImGui::Text("Interactions: %zu", interactions.size());
+    ImGui::Text("Interaction: %u", interaction.active ? 1 : 0);
 
     ImGui::End();
 }
@@ -196,7 +207,6 @@ void GUI::renderWorld(SimState& simState) {
     const float worldH = simState.worldY.number();
     const float worldZ = simState.worldZ.number();
 
-    // World bounds
     draw->AddRect(
         { worldView.originX, worldView.originY },
         { worldView.originX + worldView.viewWpx,
@@ -210,7 +220,6 @@ void GUI::renderWorld(SimState& simState) {
 
         const Boid& b = simState.boids[idx];
 
-        // World bounds check
         if (b.pos.x < 0 || b.pos.x > worldW) return;
         if (b.pos.y < 0 || b.pos.y > worldH) return;
         if (b.pos.z < 0 || b.pos.z > worldZ) return;
@@ -235,20 +244,15 @@ void GUI::renderWorld(SimState& simState) {
         );
     };
 
-    // Render only boids tracked by SimState
-    for (size_t idx : simState.basicBoidIndices) {
+    for (size_t idx : simState.basicBoidIndices)
         drawBoidByIndex(idx);
-    }
 
-    for (size_t idx : simState.predatorBoidIndices) {
+    for (size_t idx : simState.predatorBoidIndices)
         drawBoidByIndex(idx);
-    }
 
-    for (size_t idx : simState.obstacleBoidIndices) {
+    for (size_t idx : simState.obstacleBoidIndices)
         drawBoidByIndex(idx);
-    }
 }
-
 
 // ============================================================
 // World view helpers
@@ -308,69 +312,18 @@ void GUI::mouseButtonCallback(GLFWwindow*, int button, int action, int) {
     if (action == GLFW_PRESS) {
         instance->mousePressed = true;
         instance->activeMouseButton = button;
-        instance->dragActive = false;
-
-        double mx, my;
-        glfwGetCursorPos(glfwGetCurrentContext(), &mx, &my);
-
-        instance->pressX = (float)mx;
-        instance->pressY = (float)my;
-
-        float wx, wy;
-        if (instance->screenToWorld(instance->pressX, instance->pressY, wx, wy)) {
-            InteractionType type =
-                (button == GLFW_MOUSE_BUTTON_LEFT)
-                    ? InteractionType::LeftClickOnWorld
-                    : InteractionType::RightClickOnWorld;
-
-            instance->interactions.push_back({ type, wx, wy });
-        }
     }
 
     if (action == GLFW_RELEASE) {
         instance->mousePressed = false;
         instance->activeMouseButton = -1;
-        instance->dragActive = false;
     }
-}
-
-void GUI::cursorPosCallback(GLFWwindow*, double mx, double my) {
-    if (!instance || !instance->mousePressed)
-        return;
-
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse)
-        return;
-
-    const float dx = (float)mx - instance->pressX;
-    const float dy = (float)my - instance->pressY;
-
-    if (!instance->dragActive) {
-        if (dx * dx + dy * dy < DRAG_THRESHOLD_PX2)
-            return;
-        instance->dragActive = true;
-    }
-
-    float wx, wy;
-    if (!instance->screenToWorld((float)mx, (float)my, wx, wy))
-        return;
-
-    InteractionType type =
-        (instance->activeMouseButton == GLFW_MOUSE_BUTTON_LEFT)
-            ? InteractionType::LeftClickOnWorld
-            : InteractionType::RightClickOnWorld;
-
-    instance->interactions.push_back({ type, wx, wy });
 }
 
 // ============================================================
 // Accessors
 // ============================================================
 
-void GUI::clearInteractions() {
-    interactions.clear();
-}
-
-const std::vector<InteractionEvent>& GUI::getInteractions() const {
-    return interactions;
+const MouseInteractionEvent& GUI::getInteraction() const {
+    return interaction;
 }

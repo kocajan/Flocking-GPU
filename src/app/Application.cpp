@@ -34,10 +34,9 @@ void Application::run() {
     float worldY = simState.worldY.number();
 
     while (gui.isRunning()) {
-        gui.clearInteractions();
         gui.beginFrame(worldX, worldY);
 
-        simulationUpdate(simState, simConfig, gui.getInteractions());
+        simulationUpdate(simState, simConfig, gui.getInteraction());
 
         // Check whether version has changed
         if (simState.version.string() != currentVersion) {

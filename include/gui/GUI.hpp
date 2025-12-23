@@ -14,13 +14,14 @@ struct GLFWwindow;
 // Interaction
 // ============================================================
 
-enum class InteractionType : uint8_t {
+enum class MouseInteractionType : uint8_t {
     LeftClickOnWorld,
     RightClickOnWorld
 };
 
-struct InteractionEvent {
-    InteractionType type;
+struct MouseInteractionEvent {
+    MouseInteractionType type;
+    bool active;
     float worldX;
     float worldY;
 };
@@ -42,8 +43,7 @@ public:
 
     void shutdown();
 
-    void clearInteractions();
-    const std::vector<InteractionEvent>& getInteractions() const;
+    const MouseInteractionEvent& getInteraction() const;
 
 private:
     void renderControlGui(SimConfig& simConfig, SimState& simState);
@@ -55,7 +55,6 @@ private:
     static void glfwErrorCallback(int, const char*);
     static void keyCallback(GLFWwindow*, int, int, int, int);
     static void mouseButtonCallback(GLFWwindow*, int, int, int);
-    static void cursorPosCallback(GLFWwindow*, double, double);
 
     ImVec2 worldToScreen(const Vec3& p) const;
 
@@ -71,7 +70,7 @@ private:
     };
 
     WorldViewRect worldView{};
-    std::vector<InteractionEvent> interactions;
+    MouseInteractionEvent interaction;
 
     bool mousePressed = false;
     bool dragActive = false;

@@ -44,7 +44,7 @@ static void freeBoidSlot(SimState& s, size_t idx) {
 #ifndef NDEBUG
     assert(idx < s.boids.size());
 #endif
-    s.boids[idx].type = BoidType::Custom;
+    s.boids[idx].type = BoidType::Empty;
     s.freeBoidIndices.push_back(idx);
 }
 
@@ -59,31 +59,6 @@ static Color parseColorString(const std::string& s) {
     if (s == "Green")  return {0,1,0,1};
     if (s == "Blue")   return {0,0,1,1};
     return {0.5f,0.5f,0.5f,1};
-}
-
-// ============================================================
-// Interaction reduction
-// ============================================================
-
-static std::vector<InteractionEvent>
-reduceInteractions(const std::vector<InteractionEvent>& input) {
-    std::vector<InteractionEvent> out;
-
-    for (const auto& e : input) {
-        bool merged = false;
-        for (auto& o : out) {
-            if (o.type == e.type &&
-                dist2(o.worldX, o.worldY, e.worldX, e.worldY)
-                    < INTERACTION_RADIUS2) {
-                o = e;
-                merged = true;
-                break;
-            }
-        }
-        if (!merged)
-            out.push_back(e);
-    }
-    return out;
 }
 
 // ============================================================
@@ -133,20 +108,6 @@ static void spawnObstacle(SimState& s, float x, float y) {
     ++s.obstacleBoidCount;
 }
 
-static void spawnPhantom(SimState& s, float x, float y, BoidType type) {
-    size_t idx = allocateBoidSlot(s);
-    Boid& b = s.boids[idx];
-
-    b.type   = type;
-    b.pos    = { x, y, 0.0f };
-    b.vel    = {};
-    b.acc    = {};
-    b.radius = 0.0f;
-    b.color  = {0,0,0,0};
-
-    s.phantomBoidIndices.push_back(idx);
-}
-
 // ============================================================
 // Deletion helpers (DELETE ALL IN RADIUS)
 // ============================================================
@@ -182,16 +143,11 @@ static int deleteAllInRadius(
 // Effect dispatcher
 // ============================================================
 
-static void applyEffect(
-    SimState& s,
-    const std::string& effect,
-    float x,
-    float y
-) {
+static void applyEffect(SimState& s, const std::string& effect, float x, float y) {
+    // Dispatch effect
     if (effect == "Spawn Predator") {
         spawnPredator(s, x, y);
-    }
-    else if (effect == "Delete Predator") {
+    } else if (effect == "Delete Predator") {
         int removed = deleteAllInRadius(
             s,
             s.predatorBoidIndices,
@@ -202,48 +158,36 @@ static void applyEffect(
         s.predatorBoidCountTarget.number() =
             std::max(0.f,
                 s.predatorBoidCountTarget.number() - float(removed));
-    }
-    else if (effect == "Draw Obstacle") {
+    } else if (effect == "Draw Obstacle") {
         spawnObstacle(s, x, y);
-    }
-    else if (effect == "Erase Obstacle") {
+    } else if (effect == "Erase Obstacle") {
         deleteAllInRadius(
             s,
             s.obstacleBoidIndices,
             s.obstacleBoidCount,
             x, y
         );
-    }
-    else if (effect == "Attract") {
-        spawnPhantom(s, x, y, BoidType::PhantomAttractor);
-    }
-    else if (effect == "Repel") {
-        spawnPhantom(s, x, y, BoidType::PhantomRepeller);
+    } else if (effect == "Attract" || effect == "Repel") {
+        s.interaction.type = (effect == "Attract") ? InteractionType::Attract : InteractionType::Repel;
     }
 }
 
 // ============================================================
 // Public entry point
 // ============================================================
+void applyInteraction(SimState& simState, const MouseInteractionEvent& interaction) {
+    // Create interaction placeholder
+    Vec3 interactionPosition = { interaction.worldX, interaction.worldY, 0.0f };
+    InteractionType interactionType = InteractionType::Empty;
+    simState.interaction.point = interactionPosition;
+    simState.interaction.type = interactionType;
 
-void applyInteractions(
-    SimState& simState,
-    const std::vector<InteractionEvent>& interactions
-) {
-    // Remove old phantom boids (1-frame lifetime)
-    for (size_t idx : simState.phantomBoidIndices)
-        freeBoidSlot(simState, idx);
-
-    simState.phantomBoidIndices.clear();
-
-    const auto reduced = reduceInteractions(interactions);
-
-    for (const auto& e : reduced) {
-        const std::string& effect =
-            (e.type == InteractionType::LeftClickOnWorld)
-                ? simState.leftMouseEffect.string()
-                : simState.rightMouseEffect.string();
-
-        applyEffect(simState, effect, e.worldX, e.worldY);
+    // Check whether the interaction is active
+    if (!interaction.active) {
+        return;
     }
+
+    const std::string& effect = (interaction.type == MouseInteractionType::LeftClickOnWorld) ? simState.leftMouseEffect.string() : simState.rightMouseEffect.string();
+
+    applyEffect(simState, effect, interaction.worldX, interaction.worldY);
 }

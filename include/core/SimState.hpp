@@ -62,7 +62,9 @@ public:
     std::vector<size_t> basicBoidIndices;
     std::vector<size_t> predatorBoidIndices;
     std::vector<size_t> obstacleBoidIndices;
-    std::vector<size_t> phantomBoidIndices;
+
+    // - Define interaction
+    Interaction interaction;
 
     // - Free boid indices for reuse
     std::vector<size_t> freeBoidIndices;

@@ -6,4 +6,4 @@
 #include "config/SimConfig.hpp"
 #include "gui/GUI.hpp"
 
-void simulationUpdate(SimState& simState, const SimConfig& simConfig, const std::vector<InteractionEvent>& interactions);
+void simulationUpdate(SimState& simState, const SimConfig& simConfig, const MouseInteractionEvent& interaction);

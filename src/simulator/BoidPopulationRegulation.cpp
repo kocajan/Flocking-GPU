@@ -52,7 +52,7 @@ void freeBoidSlot(SimState& s, size_t idx) {
 #ifndef NDEBUG
     assert(idx < s.boids.size());
 #endif
-    s.boids[idx].type = BoidType::Custom;
+    s.boids[idx].type = BoidType::Empty;
     s.freeBoidIndices.push_back(idx);
 }
 

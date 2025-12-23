@@ -9,9 +9,7 @@ enum class BoidType : uint8_t {
     Basic,
     Predator,
     Obstacle,
-    PhantomAttractor,
-    PhantomRepeller,
-    Custom
+    Empty
 };
 
 struct Color {
@@ -19,4 +17,15 @@ struct Color {
     float g;
     float b;
     float a;
+};
+
+enum class InteractionType : uint8_t {
+    Repel,
+    Attract,
+    Empty
+};
+
+struct Interaction {
+    InteractionType type;
+    Vec3 point;
 };

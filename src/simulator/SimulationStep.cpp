@@ -38,7 +38,6 @@ void simulationStep(SimState& simState, const SimConfig& simConfig) {
     const float maxSpeed = simConfig.number("max_speed");
 
     // Get boid indices
-    std::vector<size_t> phantomBoidIndices = simState.phantomBoidIndices;
     std::vector<size_t> obstacleBoidIndices = simState.obstacleBoidIndices;
     std::vector<size_t> predatorBoidIndices = simState.predatorBoidIndices;
 
@@ -61,22 +60,19 @@ void simulationStep(SimState& simState, const SimConfig& simConfig) {
         if (b.type == BoidType::Obstacle)
             continue;
 
-        if (b.type == BoidType::PhantomAttractor || b.type == BoidType::PhantomRepeller)
-            continue;
-
-
         float rBoid = (b.type == BoidType::Predator) ? rPred : rBasic;
 
-        for (size_t phIdx : phantomBoidIndices) {
-            const Boid& ph = simState.boids[phIdx];
-
-            // Vector from phantom -> boid
-            float dx = b.pos.x - ph.pos.x;
-            float dy = b.pos.y - ph.pos.y;
-            float dz = b.pos.z - ph.pos.z;
+        // Apply interaction from mouse
+        const Interaction& inter = simState.interaction;
+        const InteractionType interType = inter.type;
+        if (interType != InteractionType::Empty) {
+            // Vector from boid to interaction point
+            float dx = b.pos.x - inter.point.x;
+            float dy = b.pos.y - inter.point.y;
+            float dz = b.pos.z - inter.point.z;
 
             float dist2 = dx*dx + dy*dy + dz*dz;
-            if (dist2 < 1e-6f) continue; // safety
+            if (dist2 < 1e-6f) dist2 = 1e-6f; // prevent div by zero
 
             float invDist = 1.0f / std::sqrt(dist2);
 
@@ -92,13 +88,13 @@ void simulationStep(SimState& simState, const SimConfig& simConfig) {
             if (forceMag > 100.0f)
                 forceMag = 100.0f;
 
-            if (ph.type == BoidType::PhantomAttractor) {
+            if (interType == InteractionType::Attract) {
                 // Pull toward phantom
                 b.acc.x -= nx * forceMag;
                 b.acc.y -= ny * forceMag;
                 b.acc.z -= nz * forceMag;
             }
-            else if (ph.type == BoidType::PhantomRepeller) {
+            else if (interType == InteractionType::Repel) {
                 // Push away from phantom
                 b.acc.x += nx * forceMag;
                 b.acc.y += ny * forceMag;
