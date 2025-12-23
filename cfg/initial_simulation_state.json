@@ -22,7 +22,7 @@
       "name": "dimensions",
       "label": "Dimensions",
       "description": "Simulation dimensionality",
-      "default": "3D",
+      "default": "2D",
       "options": ["2D", "3D"]
     },
     {
