@@ -56,10 +56,6 @@ void freeBoidSlot(SimState& s, size_t idx) {
     s.freeBoidIndices.push_back(idx);
 }
 
-// ============================================================
-// Spawn / Remove (GENERIC)
-// ============================================================
-
 void spawnBoids(
     SimState& s,
     BoidType type,
@@ -95,12 +91,7 @@ void spawnBoids(
     }
 }
 
-void removeBoids(
-    SimState& s,
-    std::vector<size_t>& indices,
-    uint64_t& count,
-    int howMany
-) {
+void removeBoids(SimState& s,std::vector<size_t>& indices,uint64_t& count,int howMany) {
     while (howMany-- > 0 && !indices.empty()) {
         size_t idx = indices.back();
         indices.pop_back();
@@ -113,15 +104,8 @@ void removeBoids(
 // Regulation
 // ============================================================
 
-void regulateType(
-    SimState& s,
-    BoidType type,
-    std::vector<size_t>& indices,
-    uint64_t& count,
-    ConfigParameter& target,
-    ConfigParameter& radius,
-    ConfigParameter& color
-) {
+void regulateType(SimState& s, BoidType type, std::vector<size_t>& indices, uint64_t& count, 
+                  ConfigParameter& target, ConfigParameter& radius, ConfigParameter& color) {
     const int tgt   = (int)target.number();
     const int cur   = (int)count;
     const int delta = tgt - cur;
@@ -160,4 +144,8 @@ void regulateBoidPopulation(SimState& s) {
         s.predatorRadius,
         s.predatorBoidColor
     );
+
+    if (s.deleteObstacles.binary()) {
+        removeBoids(s, s.obstacleBoidIndices, s.obstacleBoidCount, (int)s.obstacleBoidCount);
+    }
 }

@@ -172,9 +172,6 @@ static void applyEffect(SimState& s, const std::string& effect, float x, float y
     }
 }
 
-// ============================================================
-// Public entry point
-// ============================================================
 void applyInteraction(SimState& simState, const MouseInteractionEvent& interaction) {
     // Create interaction placeholder
     Vec3 interactionPosition = { interaction.worldX, interaction.worldY, 0.0f };

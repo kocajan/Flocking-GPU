@@ -152,7 +152,13 @@ void GUI::shutdown() {
 // ============================================================
 
 void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
-    ImGui::Begin("Simulation");
+    const bool isOpened = ImGui::Begin("Simulation");
+
+    // Do not submit items when closed
+    if (!isOpened) {
+        ImGui::End();
+        return;
+    }
 
     renderParameter(simState.version);
 
