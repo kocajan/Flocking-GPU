@@ -1,6 +1,7 @@
+#include <cassert>
+
 #include "json/ParameterJsonParser.hpp"
 
-#include <cassert>
 
 ConfigParameter parseParameter(const nlohmann::json& j) {
     const std::string type = j.at("type").get<std::string>();

@@ -7,6 +7,7 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_stdlib.h>
 
+
 void renderParameter(ConfigParameter& p) {
     switch (p.type) {
 
@@ -108,8 +109,7 @@ void renderParameter(ConfigParameter& p) {
         }
         break;
     }
-
-    case ParamType::Custom:
-        break;
+    default:
+        throw std::runtime_error("Unknown ParamType in renderParameter");
     }
 }

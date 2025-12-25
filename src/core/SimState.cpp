@@ -1,6 +1,7 @@
+#include <cassert>
+
 #include "core/SimState.hpp"
 
-#include <cassert>
 
 SimState::SimState(const Config& config, ConfigParameter versionParam) {
     resetToNewConfig(config, versionParam);
@@ -43,6 +44,8 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
     basicBoidRadius = config.get("basic_boid_radius");
 
     maxBoidPopulationChangeRate = config.get("max_boid_population_change_rate");
+
+    initialAxialSpeedRange = config.get("initial_axial_speed_range");
 
     version = versionParam;
 

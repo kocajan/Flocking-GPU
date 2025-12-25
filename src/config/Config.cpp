@@ -1,9 +1,21 @@
-#include "config/Config.hpp"
-
 #include <cassert>
 
+#include "config/Config.hpp"
+
+
+// Constructor / destructor
 Config::~Config() = default;
 
+// Config ID management
+const std::string& Config::getConfigId() const {
+    return configId;
+}
+
+void Config::setConfigId(std::string id) {
+    configId = std::move(id);
+}
+
+// Parameter management
 void Config::add(ConfigParameter param) {
     assert(indexByName.find(param.name) == indexByName.end());
     indexByName[param.name] = params.size();
@@ -26,6 +38,15 @@ const ConfigParameter& Config::get(const std::string& name) const {
     return params[it->second];
 }
 
+std::vector<ConfigParameter>& Config::getParameters() {
+    return params;
+}
+
+const std::vector<ConfigParameter>& Config::getParameters() const {
+    return params;
+}
+
+// Special accessors for values of the ConfigParameters
 float Config::number(const std::string& name) const {
     return get(name).number();
 }
@@ -38,6 +59,7 @@ const std::string& Config::string(const std::string& name) const {
     return get(name).string();
 }
 
+// Special accessors for references to values of the ConfigParameters
 float& Config::numberRef(const std::string& name) {
     return get(name).number();
 }
@@ -55,20 +77,3 @@ void Config::resetAll() {
         p.reset();
     }
 }
-
-std::vector<ConfigParameter>& Config::getParameters() {
-    return params;
-}
-
-const std::vector<ConfigParameter>& Config::getParameters() const {
-    return params;
-}
-
-const std::string& Config::getConfigId() const {
-    return configId;
-}
-
-void Config::setConfigId(std::string id) {
-    configId = std::move(id);
-}
-

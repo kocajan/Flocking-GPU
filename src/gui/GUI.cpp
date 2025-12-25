@@ -1,18 +1,17 @@
-#include "gui/GUI.hpp"
-#include "gui/GuiParameterRenderer.hpp"
-
 #include <cstdio>
 #include <cmath>
 
+#include "gui/GUI.hpp"
+#include "gui/GuiParameterRenderer.hpp"
+#include "core/SimState.hpp"
+#include "core/Types.hpp"
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
-
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 #include "imgui/imgui_stdlib.h"
 
-#include "core/SimState.hpp"
 
 // ============================================================
 // Static
@@ -238,14 +237,16 @@ void GUI::renderWorld(SimState& simState) {
         const float r =
             b.radius * worldView.pixelsPerWorldUnit * (0.3f + 0.7f * z);
 
+        Color color = parseColorString(b.color);
+
         draw->AddCircleFilled(
             p,
             r,
             IM_COL32(
-                int(b.color.r * 255.0f),
-                int(b.color.g * 255.0f),
-                int(b.color.b * 255.0f),
-                int(b.color.a * 255.0f)
+                int(color.r),
+                int(color.g),
+                int(color.b),
+                int(color.a)
             ),
             12
         );
@@ -333,4 +334,32 @@ void GUI::mouseButtonCallback(GLFWwindow*, int button, int action, int) {
 
 const MouseInteractionEvent& GUI::getInteraction() const {
     return interaction;
+}
+
+// ============================================================
+// Color parsing (from string like BLUE, RED, GREEN, etc.)
+// ============================================================
+Color GUI::parseColorString(const std::string& colorStr) const {
+    if (colorStr == "RED") {
+        return Color{255, 0, 0, 255};
+    } else if (colorStr == "GREEN") {
+        return Color{0, 255, 0, 255};
+    } else if (colorStr == "BLUE") {
+        return Color{0, 0, 255, 255};
+    } else if (colorStr == "YELLOW") {
+        return Color{255, 255, 0, 255};
+    } else if (colorStr == "CYAN") {
+        return Color{0, 255, 255, 255};
+    } else if (colorStr == "MAGENTA") {
+        return Color{255, 0, 255, 255};
+    } else if (colorStr == "WHITE") {
+        return Color{255, 255, 255, 255};
+    } else if (colorStr == "BLACK") {
+        return Color{0, 0, 0, 255};
+    } else if (colorStr == "GRAY") {
+        return Color{128, 128, 128, 255};
+    } else {
+        // Default to white if unknown
+        return Color{255, 255, 255, 255};
+    }
 }

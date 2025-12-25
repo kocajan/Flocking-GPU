@@ -8,13 +8,12 @@
 #include "config/Config.hpp"
 #include "config/ConfigParameter.hpp"
 
+
 class VersionManager {
 private:
-    // Fully materialized Configs per version
     std::unordered_map<std::string, Config> configs;
 
 public:
-    // Version selector parameter (enum)
     ConfigParameter versions;
 
 public:

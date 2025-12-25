@@ -5,9 +5,6 @@
 #include <nlohmann/json.hpp>
 
 
-namespace JsonLoader {
+nlohmann::json loadJsonFromFile(const std::string& path);
 
-    nlohmann::json loadFromFile(const std::string& path);
-
-    std::vector<std::string> listJsonFilesInDirectory(const std::string& directoryPath);
-}
+std::vector<std::string> listJsonFilesInDirectory(const std::string& directoryPath);

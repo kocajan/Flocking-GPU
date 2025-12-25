@@ -1,5 +1,6 @@
 #include "core/VersionManager.hpp"
 
+
 VersionManager::VersionManager(const std::vector<Config>& versionsInput) {
     assert(!versionsInput.empty());
 
@@ -12,7 +13,7 @@ VersionManager::VersionManager(const std::vector<Config>& versionsInput) {
         // Build Config for this version
         Config cfg;
         for (const auto& param : v.getParameters()) {
-            cfg.add(param); // copy parameter template
+            cfg.add(param);
         }
 
         configs.emplace(v.getConfigId(), std::move(cfg));

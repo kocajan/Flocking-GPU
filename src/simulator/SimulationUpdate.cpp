@@ -1,9 +1,9 @@
 #include "simulator/SimulationUpdate.hpp"
 
-// Forward declarations
-void regulateBoidPopulation(SimState& simState);
-void applyInteraction(SimState& simState, const MouseInteractionEvent& interaction);
-void simulationStep(SimState& simState, const Config& simConfig);
+#include "simulator/SimulationStep.hpp"
+#include "simulator/InteractionSystem.hpp"
+#include "simulator/BoidPopulationRegulation.hpp"
+
 
 void simulationUpdate(SimState& simState, const Config& simConfig, const MouseInteractionEvent& interaction) {
     // Apply GUI and input interactions

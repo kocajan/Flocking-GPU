@@ -5,8 +5,9 @@
 
 #include "config/Config.hpp"
 #include "core/SimState.hpp"
-
 #include "imgui/imgui.h"
+#include "core/Types.hpp"
+
 
 struct GLFWwindow;
 
@@ -57,6 +58,8 @@ private:
     static void mouseButtonCallback(GLFWwindow*, int, int, int);
 
     ImVec2 worldToScreen(const Vec3& p) const;
+
+    Color parseColorString(const std::string& colorStr) const;
 
 private:
     GLFWwindow* window = nullptr;

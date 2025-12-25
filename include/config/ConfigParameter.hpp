@@ -5,71 +5,8 @@
 #include <vector>
 #include <cassert>
 
-// High-level parameter type (semantic, not primitive)
-enum class ParamType {
-    Number,     // numeric value with range and step size
-    Binary,     // true / false
-    String,     // string (free or constrained)
-    Enum,       // one of predefined options
-    Custom      // user-defined type
-};
+#include "core/Types.hpp"
 
-// Preferred rendering style for GUI
-enum class ParamRender {
-    Checkbox,
-    Button,
-    ToggleButton,
-    Slider,         
-    Drag,
-    Input
-};
-
-// Value storage
-using ParamValue = std::variant<
-    bool,
-    int,
-    float,
-    std::string
->;
-
-// Range / domain definitions
-// ---------- Number ----------
-struct NumberRange {
-    float min = 0.0f;
-    float max = 1.0f;
-    float step = 0.01f;
-};
-
-// ---------- Binary ----------
-struct BinaryRange {
-    bool allowTrue  = true;
-    bool allowFalse = true;
-};
-
-// ---------- String ----------
-struct StringRange {
-    bool freeText = true;                      // allow arbitrary input
-    std::vector<std::string> options;          // optional allowed values
-};
-
-// ---------- Enum ----------
-struct EnumRange {
-    std::vector<std::string> options;          // must be non-empty
-};
-
-// ---------- Custom ----------
-struct CustomRange {
-    void* userData = nullptr;                  // opaque payload
-};
-
-// Unified range container
-using ParamRange = std::variant<
-    NumberRange,
-    BinaryRange,
-    StringRange,
-    EnumRange,
-    CustomRange
->;
 
 class ConfigParameter {
 public:
@@ -173,26 +110,6 @@ public:
             defaultValue,
             defaultValue,
             EnumRange{std::move(options)},
-            render
-        };
-    }
-
-    static ConfigParameter Custom(
-        std::string name,
-        std::string label,
-        std::string description,
-        ParamValue defaultValue,
-        CustomRange range,
-        ParamRender render = ParamRender::Input
-    ) {
-        return {
-            std::move(name),
-            std::move(label),
-            std::move(description),
-            ParamType::Custom,
-            defaultValue,
-            defaultValue,
-            range,
             render
         };
     }

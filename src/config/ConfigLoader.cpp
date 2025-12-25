@@ -5,7 +5,7 @@
 
 
 Config loadConfig(const std::string& jsonPath) {
-    const auto root = JsonLoader::loadFromFile(jsonPath);
+    const auto root = loadJsonFromFile(jsonPath);
 
     return parseConfig(root);
 }

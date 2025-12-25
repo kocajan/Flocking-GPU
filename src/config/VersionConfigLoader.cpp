@@ -5,11 +5,11 @@
 
 
 std::vector<Config> loadVersionConfigs(const std::string& jsonPath) {
-    const auto filePaths = JsonLoader::listJsonFilesInDirectory(jsonPath);
+    const auto filePaths = listJsonFilesInDirectory(jsonPath);
 
     std::vector<Config> versionConfigs;
     for (const auto& path : filePaths) {
-        const auto root = JsonLoader::loadFromFile(path);
+        const auto root = loadJsonFromFile(path);
         versionConfigs.push_back(parseConfig(root));
     }
     return versionConfigs;

@@ -2,9 +2,10 @@
 
 #include <string>
 
-#include "boids/Boid.hpp"
+#include "core/Types.hpp"
 #include "config/Config.hpp"
 #include "config/ConfigParameter.hpp"
+
 
 class SimState {
 public:
@@ -43,6 +44,8 @@ public:
     ConfigParameter basicBoidRadius;
 
     ConfigParameter maxBoidPopulationChangeRate;
+
+    ConfigParameter initialAxialSpeedRange;
 
     // Additional runtime state
     // - Version parameter containing current version and available versions

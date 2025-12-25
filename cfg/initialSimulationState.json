@@ -140,24 +140,24 @@
       "name": "basic_boid_color",
       "label": "Basic Boid Color",
       "description": "Color of basic boids",
-      "default": "White",
-      "options": ["White", "Red", "Green", "Blue", "Yellow"]
+      "default": "WHITE",
+      "options": ["WHITE", "RED", "GREEN", "BLUE", "YELLOW"]
     },
     {
       "type": "enum",
       "name": "predator_boid_color",
       "label": "Predator Boid Color",
       "description": "Color of predator boids",
-      "default": "Red",
-      "options": ["Red", "White", "Green", "Blue", "Yellow"]
+      "default": "RED",
+      "options": ["RED", "WHITE", "GREEN", "BLUE", "YELLOW"]
     },
     {
       "type": "enum",
       "name": "obstacle_color",
       "label": "Obstacle Color",
       "description": "Color of obstacles",
-      "default": "Gray",
-      "options": ["Gray", "Black", "Brown", "DarkGreen"]
+      "default": "GRAY",
+      "options": ["GRAY", "BLACK", "BROWN", "DARKGREEN"]
     },
     {
       "type": "number",
@@ -197,6 +197,16 @@
       "default": 20,
       "min": 1,
       "max": 100,
+      "step": 1
+    },
+    {
+      "type": "number",
+      "name": "initial_axial_speed_range",
+      "label": "Initial Axial Speed Range",
+      "description": "Range for initial boid speeds along each axis",
+      "default": 100,
+      "min": 1,
+      "max": 200,
       "step": 1
     }
   ]
