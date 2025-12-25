@@ -1,4 +1,5 @@
 #include <cassert>
+#include <iostream>
 
 #include "config/Config.hpp"
 
@@ -34,7 +35,10 @@ ConfigParameter& Config::get(const std::string& name) {
 
 const ConfigParameter& Config::get(const std::string& name) const {
     auto it = indexByName.find(name);
-    assert(it != indexByName.end());
+    if (it == indexByName.end()) {
+        std::cerr << "Config::get(): parameter not found: " << name << "\n";
+        std::abort();
+    }
     return params[it->second];
 }
 

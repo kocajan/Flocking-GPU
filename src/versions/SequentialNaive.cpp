@@ -1,4 +1,4 @@
-#include "versions/SequentialNaive.hpp"
+#include "versions/Sequential.hpp"
 
 #include <cmath>
 
@@ -26,7 +26,17 @@ void sequentialNaiveSimulationStep(SimState& simState, const Config& simConfig) 
     const float worldY = simState.worldY.number();
     const float worldZ = simState.worldZ.number();
 
+    // Load other parameters as needed
+    const float visionRadius = simConfig.number("vision");
+    const float alignmentWeight = simConfig.number("alignment");
+    const float cohesionWeight = simConfig.number("cohesion");
+    const float separationWeight = simConfig.number("separation");
+    const float maxForce = simConfig.number("max_force");
     const float maxSpeed = simConfig.number("max_speed");
+    const float minSpeed = simConfig.number("min_speed");
+    const float drag = simConfig.number("drag");
+    const float noise = simConfig.number("noise");
+
 
     // Get boid indices
     std::vector<size_t> obstacleBoidIndices = simState.obstacleBoidIndices;
@@ -38,20 +48,154 @@ void sequentialNaiveSimulationStep(SimState& simState, const Config& simConfig) 
     const float rPred = simState.predatorRadius.number();
 
     // walls
-    constexpr float WALL_FORCE     = 2000.0f;
-    constexpr float WALL_SOFT_DIST = 5.0f;
     constexpr float WALL_BOUNCE    = 0.6f;
 
     // obstacle bounce
     constexpr float BOUNCE_FACTOR = 0.6f;
 
-    for (Boid& b : simState.boids) {
+    for (int currentBoidIdx = 0; currentBoidIdx < simState.boids.size(); ++currentBoidIdx) {
+        Boid& b = simState.boids[currentBoidIdx];
         b.acc = {0,0,0};
 
         if (b.type == BoidType::Obstacle)
             continue;
 
         float rBoid = (b.type == BoidType::Predator) ? rPred : rBasic;
+
+
+        // ##############################################################
+        // Accumulators
+        Vec3 alignmentSum {0.0f, 0.0f, 0.0f};
+        Vec3 cohesionSum  {0.0f, 0.0f, 0.0f};
+        Vec3 separationSum{0.0f, 0.0f, 0.0f};
+        int neighborCount = 0;
+
+        // Precompute squared radius
+        float visionRadius2 = visionRadius * visionRadius;
+
+        // You should ideally know this boid's index directly (e.g. size_t i)
+        for (size_t otherIdx : simState.basicBoidIndices) {
+            if (otherIdx == currentBoidIdx) continue; // skip self
+
+            const Boid& other = simState.boids[otherIdx];
+
+            Vec3 toOther = {
+                other.pos.x - b.pos.x,
+                other.pos.y - b.pos.y,
+                other.pos.z - b.pos.z
+            };
+
+            float dist2 = sqrLen(toOther);
+            if (dist2 > visionRadius2) continue;
+
+            float dist = std::sqrt(dist2);
+            if (dist <= 0.0001f) continue; // avoid division by zero
+
+            neighborCount++;
+
+            // For cohesion / separation we need the direction
+            Vec3 n = {
+                toOther.x / dist,
+                toOther.y / dist,
+                toOther.z / dist
+            };
+
+            // Alignment: sum neighbor velocities
+            alignmentSum.x += other.vel.x;
+            alignmentSum.y += other.vel.y;
+            alignmentSum.z += other.vel.z;
+
+            // Cohesion: sum neighbor positions
+            cohesionSum.x += other.pos.x;
+            cohesionSum.y += other.pos.y;
+            cohesionSum.z += other.pos.z;
+
+            // Separation: stronger when closer
+            float sepStrength = 1.0f / dist2; // or 1.0f / dist;
+            separationSum.x -= n.x * sepStrength;
+            separationSum.y -= n.y * sepStrength;
+            separationSum.z -= n.z * sepStrength;
+        }
+
+        // Apply averaged flocking forces
+        if (neighborCount > 0) {
+            float invN = 1.0f / neighborCount;
+
+            // ----- Alignment -----
+            // Desired velocity is average neighbor velocity
+            Vec3 avgVel = {
+                alignmentSum.x * invN,
+                alignmentSum.y * invN,
+                alignmentSum.z * invN
+            };
+
+            Vec3 alignSteer = {
+                (avgVel.x - b.vel.x) * alignmentWeight,
+                (avgVel.y - b.vel.y) * alignmentWeight,
+                (avgVel.z - b.vel.z) * alignmentWeight
+            };
+
+            // ----- Cohesion -----
+            // Center of mass of neighbors
+            Vec3 center = {
+                cohesionSum.x * invN,
+                cohesionSum.y * invN,
+                cohesionSum.z * invN
+            };
+
+            Vec3 toCenter = {
+                center.x - b.pos.x,
+                center.y - b.pos.y,
+                center.z - b.pos.z
+            };
+
+            float toCenterLen2 = sqrLen(toCenter);
+            Vec3 cohesionSteer {0.0f, 0.0f, 0.0f};
+            if (toCenterLen2 > 0.0001f) {
+                float toCenterLen = std::sqrt(toCenterLen2);
+                Vec3 dirToCenter = {
+                    toCenter.x / toCenterLen,
+                    toCenter.y / toCenterLen,
+                    toCenter.z / toCenterLen
+                };
+                cohesionSteer.x = dirToCenter.x * cohesionWeight;
+                cohesionSteer.y = dirToCenter.y * cohesionWeight;
+                cohesionSteer.z = dirToCenter.z * cohesionWeight;
+            }
+
+            // ----- Separation -----
+            Vec3 separationSteer = {
+                separationSum.x * invN * separationWeight,
+                separationSum.y * invN * separationWeight,
+                separationSum.z * invN * separationWeight
+            };
+
+            // ----- Combine -----
+            Vec3 steer = {
+                alignSteer.x + cohesionSteer.x + separationSteer.x,
+                alignSteer.y + cohesionSteer.y + separationSteer.y,
+                alignSteer.z + cohesionSteer.z + separationSteer.z
+            };
+
+            // ----- Clamp to maxForce -----
+            float steerLen2 = sqrLen(steer);
+            if (steerLen2 > maxForce * maxForce) {
+                float inv = maxForce / std::sqrt(steerLen2);
+                steer.x *= inv;
+                steer.y *= inv;
+                steer.z *= inv;
+            }
+
+            // Apply to acceleration
+            b.acc.x += steer.x;
+            b.acc.y += steer.y;
+            b.acc.z += steer.z;
+
+        }
+
+        // ##############################################################
+
+
 
         // Apply interaction from mouse
         const Interaction& inter = simState.interaction;
@@ -128,10 +272,33 @@ void sequentialNaiveSimulationStep(SimState& simState, const Config& simConfig) 
             }
         }
 
+        // Use drag and noise
+        b.acc.x += -b.vel.x * drag;
+        b.acc.y += -b.vel.y * drag;
+        b.acc.z += -b.vel.z * drag;
+
+        b.acc.x += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * noise;
+        b.acc.y += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * noise;
+        b.acc.z += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * noise;
+
         // Integrate acceleration
         b.vel.x += b.acc.x * dt;
         b.vel.y += b.acc.y * dt;
         b.vel.z += b.acc.z * dt;
+
+        // Clamp speed
+        float speed2 = b.vel.x * b.vel.x + b.vel.y * b.vel.y + b.vel.z * b.vel.z;
+        if (speed2 > maxSpeed * maxSpeed) {
+            float invSpeed = maxSpeed / std::sqrt(speed2);
+            b.vel.x *= invSpeed;
+            b.vel.y *= invSpeed;
+            b.vel.z *= invSpeed;
+        } else if (speed2 < minSpeed * minSpeed) {
+            float invSpeed = minSpeed / std::sqrt(speed2);
+            b.vel.x *= invSpeed;
+            b.vel.y *= invSpeed;
+            b.vel.z *= invSpeed;
+        }
 
         // Integrate velocity
         b.pos.x += b.vel.x * dt;
