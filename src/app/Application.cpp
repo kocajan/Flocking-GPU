@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 
 #include "app/Application.hpp"
 
@@ -11,22 +12,24 @@
 #include "core/SimState.hpp"
 #include "simulator/SimulationUpdate.hpp"
 
-void Application::run() {
-    GUI gui;
 
+void Application::run(const std::string& configPath) {
+    GUI gui;
     if (!gui.initializePlatform("Flocking")) {
         return;
     }
 
-    const std::vector<Config> versionConfigs = loadVersionConfigs("cfg/versions/");
+    const std::filesystem::path configDir = std::filesystem::path(configPath);
+
+    const std::vector<Config> versionConfigs = loadVersionConfigs(configDir.string() + "/versions");
     VersionManager versionManager(versionConfigs);
 
-    const Config simStateConfig = loadConfig("cfg/initialSimulationState.json");
+    const Config simStateConfig = loadConfig(configDir.string() + "/initialSimulationState.json");
     SimState simState(simStateConfig, versionManager.versions);
 
     std::string currentVersion = simState.version.string();
     Config simConfig = versionManager.getSimConfig(currentVersion);
-    
+
     gui.initializeImGui();
 
     float worldX = simState.worldX.number();
