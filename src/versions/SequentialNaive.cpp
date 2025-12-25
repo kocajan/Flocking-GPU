@@ -17,7 +17,7 @@ static inline Vec3 normalize(const Vec3& v) {
     return { v.x * inv, v.y * inv, v.z * inv };
 }
 
-void sequentialNaiveSimulationStep(SimState& simState, const SimConfig& simConfig) {
+void sequentialNaiveSimulationStep(SimState& simState, const Config& simConfig) {
     const float dt   = simState.dt.number();
     const bool  is2D = (simState.dimensions.string() == "2D");
     const bool bounce = simConfig.binary("bounce");

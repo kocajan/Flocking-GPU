@@ -1,4 +1,5 @@
 {
+  "id": "initialSimulationState",
   "parameters": [
     {
       "type": "number",

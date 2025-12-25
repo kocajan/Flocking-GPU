@@ -3,15 +3,15 @@
 #include <string>
 
 #include "boids/Boid.hpp"
-#include "config/SimStateConfig.hpp"
+#include "config/Config.hpp"
 #include "config/ConfigParameter.hpp"
 
 class SimState {
 public:
-    explicit SimState(const SimStateConfig& config, ConfigParameter versionParam);
+    explicit SimState(const Config& config, ConfigParameter versionParam);
 
     // Initial configuration (for resets)
-    SimStateConfig initialConfig;
+    Config initialConfig;
     ConfigParameter initialVersionParam;
 
     // Parameters from config
@@ -71,7 +71,7 @@ public:
     std::vector<size_t> freeBoidIndices;
 
     // Reset from configuration
-    void resetToNewConfig(const SimStateConfig& config, ConfigParameter versionParam);
+    void resetToNewConfig(const Config& config, ConfigParameter versionParam);
 
     // Reset to initial configuration
     void resetToDefaults();

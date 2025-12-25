@@ -3,7 +3,7 @@
 #include <vector>
 #include <cstdint>
 
-#include "config/SimConfig.hpp"
+#include "config/Config.hpp"
 #include "core/SimState.hpp"
 
 #include "imgui/imgui.h"
@@ -38,7 +38,7 @@ public:
     bool isRunning() const;
 
     void beginFrame(float worldW, float worldH);
-    void render(SimConfig& simConfig, SimState& simState);
+    void render(Config& simConfig, SimState& simState);
     void endFrame();
 
     void shutdown();
@@ -46,7 +46,7 @@ public:
     const MouseInteractionEvent& getInteraction() const;
 
 private:
-    void renderControlGui(SimConfig& simConfig, SimState& simState);
+    void renderControlGui(Config& simConfig, SimState& simState);
     void renderWorld(SimState& simState);
 
     void updateWorldView(int fbw, int fbh, float worldW, float worldH);

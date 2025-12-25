@@ -2,11 +2,11 @@
 
 #include <cassert>
 
-SimState::SimState(const SimStateConfig& config, ConfigParameter versionParam) {
+SimState::SimState(const Config& config, ConfigParameter versionParam) {
     resetToNewConfig(config, versionParam);
 }
 
-void SimState::resetToNewConfig(const SimStateConfig& config, ConfigParameter versionParam) {
+void SimState::resetToNewConfig(const Config& config, ConfigParameter versionParam) {
     // Set initial config and version param
     initialConfig = config;
     initialVersionParam = versionParam;

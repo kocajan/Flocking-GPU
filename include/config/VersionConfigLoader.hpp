@@ -3,7 +3,6 @@
 #include <vector>
 #include <string>
 
-#include "VersionConfig.hpp"
+#include "config/Config.hpp"
 
-// Loads version configurations from JSON file and returns parsed configs
-std::vector<VersionConfig> loadVersionConfigs(const std::string& jsonPath);
+std::vector<Config> loadVersionConfigs(const std::string& jsonPath);

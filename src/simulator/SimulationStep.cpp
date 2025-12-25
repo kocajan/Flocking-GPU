@@ -1,5 +1,5 @@
 #include "core/SimState.hpp"
-#include "config/SimConfig.hpp"
+#include "config/Config.hpp"
 #include "boids/Boid.hpp"
 
 #include "versions/SequentialNaive.hpp"
@@ -12,7 +12,7 @@
 #include <stdexcept>
 
 
-void simulationStep(SimState& simState, const SimConfig& simConfig) {
+void simulationStep(SimState& simState, const Config& simConfig) {
     // Get the version
     const std::string& version = simState.version.string();
     if (version == "sequentialNaive") {

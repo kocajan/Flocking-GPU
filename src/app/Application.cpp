@@ -3,12 +3,11 @@
 #include "app/Application.hpp"
 
 #include "gui/GUI.hpp"
-#include "config/SimConfig.hpp"
+#include "config/Config.hpp"
 #include "config/ConfigParameter.hpp"
 #include "core/VersionManager.hpp"
 #include "config/VersionConfigLoader.hpp"
-#include "config/SimStateConfigLoader.hpp"
-#include "config/SimStateConfig.hpp"
+#include "config/ConfigLoader.hpp"
 #include "core/SimState.hpp"
 #include "simulator/SimulationUpdate.hpp"
 
@@ -19,15 +18,15 @@ void Application::run() {
         return;
     }
 
-    const std::vector<VersionConfig> versionConfigs = loadVersionConfigs("cfg/versions.json");
+    const std::vector<Config> versionConfigs = loadVersionConfigs("cfg/versions/");
     VersionManager versionManager(versionConfigs);
 
-    const SimStateConfig simStateConfig = loadSimStateConfig("cfg/initial_simulation_state.json");
+    const Config simStateConfig = loadConfig("cfg/initialSimulationState.json");
     SimState simState(simStateConfig, versionManager.versions);
 
     std::string currentVersion = simState.version.string();
-    SimConfig simConfig = versionManager.getSimConfig(currentVersion);
-
+    Config simConfig = versionManager.getSimConfig(currentVersion);
+    
     gui.initializeImGui();
 
     float worldX = simState.worldX.number();

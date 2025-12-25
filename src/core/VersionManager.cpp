@@ -1,6 +1,6 @@
 #include "core/VersionManager.hpp"
 
-VersionManager::VersionManager(const std::vector<VersionConfig>& versionsInput) {
+VersionManager::VersionManager(const std::vector<Config>& versionsInput) {
     assert(!versionsInput.empty());
 
     std::vector<std::string> versionIds;
@@ -9,8 +9,8 @@ VersionManager::VersionManager(const std::vector<VersionConfig>& versionsInput) 
     for (const auto& v : versionsInput) {
         assert(configs.find(v.getConfigId()) == configs.end());
 
-        // Build SimConfig for this version
-        SimConfig cfg;
+        // Build Config for this version
+        Config cfg;
         for (const auto& param : v.getParameters()) {
             cfg.add(param); // copy parameter template
         }
@@ -42,7 +42,7 @@ std::vector<std::string> VersionManager::getAvailableVersions() const {
     return versions;
 }
 
-const SimConfig& VersionManager::getSimConfig(const std::string& version) const {
+const Config& VersionManager::getSimConfig(const std::string& version) const {
     auto it = configs.find(version);
     assert(it != configs.end());
     return it->second;

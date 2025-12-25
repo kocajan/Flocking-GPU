@@ -1,0 +1,122 @@
+{
+    "id": "parallelNaive",
+    "parameters": [
+    {
+        "type": "number",
+        "name": "vision",
+        "label": "Vision Radius",
+        "description": "Neighbor detection radius",
+        "default": 100.0,
+        "min": 0.0,
+        "max": 200.0,
+        "step": 10.0
+    },
+    {
+        "type": "number",
+        "name": "alignment",
+        "label": "Alignment Weight",
+        "description": "Velocity alignment strength",
+        "default": 1.1,
+        "min": 0.0,
+        "max": 5.0,
+        "step": 0.01
+    },
+    {
+        "type": "number",
+        "name": "cohesion",
+        "label": "Cohesion Weight",
+        "description": "Attraction to neighbors",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 5.0,
+        "step": 0.01
+    },
+    {
+        "type": "number",
+        "name": "separation",
+        "label": "Separation Weight",
+        "description": "Repulsion from neighbors",
+        "default": 1.1,
+        "min": 0.0,
+        "max": 5.0,
+        "step": 0.01
+    },
+    {
+        "type": "number",
+        "name": "bias",
+        "label": "Alignment Bias",
+        "description": "Directional velocity bias exponent",
+        "default": 1.5,
+        "min": 0.1,
+        "max": 5.0,
+        "step": 0.01
+    },
+    {
+        "type": "number",
+        "name": "max_speed",
+        "label": "Max Speed",
+        "description": "Maximum boid speed",
+        "default": 50.0,
+        "min": 0.0,
+        "max": 200.0,
+        "step": 1.0
+    },
+    {
+        "type": "number",
+        "name": "min_speed",
+        "label": "Min Speed",
+        "description": "Minimum boid speed (0 disables)",
+        "default": 25.0,
+        "min": 0.0,
+        "max": 200.0,
+        "step": 1.0
+    },
+    {
+        "type": "number",
+        "name": "max_force",
+        "label": "Max Force",
+        "description": "Maximum steering force",
+        "default": 10.0,
+        "min": 0.0,
+        "max": 20.0,
+        "step": 1.0
+    },
+    {
+        "type": "number",
+        "name": "drag",
+        "label": "Drag",
+        "description": "Velocity damping (0 disables)",
+        "default": 0.005,
+        "min": 0.0,
+        "max": 0.2,
+        "step": 0.001
+    },
+    {
+        "type": "number",
+        "name": "noise",
+        "label": "Noise",
+        "description": "Random velocity rotation strength (0 disables)",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 10.0,
+        "step": 0.01
+    },
+    {
+        "type": "number",
+        "name": "accuracy",
+        "label": "Neighbor Accuracy",
+        "description": "Approx. number of neighbor checks (0 = full)",
+        "default": 32,
+        "min": 0,
+        "max": 512,
+        "step": 1
+    },
+    {
+        "type": "binary",
+        "name": "bounce",
+        "label": "Bounce Walls",
+        "description": "Bounce at world bounds (false = wrap)",
+        "default": true
+    }
+    ]
+}

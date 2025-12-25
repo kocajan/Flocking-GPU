@@ -118,7 +118,7 @@ void GUI::beginFrame(float worldW, float worldH) {
     updateWorldView(fbw, fbh, worldW, worldH);
 }
 
-void GUI::render(SimConfig& simConfig, SimState& simState) {
+void GUI::render(Config& simConfig, SimState& simState) {
     renderWorld(simState);
     renderControlGui(simConfig, simState);
 }
@@ -151,7 +151,7 @@ void GUI::shutdown() {
 // GUI panels
 // ============================================================
 
-void GUI::renderControlGui(SimConfig& simConfig, SimState& simState) {
+void GUI::renderControlGui(Config& simConfig, SimState& simState) {
     const bool isOpened = ImGui::Begin("Simulation");
 
     // Do not submit items when closed

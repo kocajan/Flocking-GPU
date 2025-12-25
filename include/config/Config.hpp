@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "ConfigParameter.hpp"
+#include "config/ConfigParameter.hpp"
 
 class Config {
 public:

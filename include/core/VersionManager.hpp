@@ -5,24 +5,23 @@
 #include <vector>
 #include <cassert>
 
-#include "config/SimConfig.hpp"
-#include "config/VersionConfig.hpp"
+#include "config/Config.hpp"
 #include "config/ConfigParameter.hpp"
 
 class VersionManager {
 private:
-    // Fully materialized SimConfigs per version
-    std::unordered_map<std::string, SimConfig> configs;
+    // Fully materialized Configs per version
+    std::unordered_map<std::string, Config> configs;
 
 public:
     // Version selector parameter (enum)
     ConfigParameter versions;
 
 public:
-    explicit VersionManager(const std::vector<VersionConfig>& versions);
+    explicit VersionManager(const std::vector<Config>& versions);
 
     bool hasVersion(const std::string& version) const;
     std::vector<std::string> getAvailableVersions() const;
 
-    const SimConfig& getSimConfig(const std::string& version) const;
+    const Config& getSimConfig(const std::string& version) const;
 };
