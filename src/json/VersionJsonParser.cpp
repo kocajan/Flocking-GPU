@@ -8,10 +8,10 @@ std::vector<VersionConfig> parseVersionConfigs(const nlohmann::json& root) {
 
     for (const auto& v : root.at("versions")) {
         VersionConfig vc;
-        vc.versionId = v.at("id").get<std::string>();
+        vc.setConfigId(v.at("id").get<std::string>());
 
         for (const auto& p : v.at("parameters")) {
-            vc.parameters.push_back(parseParameter(p));
+            vc.add(parseParameter(p));
         }
 
         result.push_back(std::move(vc));

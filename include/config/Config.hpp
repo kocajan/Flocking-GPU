@@ -8,7 +8,7 @@
 
 class Config {
 public:
-    Config();
+    explicit Config(std::string id = {}) : configId(std::move(id)) {}
     virtual ~Config();
 
     void add(ConfigParameter param);
@@ -31,7 +31,11 @@ public:
     std::vector<ConfigParameter>& getParameters();
     const std::vector<ConfigParameter>& getParameters() const;
 
+    const std::string& getConfigId() const;
+    void setConfigId(std::string id);
+
 protected:
+    std::string configId;
     std::vector<ConfigParameter> params;
     std::unordered_map<std::string, std::size_t> indexByName;
 };

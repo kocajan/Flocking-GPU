@@ -2,7 +2,6 @@
 
 #include <cassert>
 
-Config::Config() = default;
 Config::~Config() = default;
 
 void Config::add(ConfigParameter param) {
@@ -64,3 +63,12 @@ std::vector<ConfigParameter>& Config::getParameters() {
 const std::vector<ConfigParameter>& Config::getParameters() const {
     return params;
 }
+
+const std::string& Config::getConfigId() const {
+    return configId;
+}
+
+void Config::setConfigId(std::string id) {
+    configId = std::move(id);
+}
+

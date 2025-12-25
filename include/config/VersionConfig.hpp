@@ -3,10 +3,10 @@
 #include <string>
 #include <vector>
 
+#include "Config.hpp"
 #include "ConfigParameter.hpp"
 
-// Represents one version definition loaded from JSON
-struct VersionConfig {
-    std::string versionId;
-    std::vector<ConfigParameter> parameters;
+class VersionConfig : public Config {
+public:
+    explicit VersionConfig(std::string id = {}) : Config(std::move(id)) {}
 };

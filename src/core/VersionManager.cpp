@@ -7,16 +7,16 @@ VersionManager::VersionManager(const std::vector<VersionConfig>& versionsInput) 
     versionIds.reserve(versionsInput.size());
 
     for (const auto& v : versionsInput) {
-        assert(configs.find(v.versionId) == configs.end());
+        assert(configs.find(v.getConfigId()) == configs.end());
 
         // Build SimConfig for this version
         SimConfig cfg;
-        for (const auto& param : v.parameters) {
+        for (const auto& param : v.getParameters()) {
             cfg.add(param); // copy parameter template
         }
 
-        configs.emplace(v.versionId, std::move(cfg));
-        versionIds.push_back(v.versionId);
+        configs.emplace(v.getConfigId(), std::move(cfg));
+        versionIds.push_back(v.getConfigId());
     }
 
     // Create enum parameter for version selection
@@ -29,12 +29,12 @@ VersionManager::VersionManager(const std::vector<VersionConfig>& versionsInput) 
     );
 }
 
-bool VersionManager::hasVersion(const VersionId& version) const {
+bool VersionManager::hasVersion(const std::string& version) const {
     return configs.find(version) != configs.end();
 }
 
-std::vector<VersionManager::VersionId> VersionManager::getAvailableVersions() const {
-    std::vector<VersionId> versions;
+std::vector<std::string> VersionManager::getAvailableVersions() const {
+    std::vector<std::string> versions;
     versions.reserve(configs.size());
     for (const auto& pair : configs) {
         versions.push_back(pair.first);
@@ -42,7 +42,7 @@ std::vector<VersionManager::VersionId> VersionManager::getAvailableVersions() co
     return versions;
 }
 
-const SimConfig& VersionManager::getSimConfig(const VersionId& version) const {
+const SimConfig& VersionManager::getSimConfig(const std::string& version) const {
     auto it = configs.find(version);
     assert(it != configs.end());
     return it->second;

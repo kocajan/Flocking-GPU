@@ -3,5 +3,5 @@
 
 class SimConfig : public Config {
 public:
-    SimConfig() = default;
+    explicit SimConfig(std::string id = {}) : Config(std::move(id)) {}
 };

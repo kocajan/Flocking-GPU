@@ -3,5 +3,5 @@
 
 class SimStateConfig : public Config {
 public:
-    SimStateConfig() = default;
+    explicit SimStateConfig(std::string id = {}) : Config(std::move(id)) {}
 };

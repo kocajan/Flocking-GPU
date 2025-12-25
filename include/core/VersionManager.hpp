@@ -10,12 +10,9 @@
 #include "config/ConfigParameter.hpp"
 
 class VersionManager {
-public:
-    using VersionId = std::string;
-
 private:
     // Fully materialized SimConfigs per version
-    std::unordered_map<VersionId, SimConfig> configs;
+    std::unordered_map<std::string, SimConfig> configs;
 
 public:
     // Version selector parameter (enum)
@@ -24,8 +21,8 @@ public:
 public:
     explicit VersionManager(const std::vector<VersionConfig>& versions);
 
-    bool hasVersion(const VersionId& version) const;
-    std::vector<VersionId> getAvailableVersions() const;
+    bool hasVersion(const std::string& version) const;
+    std::vector<std::string> getAvailableVersions() const;
 
-    const SimConfig& getSimConfig(const VersionId& version) const;
+    const SimConfig& getSimConfig(const std::string& version) const;
 };
