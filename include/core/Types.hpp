@@ -41,10 +41,18 @@ struct Boid {
     Vec3 pos;
     Vec3 vel;
     Vec3 acc;
+    Vec3 targetPoint;
 
     BoidType type;
 
     std::string color;
+
+    int targetBoidIdx;
+
+    bool resting;
+
+    float targetBoidDistance;
+    float stamina;
     float radius;
 };
 

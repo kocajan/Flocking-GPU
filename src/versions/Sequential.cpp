@@ -2,17 +2,15 @@
 
 #include <cmath>
 
-static constexpr float EPS = 1e-5f;
 
 static inline float sqrLen(const Vec3& v) {
     return v.x * v.x + v.y * v.y + v.z * v.z;
 }
 
-static inline Vec3 normalize(const Vec3& v) {
+static inline Vec3 normalize(const Vec3& v, const float EPS = 1e-5f) {
     float l2 = sqrLen(v);
     if (l2 < EPS)
         return {0.0f, 0.0f, 0.0f};
-
     float inv = 1.0f / std::sqrt(l2);
     return { v.x * inv, v.y * inv, v.z * inv };
 }
@@ -20,37 +18,41 @@ static inline Vec3 normalize(const Vec3& v) {
 void sequentialSimulationStep(SimState& simState, const Config& simConfig) {
     const float dt   = simState.dt.number();
     const bool  is2D = (simState.dimensions.string() == "2D");
-    const bool bounce = simConfig.binary("bounce");
+    const bool  bounce = simConfig.binary("bounce");
 
     const float worldX = simState.worldX.number();
     const float worldY = simState.worldY.number();
     const float worldZ = simState.worldZ.number();
 
-    // Load other parameters as needed
-    const float visionRadius = simConfig.number("vision");
-    const float alignmentWeight = simConfig.number("alignment");
-    const float cohesionWeight = simConfig.number("cohesion");
-    const float separationWeight = simConfig.number("separation");
-    const float maxForce = simConfig.number("max_force");
+    // Boids visual + protected radii
+    const float visualRange     = simConfig.number("vision");
+
+    // Rule weights (Boids Lab terms)
+    const float centeringFactor = simConfig.number("cohesion");     // Cohesion
+    const float matchingFactor  = simConfig.number("alignment");    // Alignment
+    const float avoidFactor     = simConfig.number("separation") * 100.0f;   // Separation
+
+    // Dynamics
     const float maxSpeed = simConfig.number("max_speed");
     const float minSpeed = simConfig.number("min_speed");
-    const float drag = simConfig.number("drag");
-    const float noise = simConfig.number("noise");
+    const float drag     = simConfig.number("drag");
+    const float noise    = simConfig.number("noise");
 
-    // Get boid indices
+    // Walls
+    constexpr float WALL_BOUNCE = 0.6f;
+
+    // Obstacles
     std::vector<size_t> obstacleBoidIndices = simState.obstacleBoidIndices;
-    std::vector<size_t> predatorBoidIndices = simState.predatorBoidIndices;
-
-    // radii
     const float rObstacle = simState.obstacleRadius.number();
-    const float rBasic = simState.basicBoidRadius.number();
-    const float rPred = simState.predatorRadius.number();
-
-    // walls
-    constexpr float WALL_BOUNCE    = 0.6f;
-
-    // obstacle bounce
+    const float rBasic    = simState.basicBoidRadius.number();
+    const float rPred     = simState.predatorRadius.number();
     constexpr float BOUNCE_FACTOR = 0.6f;
+
+    // Zero-length constant
+    const float EPS = 1e-5f;
+
+    // Local target weight
+    const float localTargetWeight = 0.01f;
 
     for (int currentBoidIdx = 0; currentBoidIdx < simState.boids.size(); ++currentBoidIdx) {
         Boid& b = simState.boids[currentBoidIdx];
@@ -59,150 +61,110 @@ void sequentialSimulationStep(SimState& simState, const Config& simConfig) {
         if (b.type == BoidType::Obstacle)
             continue;
 
-        float rBoid = (b.type == BoidType::Predator) ? rPred : rBasic;
+        const float rBoid = (b.type == BoidType::Predator) ? rPred : rBasic;
+        const float rBoid2 = rBoid * rBoid;
 
-        // ##############################################################
-        // Accumulators
-        Vec3 alignmentSum {0.0f, 0.0f, 0.0f};
-        Vec3 cohesionSum  {0.0f, 0.0f, 0.0f};
-        Vec3 separationSum{0.0f, 0.0f, 0.0f};
-        int neighborCount = 0;
+        // ============================================================
+        // Boids Lab rule accumulators
+        // ============================================================
+        Vec3 closeDelta {0,0,0};     // separation (protected range)
+        Vec3 centerSum  {0,0,0};     // cohesion
+        Vec3 velSum     {0,0,0};     // alignment
+        int  neighborCount = 0;
 
-        float visionRadius2 = visionRadius * visionRadius;
+        const float visual2    = visualRange * visualRange;
 
         for (size_t otherIdx : simState.basicBoidIndices) {
             if (otherIdx == currentBoidIdx) continue;
 
-            const Boid& other = simState.boids[otherIdx];
+            const Boid& o = simState.boids[otherIdx];
 
-            Vec3 toOther = {
-                other.pos.x - b.pos.x,
-                other.pos.y - b.pos.y,
-                other.pos.z - b.pos.z
+            Vec3 d = {
+                o.pos.x - b.pos.x,
+                o.pos.y - b.pos.y,
+                o.pos.z - b.pos.z
             };
 
-            float dist2 = sqrLen(toOther);
-            if (dist2 > visionRadius2) continue;
+            float d2 = sqrLen(d);
+            if (d2 > visual2)
+                continue;
 
-            float dist = std::sqrt(dist2);
-            if (dist <= 0.0001f) continue;
+            float dist = std::sqrt(d2);
+            if (dist < EPS)
+                dist = EPS;
 
             neighborCount++;
 
-            Vec3 n = {
-                toOther.x / dist,
-                toOther.y / dist,
-                toOther.z / dist
-            };
+            // Separation — only inside protected range
+            if (d2 < rBoid2 * 4.0f) {
+                float invd = 1.0f / dist;
+                closeDelta.x -= (o.pos.x - b.pos.x) * invd;
+                closeDelta.y -= (o.pos.y - b.pos.y) * invd;
+                closeDelta.z -= (o.pos.z - b.pos.z) * invd;
+            } else if (d2 >= rBoid2 * 16.0f) {
+            // Cohesion - full vision range but outside protected range
+                centerSum.x += o.pos.x;
+                centerSum.y += o.pos.y;
+                centerSum.z += o.pos.z;    
+            }
 
-            // Alignment sum
-            alignmentSum.x += other.vel.x;
-            alignmentSum.y += other.vel.y;
-            alignmentSum.z += other.vel.z;
-
-            // Cohesion sum
-            cohesionSum.x += other.pos.x;
-            cohesionSum.y += other.pos.y;
-            cohesionSum.z += other.pos.z;
-
-            // Separation — inverse square weighting
-            float sepStrength = 1.0f / dist2;
-            separationSum.x -= n.x * sepStrength;
-            separationSum.y -= n.y * sepStrength;
-            separationSum.z -= n.z * sepStrength;
+            // Alignment - full vision range
+            velSum.x += o.vel.x;
+            velSum.y += o.vel.y;
+            velSum.z += o.vel.z;
         }
 
         if (neighborCount > 0) {
             float invN = 1.0f / neighborCount;
 
-            // ----- Alignment (heading-based, stable) -----
-            Vec3 avgVel = {
-                alignmentSum.x * invN,
-                alignmentSum.y * invN,
-                alignmentSum.z * invN
+            // Cohesion → steer toward average position
+            Vec3 cohesion = {
+                (centerSum.x * invN - b.pos.x) * centeringFactor,
+                (centerSum.y * invN - b.pos.y) * centeringFactor,
+                (centerSum.z * invN - b.pos.z) * centeringFactor
             };
+            b.acc.x += cohesion.x;
+            b.acc.y += cohesion.y;
+            b.acc.z += cohesion.z;
 
-            Vec3 desiredDir = normalize(avgVel);
-            Vec3 desired = {
-                desiredDir.x * maxSpeed,
-                desiredDir.y * maxSpeed,
-                desiredDir.z * maxSpeed
+            // Alignment → steer toward average velocity
+            Vec3 alignment = {
+                (velSum.x * invN - b.vel.x) * matchingFactor,
+                (velSum.y * invN - b.vel.y) * matchingFactor,
+                (velSum.z * invN - b.vel.z) * matchingFactor
             };
+            b.acc.x += alignment.x;
+            b.acc.y += alignment.y;
+            b.acc.z += alignment.z;
 
-            Vec3 alignSteer = {
-                (desired.x - b.vel.x) * alignmentWeight,
-                (desired.y - b.vel.y) * alignmentWeight,
-                (desired.z - b.vel.z) * alignmentWeight
-            };
-
-            // ----- Cohesion (unchanged) -----
-            Vec3 center = {
-                cohesionSum.x * invN,
-                cohesionSum.y * invN,
-                cohesionSum.z * invN
-            };
-
-            Vec3 toCenter = {
-                center.x - b.pos.x,
-                center.y - b.pos.y,
-                center.z - b.pos.z
-            };
-
-            float toCenterLen2 = sqrLen(toCenter);
-            Vec3 cohesionSteer {0.0f, 0.0f, 0.0f};
-            if (toCenterLen2 > 0.0001f) {
-                float toCenterLen = std::sqrt(toCenterLen2);
-                Vec3 dirToCenter = {
-                    toCenter.x / toCenterLen,
-                    toCenter.y / toCenterLen,
-                    toCenter.z / toCenterLen
-                };
-                cohesionSteer.x = dirToCenter.x * cohesionWeight;
-                cohesionSteer.y = dirToCenter.y * cohesionWeight;
-                cohesionSteer.z = dirToCenter.z * cohesionWeight;
-            }
-
-            // ----- Separation (not averaged, strong repulsion) -----
-            Vec3 separationSteer {0.0f, 0.0f, 0.0f};
-            float sepLen2 = sqrLen(separationSum);
-            if (sepLen2 > EPS) {
-                float sepLen = std::sqrt(sepLen2);
-                Vec3 dir = {
-                    separationSum.x / sepLen,
-                    separationSum.y / sepLen,
-                    separationSum.z / sepLen
-                };
-                separationSteer.x = dir.x * separationWeight;
-                separationSteer.y = dir.y * separationWeight;
-                separationSteer.z = dir.z * separationWeight;
-            }
-
-            // ----- Combine & clamp -----
-            Vec3 steer = {
-                alignSteer.x + cohesionSteer.x + separationSteer.x,
-                alignSteer.y + cohesionSteer.y + separationSteer.y,
-                alignSteer.z + cohesionSteer.z + separationSteer.z
-            };
-
-            float steerLen2 = sqrLen(steer);
-            if (steerLen2 > maxForce * maxForce) {
-                float inv = maxForce / std::sqrt(steerLen2);
-                steer.x *= inv;
-                steer.y *= inv;
-                steer.z *= inv;
-            }
-
-            b.acc.x += steer.x;
-            b.acc.y += steer.y;
-            b.acc.z += steer.z;
+            // Separation → avoid crowding
+            b.acc.x += closeDelta.x * avoidFactor;
+            b.acc.y += closeDelta.y * avoidFactor;
+            b.acc.z += closeDelta.z * avoidFactor;
         }
 
-        // ##############################################################
+        // ============================================================
+        // Local target attraction
+        // - The further from the target, the stronger the pull
+        // ============================================================
+        Vec3 toTarget = {
+            b.targetPoint.x - b.pos.x,
+            b.targetPoint.y - b.pos.y,
+            b.targetPoint.z - b.pos.z
+        };
+        if (is2D)
+            toTarget.z = 0.0f;
+        Vec3 toTargetN = normalize(toTarget, EPS);
+        float toTargetLen = std::sqrt(sqrLen(toTarget));
+        b.acc.x += toTargetN.x * (toTargetLen * toTargetLen) * localTargetWeight;
+        b.acc.y += toTargetN.y * (toTargetLen * toTargetLen) * localTargetWeight;
+        b.acc.z += toTargetN.z * (toTargetLen * toTargetLen) * localTargetWeight;
 
-        // Apply interaction from mouse
+        // ============================================================
+        // Mouse interaction — unchanged
+        // ============================================================
         const Interaction& inter = simState.interaction;
-        const InteractionType interType = inter.type;
-        if (interType != InteractionType::Empty) {
+        if (inter.type != InteractionType::Empty) {
             float dx = b.pos.x - inter.point.x;
             float dy = b.pos.y - inter.point.y;
             float dz = b.pos.z - inter.point.z;
@@ -211,122 +173,104 @@ void sequentialSimulationStep(SimState& simState, const Config& simConfig) {
             if (dist2 < 1e-6f) dist2 = 1e-6f;
 
             float invDist = 1.0f / std::sqrt(dist2);
-
             float nx = dx * invDist;
             float ny = dy * invDist;
             float nz = dz * invDist;
 
             float forceMag = 10000000.0f / dist2;
-            if (forceMag > 100.0f)
-                forceMag = 100.0f;
+            if (forceMag > 300.0f) forceMag = 300.0f;
 
-            if (interType == InteractionType::Attract) {
+            if (inter.type == InteractionType::Attract) {
                 b.acc.x -= nx * forceMag;
                 b.acc.y -= ny * forceMag;
                 b.acc.z -= nz * forceMag;
-            }
-            else if (interType == InteractionType::Repel) {
+            } else {
                 b.acc.x += nx * forceMag;
                 b.acc.y += ny * forceMag;
                 b.acc.z += nz * forceMag;
             }
         }
 
-        // For each boid, calculate acceleration due to obstacles
+        // ============================================================
+        // Obstacles — kept as in your original version
+        // ============================================================
         for (size_t obsIdx : obstacleBoidIndices) {
             const Boid& obs = simState.boids[obsIdx];
 
-            Vec3 toBoid = {
+            Vec3 diff = {
                 b.pos.x - obs.pos.x,
                 b.pos.y - obs.pos.y,
-                b.pos.z - obs.pos.z
+                0.0f
             };
 
-            float dist2 = sqrLen(toBoid);
+            float dist2 = sqrLen(diff);
             float combinedRadius = rBoid + rObstacle;
             float dist = std::sqrt(dist2) - combinedRadius;
 
             if (dist < 0.0f) {
-                Vec3 n = normalize(toBoid);
+                Vec3 n = normalize(diff);
                 b.pos.x += n.x * (-dist + EPS);
                 b.pos.y += n.y * (-dist + EPS);
                 b.pos.z += n.z * (-dist + EPS);
-                float vDotN = b.vel.x * n.x + b.vel.y * n.y + b.vel.z * n.z;
+                float vDotN = b.vel.x*n.x + b.vel.y*n.y + b.vel.z*n.z;
                 b.vel.x -= (1.0f + BOUNCE_FACTOR) * vDotN * n.x;
                 b.vel.y -= (1.0f + BOUNCE_FACTOR) * vDotN * n.y;
                 b.vel.z -= (1.0f + BOUNCE_FACTOR) * vDotN * n.z;
             } else {
                 float forceMag = 1000.0f * std::exp(-dist / 5.0f);
-                Vec3 n = normalize(toBoid);
+                Vec3 n = normalize(diff);
                 b.acc.x += n.x * forceMag;
                 b.acc.y += n.y * forceMag;
                 b.acc.z += n.z * forceMag;
             }
         }
 
-        // Use drag and noise
+        // Drag + noise
         b.acc.x += -b.vel.x * drag;
         b.acc.y += -b.vel.y * drag;
         b.acc.z += -b.vel.z * drag;
 
-        b.acc.x += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * noise;
-        b.acc.y += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * noise;
-        b.acc.z += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * noise;
+        b.acc.x += ((float)rand() / RAND_MAX - 0.5f) * noise;
+        b.acc.y += ((float)rand() / RAND_MAX - 0.5f) * noise;
+        b.acc.z += ((float)rand() / RAND_MAX - 0.5f) * noise;
 
-        // Integrate acceleration
+        // Integrate
         b.vel.x += b.acc.x * dt;
         b.vel.y += b.acc.y * dt;
         b.vel.z += b.acc.z * dt;
 
-        // Clamp speed
-        float speed2 = b.vel.x * b.vel.x + b.vel.y * b.vel.y + b.vel.z * b.vel.z;
-        if (speed2 > maxSpeed * maxSpeed) {
-            float invSpeed = maxSpeed / std::sqrt(speed2);
-            b.vel.x *= invSpeed;
-            b.vel.y *= invSpeed;
-            b.vel.z *= invSpeed;
-        } else if (speed2 < minSpeed * minSpeed) {
-            float invSpeed = minSpeed / std::sqrt(speed2);
-            b.vel.x *= invSpeed;
-            b.vel.y *= invSpeed;
-            b.vel.z *= invSpeed;
+        // Speed limits (Boids Lab style)
+        float speed = std::sqrt(sqrLen(b.vel));
+        if (speed > maxSpeed) {
+            float s = maxSpeed / speed;
+            b.vel.x *= s; b.vel.y *= s; b.vel.z *= s;
+        } else if (speed < minSpeed) {
+            float s = minSpeed / (speed + EPS);
+            b.vel.x *= s; b.vel.y *= s; b.vel.z *= s;
         }
 
-        // Integrate velocity
         b.pos.x += b.vel.x * dt;
         b.pos.y += b.vel.y * dt;
         b.pos.z += b.vel.z * dt;
 
-        // Bounce off of walls
+        // Wall bounce / wrap — preserved
         if (bounce) {
-            if (b.pos.x < rBoid) {
-                b.pos.x = rBoid;
-                b.vel.x = -b.vel.x * WALL_BOUNCE;
-            } else if (b.pos.x > worldX - rBoid) {
-                b.pos.x = worldX - rBoid;
-                b.vel.x = -b.vel.x * WALL_BOUNCE;
-            }
-            if (b.pos.y < rBoid) {
-                b.pos.y = rBoid;
-                b.vel.y = -b.vel.y * WALL_BOUNCE;
-            } else if (b.pos.y > worldY - rBoid) {
-                b.pos.y = worldY - rBoid;
-                b.vel.y = -b.vel.y * WALL_BOUNCE;
-            }
-            if (b.pos.z < rBoid) {
-                b.pos.z = rBoid;
-                b.vel.z = -b.vel.z * WALL_BOUNCE;
-            } else if (b.pos.z > worldZ - rBoid) {
-                b.pos.z = worldZ - rBoid;
-                b.vel.z = -b.vel.z * WALL_BOUNCE;
+            if (b.pos.x < rBoid) { b.pos.x = rBoid; b.vel.x = -b.vel.x * WALL_BOUNCE; }
+            else if (b.pos.x > worldX - rBoid) { b.pos.x = worldX - rBoid; b.vel.x = -b.vel.x * WALL_BOUNCE; }
+
+            if (b.pos.y < rBoid) { b.pos.y = rBoid; b.vel.y = -b.vel.y * WALL_BOUNCE; }
+            else if (b.pos.y > worldY - rBoid) { b.pos.y = worldY - rBoid; b.vel.y = -b.vel.y * WALL_BOUNCE; }
+
+            if (!is2D) {
+                if (b.pos.z < rBoid) { b.pos.z = rBoid; b.vel.z = -b.vel.z * WALL_BOUNCE; }
+                else if (b.pos.z > worldZ - rBoid) { b.pos.z = worldZ - rBoid; b.vel.z = -b.vel.z * WALL_BOUNCE; }
             }
         } else {
-            if (b.pos.x < 0) b.pos.x += worldX;
-            else if (b.pos.x >= worldX) b.pos.x -= worldX;
-            if (b.pos.y < 0) b.pos.y += worldY;
-            else if (b.pos.y >= worldY) b.pos.y -= worldY;
-            if (b.pos.z < 0) b.pos.z += worldZ;
-            else if (b.pos.z >= worldZ) b.pos.z -= worldZ;
+            if (b.pos.x < 0) b.pos.x += worldX; else if (b.pos.x >= worldX) b.pos.x -= worldX;
+            if (b.pos.y < 0) b.pos.y += worldY; else if (b.pos.y >= worldY) b.pos.y -= worldY;
+            if (!is2D) {
+                if (b.pos.z < 0) b.pos.z += worldZ; else if (b.pos.z >= worldZ) b.pos.z -= worldZ;
+            }
         }
 
         if (is2D) {

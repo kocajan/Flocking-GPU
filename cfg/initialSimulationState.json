@@ -51,7 +51,7 @@
       "description": "Initial number of predator boids",
       "default": 0,
       "min": 0,
-      "max": 100,
+      "max": 10,
       "step": 1
     },
     {
@@ -208,6 +208,16 @@
       "min": 1,
       "max": 200,
       "step": 1
+    },
+    {
+      "type": "number",
+      "name": "eps",
+      "label": "Epsilon",
+      "description": "Small value to prevent division by zero",
+      "default": 0.0001,
+      "min": 0.00001,
+      "max": 0.01,
+      "step": 0.00001
     }
   ]
 }

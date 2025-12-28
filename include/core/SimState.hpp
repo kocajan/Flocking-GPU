@@ -47,6 +47,8 @@ public:
 
     ConfigParameter initialAxialSpeedRange;
 
+    ConfigParameter eps;
+
     // Additional runtime state
     // - Version parameter containing current version and available versions
     ConfigParameter version;

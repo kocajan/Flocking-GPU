@@ -61,12 +61,18 @@ namespace simulator{
             Boid& b = boids[idx];
 
             b.type = type;
-            b.pos  = { randRange(0,wx), randRange(0,wy), randRange(0,wz) };
-            b.vel  = { randRange(-speedRange,speedRange), randRange(-speedRange,speedRange), randRange(-speedRange,speedRange) };
-            b.acc  = {0,0,0};
+            b.pos = { randRange(0,wx), randRange(0,wy), randRange(0,wz) };
+            b.vel = { randRange(-speedRange,speedRange), randRange(-speedRange,speedRange), randRange(-speedRange,speedRange) };
+            b.acc = {0,0,0};
+            // b.target = { randRange(wx*0.25f, wx*0.75f), randRange(wy*0.25f, wy*0.75f), 0.0f };
+            b.targetPoint = { wx*0.5f,wy*0.5f, wz*0.5f };
 
+            b.targetBoidIdx = -1;
+            b.targetBoidDistance = -1.0f;
             b.radius = radius.number();
-            b.color  = color.string();
+            b.color = color.string();
+            b.stamina = 100.0f;
+            b.resting = false;
 
             if (dimensions == "2D") {
                 b.pos.z = 0;
@@ -116,12 +122,17 @@ namespace simulator{
         size_t idx = allocateBoidSlot(s.boids, s.freeBoidIndices);
         Boid& b = s.boids[idx];
 
-        b.type   = BoidType::Predator;
-        b.pos    = { x, y, 0.0f };
-        b.vel    = {};
-        b.acc    = {};
+        b.type = BoidType::Predator;
+        b.pos = { x, y, 0.0f };
+        b.vel = {};
+        b.acc = {};
+        b.targetPoint = {};
+        b.targetBoidIdx = -1;
+        b.targetBoidDistance = -1.0f;
         b.radius = s.predatorRadius.number();
-        b.color  = s.predatorBoidColor.string();
+        b.color = s.predatorBoidColor.string();
+        b.stamina = 100.0f;
+        b.resting = false;
 
         s.predatorBoidIndices.push_back(idx);
         ++s.predatorBoidCount;
@@ -132,12 +143,17 @@ namespace simulator{
         size_t idx = allocateBoidSlot(s.boids, s.freeBoidIndices);
         Boid& b = s.boids[idx];
 
-        b.type   = BoidType::Obstacle;
-        b.pos    = { x, y, 0.0f };
-        b.vel    = {};
-        b.acc    = {};
+        b.type = BoidType::Obstacle;
+        b.pos = { x, y, 0.0f };
+        b.vel = {};
+        b.acc = {};
+        b.targetPoint = {};
+        b.targetBoidIdx = -1;
+        b.targetBoidDistance = -1.0f;
         b.radius = s.obstacleRadius.number();
-        b.color  = s.obstacleBoidColor.string();
+        b.color = s.obstacleBoidColor.string();
+        b.stamina = 100.0f;
+        b.resting = false;
 
         s.obstacleBoidIndices.push_back(idx);
         ++s.obstacleBoidCount;

@@ -47,6 +47,8 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
 
     initialAxialSpeedRange = config.get("initial_axial_speed_range");
 
+    eps = config.get("eps");
+
     version = versionParam;
 
     tick = 0;
