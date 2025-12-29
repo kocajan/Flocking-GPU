@@ -1,7 +1,6 @@
 #pragma once
 
-#include "core/SimState.hpp"
-#include "config/Config.hpp"
+#include "versions/parallelNaive/ParallelNaiveParameters.hpp"
 
 
-void parallelNaiveSimulationStep(SimState& simState, const Config& simConfig);
+void parallelNaiveSimulationStep(ParallelNaiveParameters& params);

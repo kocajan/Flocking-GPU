@@ -1,8 +1,7 @@
 #include "versions/sequential/Sequential.hpp"
 
 
-void sequentialSimulationStep(SimState& simState, const Config& simConfig) {
+void sequentialSimulationStep(SequentialParameters& params) {
     printf("Sequential simulation step\n");
-    printf("SimState tick: %lu\n", simState.tick);
-    printf("Bounce: %d\n", simConfig.binary("bounce"));
+    printf("SimState tick: %lu\n", params.boids.size());
 }

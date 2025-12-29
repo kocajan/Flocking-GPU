@@ -1,8 +1,7 @@
 #include "versions/parallelNaive/ParallelNaive.hpp"
 
 
-void parallelNaiveSimulationStep(SimState& simState, const Config& simConfig) {
+void parallelNaiveSimulationStep(ParallelNaiveParameters& params) {
     printf("Parallel Naive simulation step\n");
-    printf("SimState tick: %lu\n", simState.tick);
-    printf("Bounce: %d\n", simConfig.binary("bounce"));
+    printf("SimState tick: %lu\n", params.boids.size());
 }

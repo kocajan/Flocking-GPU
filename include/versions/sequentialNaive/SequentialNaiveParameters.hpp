@@ -8,9 +8,8 @@
 #include "config/Config.hpp"
 #include "core/SimState.hpp"
 
-// Container for cached frame parameters used by SequentialNaive simulation.
-struct SequentialNaiveParameters
-{
+
+struct SequentialNaiveParameters {
     // Reference to boid array
     std::vector<Boid>& boids;
 
@@ -25,70 +24,70 @@ struct SequentialNaiveParameters
     // Boid count
     int boidCount;
 
-    // 
+    // Simulation modes
     bool is2D;
     bool bounce;
 
-    // --- radii ---
+    // Boid radii
     float basicBoidRadius;
     float predatorRadius;
     float obstacleRadius;
 
-    // --- world bounds ---
+    // World bounds
     float worldX;
     float worldY;
     float worldZ;
 
-    // --- constants ---
+    // Constants
     float eps;
     float dt;
 
-    // --- vision ---
+    // Vision
     float visualRangeBasic;
     float visualRangeBasic2;
     float visualRangePredator;
 
-    // --- forces / multipliers ---
+    // Forces / multipliers
     float maxForce;
     float obstacleAvoidanceMultiplier;
     float mouseInteractionMultiplier;
 
-    // --- flocking weights ---
+    // Flocking weights
     float cohesionWeightBasic;
     float alignmentWeightBasic;
     float separationWeightBasic;
     float targetAttractionWeightBasic;
 
-    // --- speeds (basic) ---
+    // Speeds (basic)
     float cruisingSpeedBasic;
     float maxSpeedBasic;
     float minSpeedBasic;
 
-    // --- speeds (predator) ---
+    // Speeds (predator)
     float cruisingSpeedPredator;
     float maxSpeedPredator;
     float minSpeedPredator;
 
-    // --- predator stamina ---
+    // Predator stamina
     float maxStaminaPredator;
     float staminaRecoveryRatePredator;
     float staminaDrainRatePredator;
 
-    // --- dynamics ---
+    // Dynamics
     float drag;
     float noise;
     float numStepsToStopDueToMaxDrag;
 
-    // --- collision / bounce ---
+    // Collision / bounce
     float bounceFactor;
 
-    // --- neighbor limit ---
+    // Neighbor limit
     float maxNeighborsBasic;
 
-    // --- cached distances ---
+    // Cached distances
     float maxDistanceBetweenPoints;
     float maxDistanceBetweenPoints2;
 
-    // --- ctor computes all cached values ---
+    // Constructor
     SequentialNaiveParameters(SimState& s, const Config& c);
 };

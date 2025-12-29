@@ -8,9 +8,9 @@
 #include "versions/sequential/Sequential.hpp"
 #include "versions/parallelNaive/ParallelNaive.hpp"
 #include "versions/sequentialNaive/SequentialNaive.hpp"
-#include "versions/parallel/ParallelSimConfigUpdate.hpp"
-#include "versions/sequential/SequentialSimConfigUpdate.hpp"
-#include "versions/parallelNaive/ParallelNaiveSimConfigUpdate.hpp"
+#include "versions/parallel/ParallelParameters.hpp"
+#include "versions/sequential/SequentialParameters.hpp"
+#include "versions/parallelNaive/ParallelNaiveParameters.hpp"
 #include "versions/sequentialNaive/SequentialNaiveParameters.hpp"
 
 
@@ -23,16 +23,16 @@ void simulationStep(SimState& simState, Config& simConfig)
         simulationStepSequentialNaive(parameters);
     }
     else if (version == "sequential") {
-        sequentialSimConfigUpdate(simConfig);
-        sequentialSimulationStep(simState, simConfig);
+        SequentialParameters parameters(simState, simConfig);
+        sequentialSimulationStep(parameters);
     }
     else if (version == "parallelNaive") {
-        parallelNaiveSimConfigUpdate(simConfig);
-        parallelNaiveSimulationStep(simState, simConfig);
+        ParallelNaiveParameters parameters(simState, simConfig);
+        parallelNaiveSimulationStep(parameters);
     }
     else if (version == "parallel") {
-        parallelSimConfigUpdate(simConfig);
-        parallelSimulationStep(simState, simConfig);
+        ParallelParameters parameters(simState, simConfig);
+        parallelSimulationStep(parameters);
     }
     else {
         throw std::runtime_error("Unknown simulation version: " + version);

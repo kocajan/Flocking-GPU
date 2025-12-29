@@ -1,7 +1,6 @@
 #pragma once
 
-#include "core/SimState.hpp"
-#include "config/Config.hpp"
+#include "versions/parallel/ParallelParameters.hpp"
 
 
-void parallelSimulationStep(SimState& simState, const Config& simConfig);
+void parallelSimulationStep(ParallelParameters& params);
