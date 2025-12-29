@@ -6,40 +6,59 @@
 
 #include "config/ConfigParameter.hpp"
 
-
 class Config {
 public:
-    // Constructor / destructor
     explicit Config(std::string id = {}) : configId(std::move(id)) {}
     virtual ~Config();
 
-    // Config ID management
+    // Config ID
     const std::string& getConfigId() const;
     void setConfigId(std::string id);
 
-    // Parameter management
-    void add(ConfigParameter param);
+    // Parameter lookup API
+    void add(ConfigParameter param, const std::string& groupName);
     bool has(const std::string& name) const;
     ConfigParameter& get(const std::string& name);
     const ConfigParameter& get(const std::string& name) const;
     std::vector<ConfigParameter>& getParameters();
     const std::vector<ConfigParameter>& getParameters() const;
 
-    // Special accessors for values of the ConfigParameters
+    // Value helpers
     float number(const std::string& name) const;
     bool binary(const std::string& name) const;
     const std::string& string(const std::string& name) const;
 
-    // Special accessors for references to values of the ConfigParameters
     float& numberRef(const std::string& name);
     bool& binaryRef(const std::string& name);
     std::string& stringRef(const std::string& name);
 
-    // Reset all parameters to their default values
+    // Reset to defaults
     virtual void resetAll();
+
+    // Grouping metadata
+
+    // Parameter name -> group name
+    const std::unordered_map<std::string, std::string>& getParamGroups() const {
+        return paramGroupByName;
+    }
+
+    // Group name -> parameter names
+    const std::unordered_map<std::string, std::vector<std::string>>& getGroupParams() const {
+        return groupParams;
+    }
+
+    // Ordered list of group names
+    const std::vector<std::string>& getGroupOrder() const {
+        return groupOrder;
+    }
 
 private:
     std::string configId;
     std::vector<ConfigParameter> params;
     std::unordered_map<std::string, std::size_t> indexByName;
+
+    // Grouping structures
+    std::unordered_map<std::string, std::string> paramGroupByName;
+    std::unordered_map<std::string, std::vector<std::string>> groupParams;
+    std::vector<std::string> groupOrder;
 };

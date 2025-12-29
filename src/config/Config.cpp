@@ -17,10 +17,26 @@ void Config::setConfigId(std::string id) {
 }
 
 // Parameter management
-void Config::add(ConfigParameter param) {
+void Config::add(ConfigParameter param, const std::string& groupName)
+{
     assert(indexByName.find(param.name) == indexByName.end());
-    indexByName[param.name] = params.size();
+
+    std::size_t idx = params.size();
+
+    indexByName[param.name] = idx;
     params.push_back(std::move(param));
+
+    // Map parameter -> group
+    paramGroupByName[params[idx].name] = groupName;
+
+    // First time we see the group -> record ordering
+    if (groupParams.find(groupName) == groupParams.end()) {
+        groupOrder.push_back(groupName);
+        groupParams[groupName] = {};
+    }
+
+    // Append parameter name to group list
+    groupParams[groupName].push_back(params[idx].name);
 }
 
 bool Config::has(const std::string& name) const {

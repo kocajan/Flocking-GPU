@@ -4,19 +4,27 @@
 #include "json/ParameterJsonParser.hpp"
 
 
-Config parseConfig(const nlohmann::json& root) {
-    // Validate root structure
+Config parseConfig(const nlohmann::json& root)
+{
     assert(root.contains("id"));
     assert(root.contains("parameters"));
-    assert(root.at("parameters").is_array());
-    
-    // Create config
-    Config sc;
+    assert(root.at("parameters").is_object());
 
-    sc.setConfigId(root.at("id").get<std::string>());
-    for (const auto& p : root.at("parameters")) {
-        sc.add(parseParameter(p));
+    Config cfg;
+    cfg.setConfigId(root.at("id").get<std::string>());
+
+    const auto& groups = root.at("parameters");
+
+    for (auto it = groups.begin(); it != groups.end(); ++it)
+    {
+        const std::string groupName = it.key();
+        const auto& paramList = it.value();
+
+        assert(paramList.is_array());
+
+        for (const auto& p : paramList)
+            cfg.add(parseParameter(p), groupName);
     }
 
-    return sc;
+    return cfg;
 }

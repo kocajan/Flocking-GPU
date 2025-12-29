@@ -12,8 +12,13 @@ VersionManager::VersionManager(const std::vector<Config>& versionsInput) {
 
         // Build Config for this version
         Config cfg;
-        for (const auto& param : v.getParameters()) {
-            cfg.add(param);
+        const auto& params = v.getParameters();
+        const auto& paramGroups = v.getParamGroups();
+        for (const auto& param : params) {
+            const std::string& name = param.name;
+            const std::string& groupName = paramGroups.at(name);
+
+            cfg.add(param, groupName);
         }
 
         configs.emplace(v.getConfigId(), std::move(cfg));

@@ -4,6 +4,7 @@
 #include "versions/sequentialNaive/SequentialNaive.hpp"
 #include "versions/sequentialNaive/SequentialNaiveParameters.hpp" 
 
+
 void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx);
 
 void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx);

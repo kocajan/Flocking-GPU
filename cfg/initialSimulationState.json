@@ -1,223 +1,249 @@
 {
   "id": "initialSimulationState",
-  "parameters": [
-    {
-      "type": "number",
-      "name": "dt",
-      "label": "Time Step",
-      "description": "Simulation time step (delta time)",
-      "default": 0.016,
-      "min": 0.001,
-      "max": 0.1,
-      "step": 0.001
-    },
-    {
-      "type": "binary",
-      "name": "paused",
-      "label": "Paused",
-      "description": "Pause the simulation",
-      "default": false
-    },
-    {
-      "type": "enum",
-      "name": "dimensions",
-      "label": "Dimensions",
-      "description": "Simulation dimensionality",
-      "default": "2D",
-      "options": ["2D", "3D"]
-    },
-    {
-      "type": "enum",
-      "name": "device",
-      "label": "Device",
-      "description": "Computation device",
-      "default": "CPU",
-      "options": ["CPU", "GPU"]
-    },
-    {
-      "type": "number",
-      "name": "basic_boid_count",
-      "label": "Number of Basic Boids",
-      "description": "Initial number of basic boids",
-      "default": 1000,
-      "min": 0,
-      "max": 5000,
-      "step": 50
-    },
-    {
-      "type": "number",
-      "name": "predator_boid_count",
-      "label": "Number of Predator Boids",
-      "description": "Initial number of predator boids",
-      "default": 0,
-      "min": 0,
-      "max": 10,
-      "step": 1
-    },
-    {
-      "type": "enum",
-      "name": "left_mouse_effect",
-      "label": "Left Mouse Effect",
-      "description": "Action triggered by left mouse button",
-      "default": "Attract",
-      "options": [
-        "Spawn Predator",
-        "Delete Predator",
-        "Draw Obstacle",
-        "Erase Obstacle",
-        "Attract",
-        "Repel"
-      ]
-    },
-    {
-      "type": "enum",
-      "name": "right_mouse_effect",
-      "label": "Right Mouse Effect",
-      "description": "Action triggered by right mouse button",
-      "default": "Repel",
-      "options": [
-        "Spawn Predator",
-        "Delete Predator",
-        "Draw Obstacle",
-        "Erase Obstacle",
-        "Attract",
-        "Repel"
-      ]
-    },
-    {
-      "type": "number",
-      "name": "world_x",
-      "label": "World X Size",
-      "description": "World size in X dimension",
-      "default": 1000,
-      "min": 50,
-      "max": 2000,
-      "step": 10
-    },
-    {
-      "type": "number",
-      "name": "world_y",
-      "label": "World Y Size",
-      "description": "World size in Y dimension",
-      "default": 500,
-      "min": 50,
-      "max": 2000,
-      "step": 10
-    },
-    {
-      "type": "number",
-      "name": "world_z",
-      "label": "World Z Size",
-      "description": "World size in Z dimension (used in 3D mode)",
-      "default": 500,
-      "min": 50,
-      "max": 2000,
-      "step": 10
-    },
-    {
-      "type": "binary",
-      "name": "delete_obstacles",
-      "label": "Delete Obstacles",
-      "description": "Delete obstacles in the simulation",
-      "default": false
-    },
-    {
-      "type": "binary",
-      "name": "reset_version_settings",
-      "label": "Reset Version Settings",
-      "description": "Reset version settings to default values",
-      "default": false
-    },
-    {
-      "type": "binary",
-      "name": "reset_simulation",
-      "label": "Reset Simulation",
-      "description": "Reset simulation",
-      "default": false
-    },
-    {
-      "type": "enum",
-      "name": "basic_boid_color",
-      "label": "Basic Boid Color",
-      "description": "Color of basic boids",
-      "default": "WHITE",
-      "options": ["WHITE", "RED", "GREEN", "BLUE", "YELLOW"]
-    },
-    {
-      "type": "enum",
-      "name": "predator_boid_color",
-      "label": "Predator Boid Color",
-      "description": "Color of predator boids",
-      "default": "RED",
-      "options": ["RED", "WHITE", "GREEN", "BLUE", "YELLOW"]
-    },
-    {
-      "type": "enum",
-      "name": "obstacle_color",
-      "label": "Obstacle Color",
-      "description": "Color of obstacles",
-      "default": "GRAY",
-      "options": ["GRAY", "BLACK", "BROWN", "DARKGREEN"]
-    },
-    {
-      "type": "number",
-      "name": "obstacle_radius",
-      "label": "Obstacle Radius",
-      "description": "Radius of obstacles drawn with mouse",
-      "default": 10,
-      "min": 1,
-      "max": 100,
-      "step": 1
-    },
-    {
-      "type": "number",
-      "name": "basic_boid_radius",
-      "label": "Basic Boid Radius",
-      "description": "Radius of basic boids",
-      "default": 2,
-      "min": 1,
-      "max": 10,
-      "step": 0.1
-    },
-    {
-      "type": "number",
-      "name": "predator_boid_radius",
-      "label": "Predator Boid Radius",
-      "description": "Radius of predator boids",
-      "default": 3,
-      "min": 1,
-      "max": 10,
-      "step": 0.1
-    },
-    {
-      "type": "number",
-      "name": "max_boid_population_change_rate",
-      "label": "Max Boid Population Change Rate",
-      "description": "Maximum number of boids that can be spawned or removed per second",
-      "default": 20,
-      "min": 1,
-      "max": 100,
-      "step": 1
-    },
-    {
-      "type": "number",
-      "name": "initial_axial_speed_range",
-      "label": "Initial Axial Speed Range",
-      "description": "Range for initial boid speeds along each axis",
-      "default": 100,
-      "min": 1,
-      "max": 200,
-      "step": 1
-    },
-    {
-      "type": "number",
-      "name": "eps",
-      "label": "Epsilon",
-      "description": "Small value to prevent division by zero",
-      "default": 0.0001,
-      "min": 0.00001,
-      "max": 0.01,
-      "step": 0.00001
-    }
-  ]
+  "parameters": {
+    "Simulation timing and control": [
+      {
+        "type": "number",
+        "name": "dt",
+        "label": "Time Step",
+        "description": "Simulation time step (delta time)",
+        "default": 0.016,
+        "min": 0.001,
+        "max": 0.1,
+        "step": 0.001
+      },
+      {
+        "type": "binary",
+        "name": "paused",
+        "label": "Paused",
+        "description": "Pause the simulation",
+        "default": false
+      }
+    ],
+
+    "Simulation space and execution": [
+      {
+        "type": "enum",
+        "name": "dimensions",
+        "label": "Dimensions",
+        "description": "Simulation dimensionality",
+        "default": "2D",
+        "options": ["2D", "3D"]
+      },
+      {
+        "type": "enum",
+        "name": "device",
+        "label": "Device",
+        "description": "Computation device",
+        "default": "CPU",
+        "options": ["CPU", "GPU"]
+      }
+    ],
+
+    "Initial population": [
+      {
+        "type": "number",
+        "name": "basic_boid_count",
+        "label": "Number of Basic Boids",
+        "description": "Initial number of basic boids",
+        "default": 1000,
+        "min": 0,
+        "max": 5000,
+        "step": 50
+      },
+      {
+        "type": "number",
+        "name": "predator_boid_count",
+        "label": "Number of Predator Boids",
+        "description": "Initial number of predator boids",
+        "default": 0,
+        "min": 0,
+        "max": 10,
+        "step": 1
+      }
+    ],
+
+    "Mouse interaction behavior": [
+      {
+        "type": "enum",
+        "name": "left_mouse_effect",
+        "label": "Left Mouse Effect",
+        "description": "Action triggered by left mouse button",
+        "default": "Attract",
+        "options": [
+          "Spawn Predator",
+          "Delete Predator",
+          "Draw Obstacle",
+          "Erase Obstacle",
+          "Attract",
+          "Repel"
+        ]
+      },
+      {
+        "type": "enum",
+        "name": "right_mouse_effect",
+        "label": "Right Mouse Effect",
+        "description": "Action triggered by right mouse button",
+        "default": "Repel",
+        "options": [
+          "Spawn Predator",
+          "Delete Predator",
+          "Draw Obstacle",
+          "Erase Obstacle",
+          "Attract",
+          "Repel"
+        ]
+      }
+    ],
+
+    "World size": [
+      {
+        "type": "number",
+        "name": "world_x",
+        "label": "World X Size",
+        "description": "World size in X dimension",
+        "default": 1000,
+        "min": 50,
+        "max": 2000,
+        "step": 10
+      },
+      {
+        "type": "number",
+        "name": "world_y",
+        "label": "World Y Size",
+        "description": "World size in Y dimension",
+        "default": 500,
+        "min": 50,
+        "max": 2000,
+        "step": 10
+      },
+      {
+        "type": "number",
+        "name": "world_z",
+        "label": "World Z Size",
+        "description": "World size in Z dimension (used in 3D mode)",
+        "default": 500,
+        "min": 50,
+        "max": 2000,
+        "step": 10
+      }
+    ],
+
+    "Simulation reset and maintenance": [
+      {
+        "type": "binary",
+        "name": "delete_obstacles",
+        "label": "Delete Obstacles",
+        "description": "Delete obstacles in the simulation",
+        "default": false
+      },
+      {
+        "type": "binary",
+        "name": "reset_version_settings",
+        "label": "Reset Version Settings",
+        "description": "Reset version settings to default values",
+        "default": false
+      },
+      {
+        "type": "binary",
+        "name": "reset_simulation",
+        "label": "Reset Simulation",
+        "description": "Reset simulation",
+        "default": false
+      }
+    ],
+
+    "Appearance and visualization": [
+      {
+        "type": "enum",
+        "name": "basic_boid_color",
+        "label": "Basic Boid Color",
+        "description": "Color of basic boids",
+        "default": "WHITE",
+        "options": ["WHITE", "RED", "GREEN", "BLUE", "YELLOW"]
+      },
+      {
+        "type": "enum",
+        "name": "predator_boid_color",
+        "label": "Predator Boid Color",
+        "description": "Color of predator boids",
+        "default": "RED",
+        "options": ["RED", "WHITE", "GREEN", "BLUE", "YELLOW"]
+      },
+      {
+        "type": "enum",
+        "name": "obstacle_color",
+        "label": "Obstacle Color",
+        "description": "Color of obstacles",
+        "default": "GRAY",
+        "options": ["GRAY", "BLACK", "BROWN", "DARKGREEN"]
+      }
+    ],
+
+    "Boid and obstacle geometry": [
+      {
+        "type": "number",
+        "name": "obstacle_radius",
+        "label": "Obstacle Radius",
+        "description": "Radius of obstacles drawn with mouse",
+        "default": 10,
+        "min": 1,
+        "max": 100,
+        "step": 1
+      },
+      {
+        "type": "number",
+        "name": "basic_boid_radius",
+        "label": "Basic Boid Radius",
+        "description": "Radius of basic boids",
+        "default": 2,
+        "min": 1,
+        "max": 10,
+        "step": 0.1
+      },
+      {
+        "type": "number",
+        "name": "predator_boid_radius",
+        "label": "Predator Boid Radius",
+        "description": "Radius of predator boids",
+        "default": 3,
+        "min": 1,
+        "max": 10,
+        "step": 0.1
+      }
+    ],
+
+    "Population and initialization limits": [
+      {
+        "type": "number",
+        "name": "max_boid_population_change_rate",
+        "label": "Max Boid Population Change Rate",
+        "description": "Maximum number of boids that can be spawned or removed per second",
+        "default": 20,
+        "min": 1,
+        "max": 100,
+        "step": 1
+      },
+      {
+        "type": "number",
+        "name": "initial_axial_speed_range",
+        "label": "Initial Axial Speed Range",
+        "description": "Range for initial boid speeds along each axis",
+        "default": 100,
+        "min": 1,
+        "max": 200,
+        "step": 1
+      },
+      {
+        "type": "number",
+        "name": "eps",
+        "label": "Epsilon",
+        "description": "Small value to prevent division by zero",
+        "default": 0.0001,
+        "min": 0.00001,
+        "max": 0.01,
+        "step": 0.00001
+      }
+    ]
+  }
 }
