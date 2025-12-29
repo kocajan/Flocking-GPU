@@ -171,7 +171,7 @@
     {
         "type": "number",
         "name": "bounceFactor",
-        "label": "Obstacle Bounce Factor",
+        "label": "Bounce Factor",
         "description": "Velocity reduction factor upon obstacle collision. 0 - full stop, 100 - no reduction",
         "default": 80.0,
         "min": 0.0,
