@@ -1,4 +1,4 @@
-#include "versions/SequentialNaive.hpp"
+#include "versions/sequentialNaive/SequentialNaive.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -36,7 +36,7 @@ static inline Vec3 normalize(const Vec3& v, const float EPS = 1e-5f) {
 }
 
 void sequentialNaiveSimulationStep(SimState& simState, const Config& simConfig) {
-    for (int currentBoidIdx = 0; currentBoidIdx < simState.boids.size(); ++currentBoidIdx) {
+    for (int currentBoidIdx = 0; currentBoidIdx < static_cast<int>(simState.boids.size()); ++currentBoidIdx) {
         // Get reference to current boid
         Boid& b = simState.boids[currentBoidIdx];
 
@@ -212,7 +212,6 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
     };
 
     // Calculate additional parameters
-    const float rBoid2 = rBoid * rBoid;
     const float visualRangeBasic2 = visualRangeBasic * visualRangeBasic;
     const uint64_t maxNeighbors = static_cast<uint64_t>(basicBoidCount * (neighborAccuracy / 100.0f));
     float maxDistanceBetweenPoints = 0.0f;
@@ -224,17 +223,16 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
     if (!bounce) {
         maxDistanceBetweenPoints *= 0.5f;
     }
-    float maxDistanceBetweenPoints2 = maxDistanceBetweenPoints * maxDistanceBetweenPoints;
     
     // Initialize accumulators
     Vec3 personalSpace{0,0,0};
     Vec3 positionSum{0,0,0};
     Vec3 velocitySum{0,0,0};
-    int neighborCount = 0;
-    int distantNeighborCount = 0;
+    uint64_t neighborCount = 0;
+    uint64_t distantNeighborCount = 0;
 
     // Analyze other boids
-    for (size_t otherIdx : simState.basicBoidIndices) {
+    for (int otherIdx : simState.basicBoidIndices) {
         // Break if reached max neighbors
         if (neighborCount >= maxNeighbors)
             break;
@@ -336,7 +334,6 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
         toTargetDist2 = eps;
     float distanceFactor = toTargetDist2 / maxDistanceBetweenPoints;
     float adjustedTargetWeight = targetWeight * distanceFactor;
-    float adjustedTargetWeightClamped = std::clamp(adjustedTargetWeight, 0.0f, 1.0f);
 
     // Create for for cruising in the current velocity with the desired cruising speed
     Vec3 currentSpeedDir = normalize(b.vel, eps);
@@ -450,7 +447,6 @@ void resolvePredatorBoidBehavior(SimState& simState, const Config& simConfig, in
 
     // Unpack parameters from simConfig
     const float maxSpeed = simConfig.number("maxSpeedPredator");
-    const float minSpeed = simConfig.number("minSpeedPredator");
     const float cruisingSpeedPercentage = simConfig.number("cruisingSpeedPredator");
     const float cruisingSpeed = maxSpeed * (cruisingSpeedPercentage / 100.0f);
     const float maxForce = simConfig.number("maxForce");
@@ -522,7 +518,6 @@ void resolveDynamics(SimState& simState, const Config& simConfig, int currentBoi
     const float minSpeed = (b.type == BoidType::Basic) ? simConfig.number("minSpeedBasic") : simConfig.number("minSpeedPredator");
     const float drag = simConfig.number("drag");
     const float noise = simConfig.number("noise");
-    const float maxForce = simConfig.number("maxForce");
 
     // Drag + noise
     float dragPct = std::clamp(drag / 100.0f, 0.0f, 1.0f);

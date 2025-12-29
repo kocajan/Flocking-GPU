@@ -5,7 +5,7 @@
 #include "simulator/BoidPopulationRegulation.hpp"
 
 
-void simulationUpdate(SimState& simState, const Config& simConfig, MouseInteractionEvent& interaction) {
+void simulationUpdate(SimState& simState, Config& simConfig, MouseInteractionEvent& interaction) {
     // Apply GUI and input interactions
     applyInteraction(simState, interaction);
 

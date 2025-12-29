@@ -7,4 +7,4 @@
 #include "config/Config.hpp"
 
 
-void simulationUpdate(SimState& simState, const Config& simConfig, MouseInteractionEvent& interaction);
+void simulationUpdate(SimState& simState, Config& simConfig, MouseInteractionEvent& interaction);
