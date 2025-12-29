@@ -75,6 +75,10 @@ public:
     // - Free boid indices for reuse
     std::vector<size_t> freeBoidIndices;
 
+    // - Parameters calculated from the provided configuration
+    float maxVisionRange2D;
+    float maxVisionRange3D;
+
     // Reset from configuration
     void resetToNewConfig(const Config& config, ConfigParameter versionParam);
 

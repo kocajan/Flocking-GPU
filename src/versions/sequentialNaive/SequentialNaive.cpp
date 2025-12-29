@@ -1,26 +1,26 @@
-#include "versions/sequentialNaive/SequentialNaive.hpp"
-
 #include <cmath>
 #include <algorithm>
 
+#include "versions/sequentialNaive/SequentialNaive.hpp"
+#include "versions/sequentialNaive/SequentialNaiveParameters.hpp" 
 
-void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int currentBoidIdx);
+void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx);
 
-void resolvePredatorBoidBehavior(SimState& simState, const Config& simConfig, int currentBoidIdx);
+void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx);
 
-void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig, int currentBoidIdx);
+void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int currentBoidIdx);
 
-void resolveDynamics(SimState& simState, const Config& simConfig, int currentBoidIdx);
+void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx);
 
-void resolveCollisions(SimState& simState, const Config& simConfig, int currentBoidIdx);
+void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
 
-void resolveMouseInteraction(SimState& simState, const Config& simConfig, int currentBoidIdx);
+void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx);
 
-void resolveRest(SimState& simState, const Config& simConfig, int currentBoidIdx);
+void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx);
 
-void resolveWallCollisions(SimState& simState, const Config& simConfig, int currentBoidIdx);
+void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
 
-void resolveObstacleCollisions(SimState& simState, const Config& simConfig, int currentBoidIdx);
+void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
 
 
 static inline float sqrLen(const Vec3& v) {
@@ -35,10 +35,10 @@ static inline Vec3 normalize(const Vec3& v, const float EPS = 1e-5f) {
     return { v.x * inv, v.y * inv, v.z * inv };
 }
 
-void sequentialNaiveSimulationStep(SimState& simState, const Config& simConfig) {
-    for (int currentBoidIdx = 0; currentBoidIdx < static_cast<int>(simState.boids.size()); ++currentBoidIdx) {
+void simulationStepSequentialNaive(SequentialNaiveParameters& params) {
+    for (int currentBoidIdx = 0; currentBoidIdx < params.boidCount; ++currentBoidIdx) {
         // Get reference to current boid
-        Boid& b = simState.boids[currentBoidIdx];
+        Boid& b = params.boids[currentBoidIdx];
 
         // Skip obstacles
         if (b.type == BoidType::Obstacle || b.type == BoidType::Empty)
@@ -49,14 +49,12 @@ void sequentialNaiveSimulationStep(SimState& simState, const Config& simConfig) 
 
         if (b.type == BoidType::Basic) {
             resolveBasicBoidBehavior(
-                simState,
-                simConfig,
+                params,
                 currentBoidIdx
             );
         } else if (b.type == BoidType::Predator) {
             resolvePredatorBoidBehavior(
-                simState,
-                simConfig,
+                params,
                 currentBoidIdx
             );
         } else {
@@ -65,38 +63,26 @@ void sequentialNaiveSimulationStep(SimState& simState, const Config& simConfig) 
             continue;
         }
         resolveRest(
-            simState,
-            simConfig,
+            params,
             currentBoidIdx
         );
     }
 }
 
-void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig, int currentBoidIdx) {
-    // Unpack parameters from simState
-    Boid& b = simState.boids[currentBoidIdx];
-    const bool  is2D = (simState.dimensions.string() == "2D");
-    const float rBoid = (b.type == BoidType::Basic) ? simState.basicBoidRadius.number() : simState.predatorRadius.number();
-    const float rObstacle = simState.obstacleRadius.number();
-    const float worldX = simState.worldX.number();
-    const float worldY = simState.worldY.number();
-    const float worldZ = simState.worldZ.number();
-    const float eps = simState.eps.number();
-    const std::vector<size_t>& obstacleBoidIndices = simState.obstacleBoidIndices;
-    const float maxVisualRange = std::sqrt(worldX*worldX + worldY*worldY + (is2D ? 0.0f : worldZ*worldZ)); 
+void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
 
-    // Unpack parameters from simConfig
-    const float visualRangePercentage = (b.type == BoidType::Basic) ? simConfig.number("visionBasic") : simConfig.number("visionPredator");
-    const bool bounce = simConfig.binary("bounce");
-    const float visualRange = (visualRangePercentage / 100.0f) * maxVisualRange;
-    const float maxForce = simConfig.number("maxForce");
-    const float obstacleAvoidanceMultiplier = simConfig.number("obstacleAvoidanceMultiplier");
+    // Get parameters that depend on boid type
+    const float rBoid = (b.type == BoidType::Basic) ? params.basicBoidRadius : params.predatorRadius;
+    const float visualRange = (b.type == BoidType::Basic) ? params.visualRangeBasic : params.visualRangePredator;
 
+    // Resolve obstacle avoidance
     Vec3 obstacleDirSum{0,0,0};
     float obstacleWeightSum = 0.0f;
     float obstacleCount = 0;
-    for (size_t obsIdx : obstacleBoidIndices) {
-        const Boid& obs = simState.boids[obsIdx];
+    for (size_t obsIdx : params.obstacleBoidIndices) {
+        const Boid& obs = params.boids[obsIdx];
 
         Vec3 diff = {
             b.pos.x - obs.pos.x,
@@ -105,17 +91,17 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
         };
 
         float centerDist = std::sqrt(sqrLen(diff));
-        float combinedRadius = rBoid + rObstacle;
+        float combinedRadius = rBoid + params.obstacleRadius;
         float surfaceDist = centerDist - combinedRadius;
 
         if (surfaceDist > visualRange)
             continue;
         obstacleCount++;
 
-        Vec3 dir = normalize(diff, eps);
+        Vec3 dir = normalize(diff, params.eps);
 
         // Proximity weight
-        float weight = std::exp(-0.1 * surfaceDist);
+        float weight = std::exp(-0.1f * surfaceDist);
 
         // Accumulate weighted direction
         obstacleDirSum.x += dir.x * weight;
@@ -137,24 +123,24 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
         // Calculate average weight
         float averageWeight = obstacleWeightSum / obstacleCount;
 
-        Vec3 avoidDir = normalize(avgDir, eps);
+        Vec3 avoidDir = normalize(avgDir, params.eps);
 
         // Apply as a single steering vector
-        b.acc.x += avoidDir.x * maxForce * averageWeight * obstacleAvoidanceMultiplier;
-        b.acc.y += avoidDir.y * maxForce * averageWeight * obstacleAvoidanceMultiplier;
-        b.acc.z += avoidDir.z * maxForce * averageWeight * obstacleAvoidanceMultiplier;
+        b.acc.x += avoidDir.x * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        b.acc.y += avoidDir.y * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        b.acc.z += avoidDir.z * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
     }
 
     // If the boid is close to walls, apply repelling force only if bounce is enabled
-    if (!bounce) {
+    if (!params.bounce) {
         return;
     }
 
     auto repelFromWall = [&](float d, float axisSign, float& accAxis)
     {
         if (d < visualRange) {
-            float weight = std::exp(-d);
-            accAxis += axisSign * (maxForce * weight * 1000.0f);
+            float weight = std::exp(-0.3f * d);
+            accAxis += axisSign * (params.maxForce * weight * params.obstacleAvoidanceMultiplier);
         }
     };
 
@@ -162,67 +148,37 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
     repelFromWall(b.pos.x - rBoid, 1.0f, b.acc.x);
 
     // Right wall
-    repelFromWall((worldX - rBoid) - b.pos.x, -1.0f, b.acc.x);
+    repelFromWall((params.worldX - rBoid) - b.pos.x, -1.0f, b.acc.x);
 
     // Bottom wall
     repelFromWall(b.pos.y - rBoid, 1.0f, b.acc.y);
 
     // Top wall
-    repelFromWall((worldY - rBoid) - b.pos.y, -1.0f, b.acc.y);
+    repelFromWall((params.worldY - rBoid) - b.pos.y, -1.0f, b.acc.y);
 
-    if (!is2D)
+    if (!params.is2D)
     {
         // Floor
         repelFromWall(b.pos.z - rBoid, 1.0f, b.acc.z);
 
         // Ceiling
-        repelFromWall((worldZ - rBoid) - b.pos.z, -1.0f, b.acc.z);
+        repelFromWall((params.worldZ - rBoid) - b.pos.z, -1.0f, b.acc.z);
     }
 }
 
-void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int currentBoidIdx) {
-    // Unpack parameters from simState
-    const bool  is2D = (simState.dimensions.string() == "2D");
-    const float rBoid = simState.basicBoidRadius.number();
-    const float eps = simState.eps.number();
-    const uint64_t basicBoidCount = simState.basicBoidCount;
-    Boid& b = simState.boids[currentBoidIdx];
-
-    // Unpack parameters from simConfig
-    const float visualRangeBasic = simConfig.number("visionBasic");
-    const float visualRangePredator = simConfig.number("visionPredator");
-    const float cohesionWeight = std::clamp(simConfig.number("cohesionBasic") / 100.0f, 0.0f, 1.0f);
-    const float alignmentWeight = std::clamp(simConfig.number("alignmentBasic") / 100.0f, 0.0f, 1.0f);
-    const float separationWeight = std::clamp(simConfig.number("separationBasic") / 100.0f, 0.0f, 1.0f);
-    const float targetWeight = std::clamp(simConfig.number("targetAttractionBasic") / 100.0f, 0.0f, 1.0f);
-    const float maxSpeed = simConfig.number("maxSpeedBasic");
-    const float cruisingSpeedPercentage = simConfig.number("cruisingSpeedBasic");
-    const float cruisingSpeed = maxSpeed * (cruisingSpeedPercentage / 100.0f);
-    const float neighborAccuracy = simConfig.number("accuracy");
-    const float maxForce = simConfig.number("maxForce");
-    const bool bounce = simConfig.binary("bounce");
+void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
 
     // Define helper to make weighted forces
     auto makeWeightedForce = [&](const Vec3& dir, float weight) {
         return Vec3{
-            dir.x * (maxForce * weight),
-            dir.y * (maxForce * weight),
-            dir.z * (maxForce * weight)
+            dir.x * (params.maxForce * weight),
+            dir.y * (params.maxForce * weight),
+            dir.z * (params.maxForce * weight)
         };
     };
 
-    // Calculate additional parameters
-    const float visualRangeBasic2 = visualRangeBasic * visualRangeBasic;
-    const uint64_t maxNeighbors = static_cast<uint64_t>(basicBoidCount * (neighborAccuracy / 100.0f));
-    float maxDistanceBetweenPoints = 0.0f;
-    if (is2D) {
-        maxDistanceBetweenPoints = std::sqrt(simState.worldX.number()*simState.worldX.number() + simState.worldY.number()*simState.worldY.number());
-    } else {
-        maxDistanceBetweenPoints = std::sqrt(simState.worldX.number()*simState.worldX.number() + simState.worldY.number()*simState.worldY.number() + simState.worldZ.number()*simState.worldZ.number());
-    }
-    if (!bounce) {
-        maxDistanceBetweenPoints *= 0.5f;
-    }
     
     // Initialize accumulators
     Vec3 personalSpace{0,0,0};
@@ -232,16 +188,16 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
     uint64_t distantNeighborCount = 0;
 
     // Analyze other boids
-    for (int otherIdx : simState.basicBoidIndices) {
+    for (int otherIdx : params.basicBoidIndices) {
         // Break if reached max neighbors
-        if (neighborCount >= maxNeighbors)
+        if (neighborCount >= params.maxNeighborsBasic)
             break;
             
         // Skip self
         if (otherIdx == currentBoidIdx) continue;
 
         // Get reference to other boid
-        const Boid& o = simState.boids[otherIdx];
+        const Boid& o = params.boids[otherIdx];
 
         // Compute distance vector
         Vec3 d = {
@@ -254,24 +210,24 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
         float d2 = sqrLen(d);
 
         // Skip if out of visual range
-        if (d2 > visualRangeBasic2)
+        if (d2 > params.visualRangeBasic2)
             continue;
 
         // Compute distance and avoid zero-length
         float dist = std::sqrt(d2);
-        if (dist < eps)
-            dist = eps;
+        if (dist < params.eps)
+            dist = params.eps;
 
         // Increment neighbor count
         neighborCount++;
 
         // Separation - only inside protected range
-        if (dist < rBoid * 2.0f) {
+        if (dist < params.basicBoidRadius * 2.0f) {
             float invd = 1.0f / dist;
             personalSpace.x -= (o.pos.x - b.pos.x) * invd;
             personalSpace.y -= (o.pos.y - b.pos.y) * invd;
             personalSpace.z -= (o.pos.z - b.pos.z) * invd;
-        } else if (dist >= rBoid * 2.0f) {
+        } else if (dist >= params.basicBoidRadius * 2.0f) {
             // Cohesion - full vision range but outside protected range
             positionSum.x += o.pos.x;
             positionSum.y += o.pos.y;
@@ -325,22 +281,22 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
         b.targetPoint.y - b.pos.y,
         b.targetPoint.z - b.pos.z
     };
-    if (is2D)
+    if (params.is2D)
         toTarget.z = 0.0f;
     float toTargetDist2 = sqrLen(toTarget);
     
     // Recalculate the targetWeight to include the squared distance to target
-    if (toTargetDist2 < eps)
-        toTargetDist2 = eps;
-    float distanceFactor = toTargetDist2 / maxDistanceBetweenPoints;
-    float adjustedTargetWeight = targetWeight * distanceFactor;
+    if (toTargetDist2 < params.eps)
+        toTargetDist2 = params.eps;
+    float distanceFactor = toTargetDist2 / params.maxDistanceBetweenPoints;
+    float adjustedTargetWeight = params.targetAttractionWeightBasic * distanceFactor;
 
     // Create for for cruising in the current velocity with the desired cruising speed
-    Vec3 currentSpeedDir = normalize(b.vel, eps);
+    Vec3 currentSpeedDir = normalize(b.vel, params.eps);
     Vec3 cruisingVel = {
-        currentSpeedDir.x * cruisingSpeed,
-        currentSpeedDir.y * cruisingSpeed,
-        currentSpeedDir.z * cruisingSpeed
+        currentSpeedDir.x * params.cruisingSpeedBasic,
+        currentSpeedDir.y * params.cruisingSpeedBasic,
+        currentSpeedDir.z * params.cruisingSpeedBasic
     };
     Vec3 cruisingForce = {
         cruisingVel.x - b.vel.x,
@@ -349,15 +305,15 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
     };
 
     // Get directions from the forces
-    Vec3 cohesionDir = normalize(cohesionForce, eps);
-    Vec3 alignmentDir = normalize(alignmentForce, eps);
-    Vec3 separationDir = normalize(personalSpace, eps);
-    Vec3 targetDir = normalize(toTarget, eps);
+    Vec3 cohesionDir = normalize(cohesionForce, params.eps);
+    Vec3 alignmentDir = normalize(alignmentForce, params.eps);
+    Vec3 separationDir = normalize(personalSpace, params.eps);
+    Vec3 targetDir = normalize(toTarget, params.eps);
 
     // Get weighted forces
-    Vec3 cohesionForceW = makeWeightedForce(cohesionDir, cohesionWeight);
-    Vec3 alignmentForceW = makeWeightedForce(alignmentDir, alignmentWeight);
-    Vec3 separationForceW = makeWeightedForce(separationDir, separationWeight);
+    Vec3 cohesionForceW = makeWeightedForce(cohesionDir, params.cohesionWeightBasic);
+    Vec3 alignmentForceW = makeWeightedForce(alignmentDir, params.alignmentWeightBasic);
+    Vec3 separationForceW = makeWeightedForce(separationDir, params.separationWeightBasic);
     Vec3 targetForceW = makeWeightedForce(targetDir, adjustedTargetWeight);
     Vec3 cruisingForceW = makeWeightedForce(cruisingForce, 0.5f);
 
@@ -380,9 +336,9 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
     // Predator avoidance — simple random flee away from predators
     Vec3 predAvoidanceDir{0,0,0};
     int numPredators = 0;
-    for (size_t predIdx : simState.predatorBoidIndices) {
+    for (size_t predIdx : params.predatorBoidIndices) {
         // Get reference to predator boid
-        Boid& pred = simState.boids[predIdx];
+        Boid& pred = params.boids[predIdx];
 
         // Compute distance vector
         Vec3 distVect = {
@@ -392,11 +348,11 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
         };
 
         float dist = std::sqrt(sqrLen(distVect));
-        if (dist < eps)
-            dist = eps;
+        if (dist < params.eps)
+            dist = params.eps;
 
         // Save info for predator chasing
-        if (dist <= visualRangePredator) {
+        if (dist <= params.visualRangePredator) {
             if (pred.targetBoidIdx == -1 ||
                 dist < pred.targetBoidDistance)
             {
@@ -406,14 +362,14 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
         }
 
         // Skip if out of visual range
-        if (dist > visualRangeBasic)
+        if (dist > params.visualRangeBasic)
             continue;
 
         // Increment predator count
         numPredators++;
 
         // Basic direction away from predator
-        Vec3 away = normalize(distVect, eps);
+        Vec3 away = normalize(distVect, params.eps);
 
         // Accumulate avoidance direction
         float invd = 1.0f / dist;
@@ -428,7 +384,7 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
         b.acc = {0,0,0};
 
         // Get escape direction
-        Vec3 escape = normalize(predAvoidanceDir, eps);
+        Vec3 escape = normalize(predAvoidanceDir, params.eps);
         Vec3 escapeForceW = makeWeightedForce(escape, 1.0f);
 
         // Apply the escape force
@@ -438,28 +394,16 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
     }
 }
 
-void resolvePredatorBoidBehavior(SimState& simState, const Config& simConfig, int currentBoidIdx) {
-    // Unpack parameters from simState
-    const bool  is2D = (simState.dimensions.string() == "2D");
-    Boid& b = simState.boids[currentBoidIdx];
-    const float eps = simState.eps.number();
-    const float dt = simState.dt.number();
-
-    // Unpack parameters from simConfig
-    const float maxSpeed = simConfig.number("maxSpeedPredator");
-    const float cruisingSpeedPercentage = simConfig.number("cruisingSpeedPredator");
-    const float cruisingSpeed = maxSpeed * (cruisingSpeedPercentage / 100.0f);
-    const float maxForce = simConfig.number("maxForce");
-    const float maxStamina = simConfig.number("predatorMaxStamina");
-    const float staminaRecoveryRate = simConfig.number("predatorStaminaRecoveryRate");
-    const float staminaDrainRate = simConfig.number("predatorStaminaDrainRate");
+void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
 
     // First, try to maintain cruising speed
-    Vec3 currentSpeedDir = normalize(b.vel, eps);
+    Vec3 currentSpeedDir = normalize(b.vel, params.eps);
     Vec3 cruisingVel = {
-        currentSpeedDir.x * cruisingSpeed,
-        currentSpeedDir.y * cruisingSpeed,
-        currentSpeedDir.z * cruisingSpeed
+        currentSpeedDir.x * params.cruisingSpeedPredator,
+        currentSpeedDir.y * params.cruisingSpeedPredator,
+        currentSpeedDir.z * params.cruisingSpeedPredator
     };
     Vec3 cruisingForce = {
         cruisingVel.x - b.vel.x,
@@ -467,9 +411,9 @@ void resolvePredatorBoidBehavior(SimState& simState, const Config& simConfig, in
         cruisingVel.z - b.vel.z
     };
     Vec3 cruisingForceW = {
-        cruisingForce.x * (maxForce * 0.5f),
-        cruisingForce.y * (maxForce * 0.5f),
-        cruisingForce.z * (maxForce * 0.5f)
+        cruisingForce.x * (params.maxForce * 0.5f),
+        cruisingForce.y * (params.maxForce * 0.5f),
+        cruisingForce.z * (params.maxForce * 0.5f)
     };
     b.acc.x += cruisingForceW.x;
     b.acc.y += cruisingForceW.y;
@@ -477,28 +421,28 @@ void resolvePredatorBoidBehavior(SimState& simState, const Config& simConfig, in
 
     // Chase the target boid if any
     if (b.targetBoidIdx != -1 && b.resting == false && b.stamina > 0.0f) {
-        Boid& targetBoid = simState.boids[b.targetBoidIdx];
+        Boid& targetBoid = params.boids[b.targetBoidIdx];
         Vec3 toTarget = {
             targetBoid.pos.x - b.pos.x,
             targetBoid.pos.y - b.pos.y,
             targetBoid.pos.z - b.pos.z
         };
-        if (is2D)
+        if (params.is2D)
             toTarget.z = 0.0f;
-        Vec3 toTargetN = normalize(toTarget, eps);
+        Vec3 toTargetN = normalize(toTarget, params.eps);
         float toTargetLen = std::sqrt(sqrLen(toTarget));
         b.acc.x = toTargetN.x * (toTargetLen * toTargetLen);
         b.acc.y = toTargetN.y * (toTargetLen * toTargetLen);
         b.acc.z = toTargetN.z * (toTargetLen * toTargetLen);
-        b.stamina -= staminaDrainRate * dt;
+        b.stamina -= params.staminaDrainRatePredator * params.dt;
     } else if (b.stamina <= 0.0f && b.resting == false) {
         b.resting = true;
         b.stamina = 0.0f;
-    } else if (b.resting == true && b.stamina > maxStamina) {
+    } else if (b.resting == true && b.stamina > params.maxStaminaPredator) {
         b.resting = false;
-        b.stamina = maxStamina;
+        b.stamina = params.maxStaminaPredator;
     } else if (b.resting == true) {
-        b.stamina += staminaRecoveryRate * dt;
+        b.stamina += params.staminaRecoveryRatePredator * params.dt;
     }
 
     // Delete the target info for the next round
@@ -507,41 +451,31 @@ void resolvePredatorBoidBehavior(SimState& simState, const Config& simConfig, in
     
 }
 
-void resolveDynamics(SimState& simState, const Config& simConfig, int currentBoidIdx) {
-    // Unpack parameters from simState
-    Boid& b = simState.boids[currentBoidIdx];
-    const float eps = simState.eps.number();
-    const float dt = simState.dt.number();
+void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
 
-    // Unpack parameters from simConfig
-    const float maxSpeed = (b.type == BoidType::Basic) ? simConfig.number("maxSpeedBasic") : simConfig.number("maxSpeedPredator");
-    const float minSpeed = (b.type == BoidType::Basic) ? simConfig.number("minSpeedBasic") : simConfig.number("minSpeedPredator");
-    const float drag = simConfig.number("drag");
-    const float noise = simConfig.number("noise");
-
-    // Drag + noise
-    float dragPct = std::clamp(drag / 100.0f, 0.0f, 1.0f);
-    float numStepsToStop = 100.0f;
+    // Get parameters that depend on boid type
+    const float maxSpeed = (b.type == BoidType::Basic) ? params.maxSpeedBasic : params.maxSpeedPredator;
+    const float minSpeed = (b.type == BoidType::Basic) ? params.minSpeedBasic : params.minSpeedPredator;
 
     // Acceleration drag (simple linear drag)
-    if (dragPct > 0.0f) {
+    if (params.drag > 0.0f) {
         Vec3 stopAcc = {
-            -b.vel.x / dt / numStepsToStop,
-            -b.vel.y / dt / numStepsToStop,
-            -b.vel.z / dt / numStepsToStop
+            -b.vel.x / params.dt / params.numStepsToStopDueToMaxDrag,
+            -b.vel.y / params.dt / params.numStepsToStopDueToMaxDrag,
+            -b.vel.z / params.dt / params.numStepsToStopDueToMaxDrag
         };
 
         // apply fraction of full stop
-        b.acc.x += stopAcc.x * dragPct;
-        b.acc.y += stopAcc.y * dragPct;
-        b.acc.z += stopAcc.z * dragPct;
+        b.acc.x += stopAcc.x * params.drag;
+        b.acc.y += stopAcc.y * params.drag;
+        b.acc.z += stopAcc.z * params.drag;
     }
-
-    float noisePct = std::clamp(noise / 100.0f, 0.0f, 1.0f);
 
     // Current steering magnitude
     float accMagnitude = std::sqrt(sqrLen(b.acc));
-    Vec3 accDir = normalize(b.acc, eps);
+    Vec3 accDir = normalize(b.acc, params.eps);
 
     // Random unit vector
     Vec3 randVec = {
@@ -549,16 +483,16 @@ void resolveDynamics(SimState& simState, const Config& simConfig, int currentBoi
         ((float)rand()/RAND_MAX - 0.5f),
         ((float)rand()/RAND_MAX - 0.5f)
     };
-    Vec3 randDir = normalize(randVec, eps);
+    Vec3 randDir = normalize(randVec, params.eps);
 
     // blend steering vs randomness
     Vec3 blended = {
-        accDir.x * (1.0f - noisePct) + randDir.x * noisePct,
-        accDir.y * (1.0f - noisePct) + randDir.y * noisePct,
-        accDir.z * (1.0f - noisePct) + randDir.z * noisePct
+        accDir.x * (1.0f - params.noise) + randDir.x * params.noise,
+        accDir.y * (1.0f - params.noise) + randDir.y * params.noise,
+        accDir.z * (1.0f - params.noise) + randDir.z * params.noise
     };
 
-    Vec3 finalDir = normalize(blended, eps);
+    Vec3 finalDir = normalize(blended, params.eps);
 
     // preserve magnitude
     b.acc.x = finalDir.x * accMagnitude;
@@ -566,9 +500,9 @@ void resolveDynamics(SimState& simState, const Config& simConfig, int currentBoi
     b.acc.z = finalDir.z * accMagnitude;
 
     // Integrate
-    b.vel.x += b.acc.x * dt;
-    b.vel.y += b.acc.y * dt;
-    b.vel.z += b.acc.z * dt;
+    b.vel.x += b.acc.x * params.dt;
+    b.vel.y += b.acc.y * params.dt;
+    b.vel.z += b.acc.z * params.dt;
 
     // Speed limits (Boids Lab style)
     float speed = std::sqrt(sqrLen(b.vel));
@@ -578,110 +512,101 @@ void resolveDynamics(SimState& simState, const Config& simConfig, int currentBoi
         b.vel.y *= s; 
         b.vel.z *= s;
     } else if (speed < minSpeed) {
-        float s = minSpeed / (speed + eps);
+        float s = minSpeed / (speed + params.eps);
         b.vel.x *= s; 
         b.vel.y *= s; 
         b.vel.z *= s;
     }
 
-    b.pos.x += b.vel.x * dt;
-    b.pos.y += b.vel.y * dt;
-    b.pos.z += b.vel.z * dt;
+    b.pos.x += b.vel.x * params.dt;
+    b.pos.y += b.vel.y * params.dt;
+    b.pos.z += b.vel.z * params.dt;
 }
 
-void resolveCollisions(SimState& simState, const Config& simConfig, int currentBoidIdx) {
-    resolveWallCollisions(simState, simConfig, currentBoidIdx);
-    resolveObstacleCollisions(simState, simConfig, currentBoidIdx);
+void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx) {
+    resolveWallCollisions(params, currentBoidIdx);
+    resolveObstacleCollisions(params, currentBoidIdx);
 }
 
-void resolveWallCollisions(SimState& simState, const Config& simConfig, int currentBoidIdx) {
-    // Unpack parameters from simState
-    Boid& b = simState.boids[currentBoidIdx];
-    const bool  is2D = (simState.dimensions.string() == "2D");
-    const float rBoid = (b.type == BoidType::Basic) ? simState.basicBoidRadius.number() : simState.predatorRadius.number();
-    const float worldX = simState.worldX.number();
-    const float worldY = simState.worldY.number();
-    const float worldZ = simState.worldZ.number();
-
-    // Unpack parameters from simConfig
-    const bool bounce = simConfig.binary("bounce");
-    float bounceFactor = simConfig.number("bounceFactor") / 100.0f;
+void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
     
-    if (bounce) {
+    // Get parameters that depend on boid type
+    const float rBoid = (b.type == BoidType::Basic) ? params.basicBoidRadius : params.predatorRadius;
+
+    
+    if (params.bounce) {
         if (b.pos.x < rBoid) { 
             b.pos.x = rBoid; 
-            b.vel.x = -b.vel.x * bounceFactor;
-            b.vel.y = b.vel.y * bounceFactor;
-            b.vel.z = b.vel.z * bounceFactor;
-        } else if (b.pos.x > worldX - rBoid) { 
-            b.pos.x = worldX - rBoid; 
-            b.vel.x = -b.vel.x * bounceFactor; 
-            b.vel.y = b.vel.y * bounceFactor;
-            b.vel.z = b.vel.z * bounceFactor;
+            b.vel.x = -b.vel.x * params.bounceFactor;
+            b.vel.y = b.vel.y * params.bounceFactor;
+            b.vel.z = b.vel.z * params.bounceFactor;
+        } else if (b.pos.x > params.worldX - rBoid) { 
+            b.pos.x = params.worldX - rBoid; 
+            b.vel.x = -b.vel.x * params.bounceFactor; 
+            b.vel.y = b.vel.y * params.bounceFactor;
+            b.vel.z = b.vel.z * params.bounceFactor;
         }
 
         if (b.pos.y < rBoid) { 
             b.pos.y = rBoid; 
-            b.vel.y = -b.vel.y * bounceFactor; 
-            b.vel.x = b.vel.x * bounceFactor;
-            b.vel.z = b.vel.z * bounceFactor;
-        } else if (b.pos.y > worldY - rBoid) { 
-            b.pos.y = worldY - rBoid; 
-            b.vel.y = -b.vel.y * bounceFactor; 
-            b.vel.x = b.vel.x * bounceFactor;
-            b.vel.z = b.vel.z * bounceFactor;
+            b.vel.y = -b.vel.y * params.bounceFactor; 
+            b.vel.x = b.vel.x * params.bounceFactor;
+            b.vel.z = b.vel.z * params.bounceFactor;
+        } else if (b.pos.y > params.worldY - rBoid) { 
+            b.pos.y = params.worldY - rBoid; 
+            b.vel.y = -b.vel.y * params.bounceFactor; 
+            b.vel.x = b.vel.x * params.bounceFactor;
+            b.vel.z = b.vel.z * params.bounceFactor;
         }
 
-        if (!is2D) {
+        if (!params.is2D) {
             if (b.pos.z < rBoid) { 
                 b.pos.z = rBoid; 
-                b.vel.z = -b.vel.z * bounceFactor; 
-                b.vel.x = b.vel.x * bounceFactor; 
-                b.vel.y = b.vel.y * bounceFactor; 
-            } else if (b.pos.z > worldZ - rBoid) { 
-                b.pos.z = worldZ - rBoid; 
-                b.vel.z = -b.vel.z * bounceFactor; 
-                b.vel.x = b.vel.x * bounceFactor; 
-                b.vel.y = b.vel.y * bounceFactor; 
+                b.vel.z = -b.vel.z * params.bounceFactor; 
+                b.vel.x = b.vel.x * params.bounceFactor; 
+                b.vel.y = b.vel.y * params.bounceFactor; 
+            } else if (b.pos.z > params.worldZ - rBoid) { 
+                b.pos.z = params.worldZ - rBoid; 
+                b.vel.z = -b.vel.z * params.bounceFactor; 
+                b.vel.x = b.vel.x * params.bounceFactor; 
+                b.vel.y = b.vel.y * params.bounceFactor; 
             }
         }
     } else {
         if (b.pos.x < 0) {
-            b.pos.x += worldX;
-        } else if (b.pos.x >= worldX) {
-            b.pos.x -= worldX;
+            b.pos.x += params.worldX;
+        } else if (b.pos.x >= params.worldX) {
+            b.pos.x -= params.worldX;
         }
         
         if (b.pos.y < 0) {
-            b.pos.y += worldY; 
-        } else if (b.pos.y >= worldY) {
-            b.pos.y -= worldY;
+            b.pos.y += params.worldY; 
+        } else if (b.pos.y >= params.worldY) {
+            b.pos.y -= params.worldY;
         }
         
-        if (!is2D) {
+        if (!params.is2D) {
             if (b.pos.z < 0) {
-                b.pos.z += worldZ;
-            } else if (b.pos.z >= worldZ) {
-                b.pos.z -= worldZ;
+                b.pos.z += params.worldZ;
+            } else if (b.pos.z >= params.worldZ) {
+                b.pos.z -= params.worldZ;
             }
         }
     }
 }
 
-void resolveObstacleCollisions(SimState& simState, const Config& simConfig, int currentBoidIdx) {
-    // Unpack parameters from simState
-    Boid& b = simState.boids[currentBoidIdx];
-    const float rBoid = simState.basicBoidRadius.number();
-    const float rObstacle = simState.obstacleRadius.number();
-    const float eps = simState.eps.number();
-    const std::vector<size_t>& obstacleBoidIndices = simState.obstacleBoidIndices;
+void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
 
-    // Unpack parameters from simConfig
-    const float bounceFactor = simConfig.number("bounceFactor") / 100.0f;
+    // Get parameters that depend on boid type
+    const float rBoid = (b.type == BoidType::Basic) ? params.basicBoidRadius : params.predatorRadius;
 
     // Check collisions with obstacles
-    for (size_t obsIdx : obstacleBoidIndices) {
-        const Boid& obs = simState.boids[obsIdx];
+    for (size_t obsIdx : params.obstacleBoidIndices) {
+        const Boid& obs = params.boids[obsIdx];
 
         Vec3 diff = {
             b.pos.x - obs.pos.x,
@@ -690,16 +615,16 @@ void resolveObstacleCollisions(SimState& simState, const Config& simConfig, int 
         };
 
         float dist2 = sqrLen(diff);
-        float combinedRadius = rBoid + rObstacle;
+        float combinedRadius = rBoid + params.obstacleRadius;
         float dist = std::sqrt(dist2) - combinedRadius;
 
         if (dist < 0.0f) {
             Vec3 n = normalize(diff);
 
             // Push boid out of obstacle
-            b.pos.x += n.x * (-dist + eps);
-            b.pos.y += n.y * (-dist + eps);
-            b.pos.z += n.z * (-dist + eps);
+            b.pos.x += n.x * (-dist + params.eps);
+            b.pos.y += n.y * (-dist + params.eps);
+            b.pos.z += n.z * (-dist + params.eps);
 
             // Reflection calculation
             float vDotN = b.vel.x*n.x + b.vel.y*n.y + b.vel.z*n.z;
@@ -712,46 +637,26 @@ void resolveObstacleCollisions(SimState& simState, const Config& simConfig, int 
             };
 
             // Apply bounce factor
-            float e = std::clamp(bounceFactor, 0.0f, 1.0f);
-            b.vel.x = vReflect.x * e;
-            b.vel.y = vReflect.y * e;
-            b.vel.z = vReflect.z * e;
+            b.vel.x = vReflect.x * params.bounceFactor;
+            b.vel.y = vReflect.y * params.bounceFactor;
+            b.vel.z = vReflect.z * params.bounceFactor;
         }
     }
 }
 
-void resolveMouseInteraction(SimState& simState, const Config& simConfig, int currentBoidIdx) {
-    // Unpack parameters from simState
-    Boid& b = simState.boids[currentBoidIdx];
-    const Interaction& inter = simState.interaction;
-    const float eps = simState.eps.number();
-    const std::string dimensions = simState.dimensions.string();
-    const bool is2D = (dimensions == "2D");
-
-    // Unpack parameters from simConfig
-    const float maxForce = simConfig.number("maxForce");
-    const bool bounce = simConfig.binary("bounce");
-    const float mouseInteractionMultiplier = simConfig.number("mouseInteractionMultiplier");
+void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx) {
+    // Get reference to current boid and interaction
+    Boid& b = params.boids[currentBoidIdx];
+    const Interaction& inter = params.interaction;
 
     // Define helper to make weighted forces
     auto makeWeightedForce = [&](const Vec3& dir, float weight) {
         return Vec3{
-            dir.x * (maxForce * weight) * mouseInteractionMultiplier,
-            dir.y * (maxForce * weight) * mouseInteractionMultiplier,
-            dir.z * (maxForce * weight) * mouseInteractionMultiplier
+            dir.x * (params.maxForce * weight) * params.mouseInteractionMultiplier,
+            dir.y * (params.maxForce * weight) * params.mouseInteractionMultiplier,
+            dir.z * (params.maxForce * weight) * params.mouseInteractionMultiplier
         };
     };
-
-    float maxDistanceBetweenPoints = 0.0f;
-    if (is2D) {
-        maxDistanceBetweenPoints = std::sqrt(simState.worldX.number()*simState.worldX.number() + simState.worldY.number()*simState.worldY.number());
-    } else {
-        maxDistanceBetweenPoints = std::sqrt(simState.worldX.number()*simState.worldX.number() + simState.worldY.number()*simState.worldY.number() + simState.worldZ.number()*simState.worldZ.number());
-    }
-    if (!bounce) {
-        maxDistanceBetweenPoints *= 0.5f;
-    }
-    float maxDistanceBetweenPoints2 = maxDistanceBetweenPoints * maxDistanceBetweenPoints;
 
     if (inter.type != InteractionType::Empty) {
         // Zero the so far accumulated acceleration
@@ -766,16 +671,16 @@ void resolveMouseInteraction(SimState& simState, const Config& simConfig, int cu
         };
 
         float dist2 = sqrLen(diff);
-        if (dist2 < eps)
-            dist2 = eps;
+        if (dist2 < params.eps)
+            dist2 = params.eps;
 
         // Create weight based on distance
-        float weight = dist2 / maxDistanceBetweenPoints2;
+        float weight = dist2 / params.maxDistanceBetweenPoints2;
         if (weight < 0.0f)
             weight = 0.0f;
 
         // Get normalized direction
-        Vec3 dir = normalize(diff, eps);
+        Vec3 dir = normalize(diff, params.eps);
 
         // Calculate weighted force
         Vec3 weightedForce = makeWeightedForce(dir, weight);
@@ -792,21 +697,21 @@ void resolveMouseInteraction(SimState& simState, const Config& simConfig, int cu
     }
 }
 
-void resolveRest(SimState& simState, const Config& simConfig, int currentBoidIdx) {
+void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx) {
     // Resolve mouse interactions
-    resolveMouseInteraction(simState, simConfig, currentBoidIdx);
+    resolveMouseInteraction(params, currentBoidIdx);
 
     // Resolve obstacle avoidance
-    resolveObstacleAndWallAvoidance(simState, simConfig, currentBoidIdx);
+    resolveObstacleAndWallAvoidance(params, currentBoidIdx);
 
     // Resolve dynamics
-    resolveDynamics(simState, simConfig, currentBoidIdx);
+    resolveDynamics(params, currentBoidIdx);
 
     // Resolve wall interactions
-    resolveCollisions(simState, simConfig, currentBoidIdx);
+    resolveCollisions(params, currentBoidIdx);
 
-    if (simState.dimensions.string() == "2D") {
-        simState.boids[currentBoidIdx].pos.z = 0.0f;
-        simState.boids[currentBoidIdx].vel.z = 0.0f;
+    if (params.is2D) {
+        params.boids[currentBoidIdx].pos.z = 0.0f;
+        params.boids[currentBoidIdx].vel.z = 0.0f;
     }
 }

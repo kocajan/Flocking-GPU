@@ -2,6 +2,7 @@
 
 #include "core/SimState.hpp"
 #include "config/Config.hpp"
+#include "versions/sequentialNaive/SequentialNaiveParameters.hpp"
 
 
-void sequentialNaiveSimulationStep(SimState& simState, const Config& simConfig);
+void simulationStepSequentialNaive(SequentialNaiveParameters& params);

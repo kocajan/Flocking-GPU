@@ -11,7 +11,7 @@
 #include "versions/parallel/ParallelSimConfigUpdate.hpp"
 #include "versions/sequential/SequentialSimConfigUpdate.hpp"
 #include "versions/parallelNaive/ParallelNaiveSimConfigUpdate.hpp"
-#include "versions/sequentialNaive/SequentialNaiveSimConfigUpdate.hpp"
+#include "versions/sequentialNaive/SequentialNaiveParameters.hpp"
 
 
 void simulationStep(SimState& simState, Config& simConfig)
@@ -19,8 +19,8 @@ void simulationStep(SimState& simState, Config& simConfig)
     const std::string& version = simState.version.string();
 
     if (version == "sequentialNaive") {
-        sequentialNaiveSimConfigUpdate(simConfig);
-        sequentialNaiveSimulationStep(simState, simConfig);
+        SequentialNaiveParameters parameters(simState, simConfig);
+        simulationStepSequentialNaive(parameters);
     }
     else if (version == "sequential") {
         sequentialSimConfigUpdate(simConfig);
