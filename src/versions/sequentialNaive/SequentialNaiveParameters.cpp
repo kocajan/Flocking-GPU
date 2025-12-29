@@ -28,6 +28,17 @@ SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c
     worldX = s.worldX.number();
     worldY = s.worldY.number();
     worldZ = s.worldZ.number();
+    float longestWorldEdge = std::max({worldX, worldY, is2D ? 0.0f : worldZ});
+
+    // Precompute max distance between points in the world
+    if (is2D)
+        maxDistanceBetweenPoints = std::sqrt(worldX*worldX + worldY*worldY);
+    else
+        maxDistanceBetweenPoints = std::sqrt(worldX*worldX + worldY*worldY + worldZ*worldZ);
+
+    if (!bounce)
+        maxDistanceBetweenPoints *= 0.5f;
+    maxDistanceBetweenPoints2 = maxDistanceBetweenPoints * maxDistanceBetweenPoints;
 
     // Core numeric constants
     eps = s.eps.number();
@@ -50,23 +61,35 @@ SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c
 
     targetAttractionWeightBasic = std::clamp(c.number("targetAttractionBasic") / 100.0f, 0.0f, 1.0f);
 
+    // Calculate max speed based on the longest world edge
+    float maxSpeed = longestWorldEdge / 10.0f;
+
     // Basic boid speeds
-    cruisingSpeedBasic = c.number("cruisingSpeedBasic");
-    maxSpeedBasic = c.number("maxSpeedBasic");
-    minSpeedBasic = c.number("minSpeedBasic");
+    float cruisingSpeedBasicPercentage = std::clamp(c.number("cruisingSpeedBasic") / 100.0f, 0.0f, 1.0f);
+    float maxSpeedBasicPercentage = std::clamp(c.number("maxSpeedBasic") / 100.0f, 0.0f, 1.0f);
+    float minSpeedBasicPercentage = std::clamp(c.number("minSpeedBasic") / 100.0f, 0.0f, 1.0f);
+    maxSpeedBasic = maxSpeed * maxSpeedBasicPercentage;
+    minSpeedBasic = maxSpeed * minSpeedBasicPercentage;
+    cruisingSpeedBasic = maxSpeedBasic * cruisingSpeedBasicPercentage;
 
     // Predator speeds
-    cruisingSpeedPredator = c.number("cruisingSpeedPredator");
-    maxSpeedPredator = c.number("maxSpeedPredator");
-    minSpeedPredator = c.number("minSpeedPredator");
-
+    float cruisingSpeedPredatorPercentage = std::clamp(c.number("cruisingSpeedPredator") / 100.0f, 0.0f, 1.0f);
+    float maxSpeedPredatorPercentage = std::clamp(c.number("maxSpeedPredator") / 100.0f, 0.0f, 1.0f);
+    float minSpeedPredatorPercentage = std::clamp(c.number("minSpeedPredator") / 100.0f, 0.0f, 1.0f);
+    maxSpeedPredator = maxSpeed * maxSpeedPredatorPercentage;
+    minSpeedPredator = maxSpeed * minSpeedPredatorPercentage;
+    cruisingSpeedPredator = maxSpeedPredator * cruisingSpeedPredatorPercentage;
+    
     // Predator stamina
     maxStaminaPredator = c.number("predatorMaxStamina");
     staminaRecoveryRatePredator = c.number("predatorStaminaRecoveryRate");
     staminaDrainRatePredator = c.number("predatorStaminaDrainRate");
 
+    // Calculate max force based on max speed
+    float maxForcePercentage = std::clamp(c.number("maxForce") / 100.0f, 0.0f, 1.0f);
+    maxForce = maxSpeed * maxForcePercentage;
+
     // Dynamics
-    maxForce = c.number("maxForce");
     drag  = std::clamp(c.number("drag") / 100.0f, 0.0f, 1.0f);
     noise = std::clamp(c.number("noise") / 100.0f, 0.0f, 1.0f);
     numStepsToStopDueToMaxDrag = 100.0f;
@@ -77,15 +100,4 @@ SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c
 
     // Neighbor selection
     maxNeighborsBasic = static_cast<float>(s.basicBoidCount) * (c.number("neighbourAccuracy") / 100.0f);
-
-    // Precompute max distance between points in the world
-    if (is2D)
-        maxDistanceBetweenPoints = std::sqrt(worldX*worldX + worldY*worldY);
-    else
-        maxDistanceBetweenPoints = std::sqrt(worldX*worldX + worldY*worldY + worldZ*worldZ);
-
-    if (!bounce)
-        maxDistanceBetweenPoints *= 0.5f;
-
-    maxDistanceBetweenPoints2 = maxDistanceBetweenPoints * maxDistanceBetweenPoints;
 }
