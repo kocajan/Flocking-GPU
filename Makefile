@@ -60,10 +60,22 @@ $(BUILD_DIR)/%.o: %.c
 # =========================
 # Utilities
 # =========================
+
+# clean = remove build artifacts, keep third party sources
 clean:
 	rm -rf $(BUILD_DIR) $(BIN)
+
+# fclean = full clean including any extra generated dirs
+fclean: clean
+	# remove optional caches or generated vendor outputs here
+	# (keeps actual third_party source tree untouched)
+	@echo "Full cleanup done."
+
+# rebuild convenience target
+re: fclean all
 
 run: all
 	./$(BIN)
 
-.PHONY: all clean run
+.PHONY: all clean fclean re run
+
