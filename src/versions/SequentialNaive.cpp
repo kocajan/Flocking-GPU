@@ -77,14 +77,18 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
     Boid& b = simState.boids[currentBoidIdx];
     const bool  is2D = (simState.dimensions.string() == "2D");
     const float rBoid = (b.type == BoidType::Basic) ? simState.basicBoidRadius.number() : simState.predatorRadius.number();
+    const float rObstacle = simState.obstacleRadius.number();
     const float worldX = simState.worldX.number();
     const float worldY = simState.worldY.number();
     const float worldZ = simState.worldZ.number();
     const float eps = simState.eps.number();
     const std::vector<size_t>& obstacleBoidIndices = simState.obstacleBoidIndices;
+    const float maxVisualRange = std::sqrt(worldX*worldX + worldY*worldY + (is2D ? 0.0f : worldZ*worldZ)); 
 
     // Unpack parameters from simConfig
-    const float visualRange = (b.type == BoidType::Basic) ? simConfig.number("visionBasic") : simConfig.number("visionPredator");
+    const float visualRangePercentage = (b.type == BoidType::Basic) ? simConfig.number("visionBasic") : simConfig.number("visionPredator");
+    const bool bounce = simConfig.binary("bounce");
+    const float visualRange = (visualRangePercentage / 100.0f) * maxVisualRange;
     const float maxForce = simConfig.number("maxForce");
 
     Vec3 obstacleDirSum{0,0,0};
@@ -99,16 +103,18 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
             0.0f
         };
 
-        float dist = std::sqrt(sqrLen(diff));
+        float centerDist = std::sqrt(sqrLen(diff));
+        float combinedRadius = rBoid + rObstacle;
+        float surfaceDist = centerDist - combinedRadius;
 
-        if (dist > visualRange)
+        if (surfaceDist > visualRange)
             continue;
         obstacleCount++;
 
         Vec3 dir = normalize(diff, eps);
 
         // Proximity weight
-        float weight = std::exp(-dist);
+        float weight = std::exp(-0.1 * surfaceDist);
 
         // Accumulate weighted direction
         obstacleDirSum.x += dir.x * weight;
@@ -117,6 +123,8 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
 
         obstacleWeightSum += weight;
     }
+
+
     if (obstacleCount >= 1.0) {
         // Calculate average direction
         Vec3 avgDir = {
@@ -127,28 +135,25 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
 
         // Calculate average weight
         float averageWeight = obstacleWeightSum / obstacleCount;
-        printf("Average obstacle avoidance weight: %f\n", averageWeight);
 
         Vec3 avoidDir = normalize(avgDir, eps);
 
         // Apply as a single steering vector
-        b.acc.x += avoidDir.x * maxForce * averageWeight;
-        b.acc.y += avoidDir.y * maxForce * averageWeight;
-        b.acc.z += avoidDir.z * maxForce * averageWeight;
+        b.acc.x += avoidDir.x * maxForce * averageWeight * 500.0f;
+        b.acc.y += avoidDir.y * maxForce * averageWeight * 500.0f;
+        b.acc.z += avoidDir.z * maxForce * averageWeight * 500.0f;
+    }
 
-        // Weight down the acceleration to avoid excessive speedup
-        b.acc.x /= 2.0f;
-        b.acc.y /= 2.0f;
-        b.acc.z /= 2.0f;
+    // If the boid is close to walls, apply repelling force only if bounce is enabled
+    if (!bounce) {
+        return;
     }
 
     auto repelFromWall = [&](float d, float axisSign, float& accAxis)
     {
         if (d < visualRange) {
-            float diff = visualRange - d;
-            float weight = std::exp(-diff);
-            accAxis += axisSign * (maxForce * weight);
-            accAxis /= 2.0f;
+            float weight = std::exp(-d);
+            accAxis += axisSign * (maxForce * weight * 1000.0f);
         }
     };
 
@@ -430,6 +435,8 @@ void resolvePredatorBoidBehavior(SimState& simState, const Config& simConfig, in
     const float minSpeed = simConfig.number("minSpeedPredator");
     const float maxForce = simConfig.number("maxForce");
     const float maxStamina = 100.0f;
+    const float staminaRecoveryRate = 10.0f;
+    const float staminaDrainRate = 20.0f;
 
     // First make random wandering at minimum speed - create the vector randomly so goes the minimum speed
     if (std::sqrt(sqrLen(b.vel)) < minSpeed) {
@@ -453,7 +460,7 @@ void resolvePredatorBoidBehavior(SimState& simState, const Config& simConfig, in
         b.acc.x = toTargetN.x * (toTargetLen * toTargetLen);
         b.acc.y = toTargetN.y * (toTargetLen * toTargetLen);
         b.acc.z = toTargetN.z * (toTargetLen * toTargetLen);
-        b.stamina -= 10.0f * dt;
+        b.stamina -= staminaDrainRate * dt;
     } else if (b.stamina <= 0.0f && b.resting == false) {
         b.resting = true;
         b.stamina = 0.0f;
@@ -461,7 +468,7 @@ void resolvePredatorBoidBehavior(SimState& simState, const Config& simConfig, in
         b.resting = false;
         b.stamina = maxStamina;
     } else if (b.resting == true) {
-        b.stamina += 10.0f * dt;
+        b.stamina += staminaRecoveryRate * dt;
     }
 
     // Delete the target info for the next round
@@ -699,9 +706,9 @@ void resolveMouseInteraction(SimState& simState, const Config& simConfig, int cu
     // Define helper to make weighted forces
     auto makeWeightedForce = [&](const Vec3& dir, float weight) {
         return Vec3{
-            dir.x * (maxForce * weight) * 1000000.0f,
-            dir.y * (maxForce * weight) * 1000000.0f,
-            dir.z * (maxForce * weight) * 1000000.0f
+            dir.x * (maxForce * weight) * 1000.0f,
+            dir.y * (maxForce * weight) * 1000.0f,
+            dir.z * (maxForce * weight) * 1000.0f
         };
     };
 
@@ -756,8 +763,8 @@ void resolveMouseInteraction(SimState& simState, const Config& simConfig, int cu
 }
 
 void resolveRest(SimState& simState, const Config& simConfig, int currentBoidIdx) {
-    // // Resolve mouse interactions
-    // resolveMouseInteraction(simState, simConfig, currentBoidIdx);
+    // Resolve mouse interactions
+    resolveMouseInteraction(simState, simConfig, currentBoidIdx);
 
     // Resolve obstacle avoidance
     resolveObstacleAndWallAvoidance(simState, simConfig, currentBoidIdx);
