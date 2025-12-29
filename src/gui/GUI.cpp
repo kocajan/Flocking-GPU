@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cmath>
+#include <chrono>
 
 #include "gui/GUI.hpp"
 #include "gui/GuiParameterRenderer.hpp"
@@ -59,6 +60,14 @@ bool GUI::initializePlatform(const char* title) {
     glfwSetKeyCallback(window, keyCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
 
+    interaction.active = false;
+    interaction.worldX = -1.0f;
+    interaction.worldY = -1.0f;
+    interaction.lastWorldX = -1.0f;
+    interaction.lastWorldY = -1.0f;
+    interaction.timestamp = std::chrono::high_resolution_clock::now();
+    interaction.lastTimestamp = interaction.timestamp;
+
     return true;
 }
 
@@ -100,6 +109,7 @@ void GUI::beginFrame(float worldW, float worldH) {
             interaction.active = true;
             interaction.worldX = wx;
             interaction.worldY = wy;
+            interaction.timestamp = std::chrono::high_resolution_clock::now();
         }
     }
 
@@ -332,7 +342,7 @@ void GUI::mouseButtonCallback(GLFWwindow*, int button, int action, int) {
 // Accessors
 // ============================================================
 
-const MouseInteractionEvent& GUI::getInteraction() const {
+MouseInteractionEvent& GUI::getInteraction() {
     return interaction;
 }
 

@@ -5,4 +5,4 @@
 #include "core/SimState.hpp"
 
 
-void applyInteraction(SimState& simState, const MouseInteractionEvent& interaction);
+void applyInteraction(SimState& simState, MouseInteractionEvent& interaction);

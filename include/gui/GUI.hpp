@@ -2,6 +2,8 @@
 
 #include <vector>
 #include <cstdint>
+#include <string>
+#include <chrono>
 
 #include "config/Config.hpp"
 #include "core/SimState.hpp"
@@ -25,6 +27,10 @@ struct MouseInteractionEvent {
     bool active;
     float worldX;
     float worldY;
+    float lastWorldX;
+    float lastWorldY;
+    std::chrono::high_resolution_clock::time_point timestamp;
+    std::chrono::high_resolution_clock::time_point lastTimestamp;
 };
 
 // ============================================================
@@ -44,7 +50,7 @@ public:
 
     void shutdown();
 
-    const MouseInteractionEvent& getInteraction() const;
+    MouseInteractionEvent& getInteraction();
 
 private:
     void renderControlGui(Config& simConfig, SimState& simState);
@@ -76,7 +82,6 @@ private:
     MouseInteractionEvent interaction;
 
     bool mousePressed = false;
-    bool dragActive = false;
     int activeMouseButton = -1;
 
     float pressX = 0.0f;

@@ -87,9 +87,6 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
     const float visualRange = (b.type == BoidType::Basic) ? simConfig.number("visionBasic") : simConfig.number("visionPredator");
     const float maxForce = simConfig.number("maxForce");
 
-    // Calculate max weight
-    const float maxWeight = std::exp(-rBoid);
-
     Vec3 obstacleDirSum{0,0,0};
     float obstacleWeightSum = 0.0f;
     float obstacleCount = 0;
@@ -120,20 +117,17 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
 
         obstacleWeightSum += weight;
     }
-
     if (obstacleCount >= 1.0) {
         // Calculate average direction
         Vec3 avgDir = {
-            obstacleDirSum.x / obstacleWeightSum,
-            obstacleDirSum.y / obstacleWeightSum,
-            obstacleDirSum.z / obstacleWeightSum
+            obstacleDirSum.x,
+            obstacleDirSum.y,
+            obstacleDirSum.z
         };
 
         // Calculate average weight
         float averageWeight = obstacleWeightSum / obstacleCount;
-
-        // Normalize average weight
-        averageWeight /= maxWeight;
+        printf("Average obstacle avoidance weight: %f\n", averageWeight);
 
         Vec3 avoidDir = normalize(avgDir, eps);
 
@@ -152,7 +146,7 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
     {
         if (d < visualRange) {
             float diff = visualRange - d;
-            float weight = std::exp(-diff) / maxWeight;
+            float weight = std::exp(-diff);
             accAxis += axisSign * (maxForce * weight);
             accAxis /= 2.0f;
         }
@@ -187,8 +181,6 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
     const float eps = simState.eps.number();
     const uint64_t basicBoidCount = simState.basicBoidCount;
     Boid& b = simState.boids[currentBoidIdx];
-
-    printf("Current boid pos: (%f, %f, %f)\n", b.pos.x, b.pos.y, b.pos.z);
 
     // Unpack parameters from simConfig
     const float visualRangeBasic = simConfig.number("visionBasic");
@@ -767,8 +759,8 @@ void resolveRest(SimState& simState, const Config& simConfig, int currentBoidIdx
     // // Resolve mouse interactions
     // resolveMouseInteraction(simState, simConfig, currentBoidIdx);
 
-    // // Resolve obstacle avoidance
-    // resolveObstacleAndWallAvoidance(simState, simConfig, currentBoidIdx);
+    // Resolve obstacle avoidance
+    resolveObstacleAndWallAvoidance(simState, simConfig, currentBoidIdx);
 
     // Resolve dynamics
     resolveDynamics(simState, simConfig, currentBoidIdx);

@@ -1,5 +1,6 @@
 #include <cmath>
 #include <vector>
+#include <chrono>
 #include <string>
 #include <cassert>
 #include <algorithm>
@@ -43,7 +44,22 @@ static void applyEffect(SimState& s, const std::string& effect, float x, float y
     }
 }
 
-void applyInteraction(SimState& simState, const MouseInteractionEvent& interaction) {
+// Returns true if `timestamp` is within `window` from `now`
+inline bool recent(const std::chrono::high_resolution_clock::time_point& timestamp1, 
+                   const std::chrono::high_resolution_clock::time_point& timestamp2,
+                std::chrono::milliseconds window = std::chrono::milliseconds(100)) {
+    return (timestamp2 - timestamp1) < window;
+}
+
+// Returns true if points are within relative tolerance of world size
+inline bool nearSamePoint(float ax, float ay, float bx, float by, float worldX, float worldY, float relTol = 0.01f) {
+    const float tolX = worldX * relTol;
+    const float tolY = worldY * relTol;
+
+    return std::abs(ax - bx) < tolX && std::abs(ay - by) < tolY;
+}
+
+void applyInteraction(SimState& simState, MouseInteractionEvent& interaction) {
     // Create interaction placeholder
     Vec3 interactionPosition = { interaction.worldX, interaction.worldY, 0.0f };
     InteractionType interactionType = InteractionType::Empty;
@@ -55,7 +71,22 @@ void applyInteraction(SimState& simState, const MouseInteractionEvent& interacti
         return;
     }
 
+    // Determine effect based on interaction type        
     const std::string& effect = (interaction.type == MouseInteractionType::LeftClickOnWorld) ? simState.leftMouseEffect.string() : simState.rightMouseEffect.string();
+
+    
+    // For the spawning effects, avoid multiple spawns at the same location
+    if (effect == "Spawn Predator" || effect == "Draw Obstacle") {
+        if (recent(interaction.lastTimestamp, interaction.timestamp)) {
+            if (nearSamePoint(interaction.worldX, interaction.worldY, interaction.lastWorldX, interaction.lastWorldY, 
+                            simState.worldX.number(), simState.worldY.number(), 0.01f)) {
+                return;
+            }
+        }
+        interaction.lastWorldX = interaction.worldX;
+        interaction.lastWorldY = interaction.worldY;
+        interaction.lastTimestamp = interaction.timestamp;
+    }
 
     applyEffect(simState, effect, interaction.worldX, interaction.worldY);
 }
