@@ -90,6 +90,7 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
     const bool bounce = simConfig.binary("bounce");
     const float visualRange = (visualRangePercentage / 100.0f) * maxVisualRange;
     const float maxForce = simConfig.number("maxForce");
+    const float obstacleAvoidanceMultiplier = simConfig.number("obstacleAvoidanceMultiplier");
 
     Vec3 obstacleDirSum{0,0,0};
     float obstacleWeightSum = 0.0f;
@@ -139,9 +140,9 @@ void resolveObstacleAndWallAvoidance(SimState& simState, const Config& simConfig
         Vec3 avoidDir = normalize(avgDir, eps);
 
         // Apply as a single steering vector
-        b.acc.x += avoidDir.x * maxForce * averageWeight * 500.0f;
-        b.acc.y += avoidDir.y * maxForce * averageWeight * 500.0f;
-        b.acc.z += avoidDir.z * maxForce * averageWeight * 500.0f;
+        b.acc.x += avoidDir.x * maxForce * averageWeight * obstacleAvoidanceMultiplier;
+        b.acc.y += avoidDir.y * maxForce * averageWeight * obstacleAvoidanceMultiplier;
+        b.acc.z += avoidDir.z * maxForce * averageWeight * obstacleAvoidanceMultiplier;
     }
 
     // If the boid is close to walls, apply repelling force only if bounce is enabled
@@ -194,6 +195,9 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
     const float alignmentWeight = std::clamp(simConfig.number("alignmentBasic") / 100.0f, 0.0f, 1.0f);
     const float separationWeight = std::clamp(simConfig.number("separationBasic") / 100.0f, 0.0f, 1.0f);
     const float targetWeight = std::clamp(simConfig.number("targetAttractionBasic") / 100.0f, 0.0f, 1.0f);
+    const float maxSpeed = simConfig.number("maxSpeedBasic");
+    const float cruisingSpeedPercentage = simConfig.number("cruisingSpeedBasic");
+    const float cruisingSpeed = maxSpeed * (cruisingSpeedPercentage / 100.0f);
     const float neighborAccuracy = simConfig.number("accuracy");
     const float maxForce = simConfig.number("maxForce");
     const bool bounce = simConfig.binary("bounce");
@@ -334,6 +338,19 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
     float adjustedTargetWeight = targetWeight * distanceFactor;
     float adjustedTargetWeightClamped = std::clamp(adjustedTargetWeight, 0.0f, 1.0f);
 
+    // Create for for cruising in the current velocity with the desired cruising speed
+    Vec3 currentSpeedDir = normalize(b.vel, eps);
+    Vec3 cruisingVel = {
+        currentSpeedDir.x * cruisingSpeed,
+        currentSpeedDir.y * cruisingSpeed,
+        currentSpeedDir.z * cruisingSpeed
+    };
+    Vec3 cruisingForce = {
+        cruisingVel.x - b.vel.x,
+        cruisingVel.y - b.vel.y,
+        cruisingVel.z - b.vel.z
+    };
+
     // Get directions from the forces
     Vec3 cohesionDir = normalize(cohesionForce, eps);
     Vec3 alignmentDir = normalize(alignmentForce, eps);
@@ -345,14 +362,15 @@ void resolveBasicBoidBehavior(SimState& simState, const Config& simConfig, int c
     Vec3 alignmentForceW = makeWeightedForce(alignmentDir, alignmentWeight);
     Vec3 separationForceW = makeWeightedForce(separationDir, separationWeight);
     Vec3 targetForceW = makeWeightedForce(targetDir, adjustedTargetWeight);
+    Vec3 cruisingForceW = makeWeightedForce(cruisingForce, 0.5f);
 
     // Average the forces (just sum - they are already weighted)
     Vec3 averageForce = {
-        cohesionForceW.x + alignmentForceW.x + separationForceW.x + targetForceW.x,
-        cohesionForceW.y + alignmentForceW.y + separationForceW.y + targetForceW.y,
-        cohesionForceW.z + alignmentForceW.z + separationForceW.z + targetForceW.z
+        cohesionForceW.x + alignmentForceW.x + separationForceW.x + targetForceW.x + cruisingForceW.x,
+        cohesionForceW.y + alignmentForceW.y + separationForceW.y + targetForceW.y + cruisingForceW.y,
+        cohesionForceW.z + alignmentForceW.z + separationForceW.z + targetForceW.z + cruisingForceW.z
     };
-    float numForces = 4.0f;
+    float numForces = 5.0f;
     averageForce.x /= numForces;
     averageForce.y /= numForces;
     averageForce.z /= numForces;
@@ -433,17 +451,33 @@ void resolvePredatorBoidBehavior(SimState& simState, const Config& simConfig, in
     // Unpack parameters from simConfig
     const float maxSpeed = simConfig.number("maxSpeedPredator");
     const float minSpeed = simConfig.number("minSpeedPredator");
+    const float cruisingSpeedPercentage = simConfig.number("cruisingSpeedPredator");
+    const float cruisingSpeed = maxSpeed * (cruisingSpeedPercentage / 100.0f);
     const float maxForce = simConfig.number("maxForce");
-    const float maxStamina = 100.0f;
-    const float staminaRecoveryRate = 10.0f;
-    const float staminaDrainRate = 20.0f;
+    const float maxStamina = simConfig.number("predatorMaxStamina");
+    const float staminaRecoveryRate = simConfig.number("predatorStaminaRecoveryRate");
+    const float staminaDrainRate = simConfig.number("predatorStaminaDrainRate");
 
-    // First make random wandering at minimum speed - create the vector randomly so goes the minimum speed
-    if (std::sqrt(sqrLen(b.vel)) < minSpeed) {
-        b.acc.x += ((float)rand() / RAND_MAX - 0.5f) * 10.0f;
-        b.acc.y += ((float)rand() / RAND_MAX - 0.5f) * 10.0f;
-        b.acc.z += ((float)rand() / RAND_MAX - 0.5f) * 10.0f;
-    }
+    // First, try to maintain cruising speed
+    Vec3 currentSpeedDir = normalize(b.vel, eps);
+    Vec3 cruisingVel = {
+        currentSpeedDir.x * cruisingSpeed,
+        currentSpeedDir.y * cruisingSpeed,
+        currentSpeedDir.z * cruisingSpeed
+    };
+    Vec3 cruisingForce = {
+        cruisingVel.x - b.vel.x,
+        cruisingVel.y - b.vel.y,
+        cruisingVel.z - b.vel.z
+    };
+    Vec3 cruisingForceW = {
+        cruisingForce.x * (maxForce * 0.5f),
+        cruisingForce.y * (maxForce * 0.5f),
+        cruisingForce.z * (maxForce * 0.5f)
+    };
+    b.acc.x += cruisingForceW.x;
+    b.acc.y += cruisingForceW.y;
+    b.acc.z += cruisingForceW.z;
 
     // Chase the target boid if any
     if (b.targetBoidIdx != -1 && b.resting == false && b.stamina > 0.0f) {
@@ -492,9 +526,9 @@ void resolveDynamics(SimState& simState, const Config& simConfig, int currentBoi
 
     // Drag + noise
     float dragPct = std::clamp(drag / 100.0f, 0.0f, 1.0f);
+    float numStepsToStop = 100.0f;
 
     // Acceleration drag (simple linear drag)
-    float numStepsToStop = 100.0f;
     if (dragPct > 0.0f) {
         Vec3 stopAcc = {
             -b.vel.x / dt / numStepsToStop,
@@ -702,13 +736,14 @@ void resolveMouseInteraction(SimState& simState, const Config& simConfig, int cu
     // Unpack parameters from simConfig
     const float maxForce = simConfig.number("maxForce");
     const bool bounce = simConfig.binary("bounce");
+    const float mouseInteractionMultiplier = simConfig.number("mouseInteractionMultiplier");
 
     // Define helper to make weighted forces
     auto makeWeightedForce = [&](const Vec3& dir, float weight) {
         return Vec3{
-            dir.x * (maxForce * weight) * 1000.0f,
-            dir.y * (maxForce * weight) * 1000.0f,
-            dir.z * (maxForce * weight) * 1000.0f
+            dir.x * (maxForce * weight) * mouseInteractionMultiplier,
+            dir.y * (maxForce * weight) * mouseInteractionMultiplier,
+            dir.z * (maxForce * weight) * mouseInteractionMultiplier
         };
     };
 

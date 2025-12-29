@@ -177,6 +177,26 @@
         "min": 0.0,
         "max": 100.0,
         "step": 1.0
+    },
+    {
+        "type": "number",
+        "name": "mouseInteractionMultiplier",
+        "label": "Mouse Interaction Multiplier",
+        "description": "Multiplier for forces applied by mouse interaction.",
+        "default": 500.0,
+        "min": 0.0,
+        "max": 1000.0,
+        "step": 10.0
+    },
+    {
+        "type": "number",
+        "name": "numberOfStepsToStopWhenFullDrag",
+        "label": "Number of Steps to Stop When Full Drag",
+        "description": "Number of simulation steps required for a boid to come to a complete stop when drag is at maximum (100).",
+        "default": 100.0,
+        "min": 1.0,
+        "max": 100.0,
+        "step": 1.0
     }
     ]
 }
