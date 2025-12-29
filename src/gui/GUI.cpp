@@ -188,10 +188,22 @@ void GUI::renderControlGui(Config& simConfig, SimState& simState) {
     ImGui::Separator();
     ImGui::TextUnformatted("Version Parameters");
 
-    for (auto& p : simConfig.getParameters()) {
-        ImGui::PushID(&p);
-        renderParameter(p);
-        ImGui::PopID();
+    // Render parameters grouped by their group names
+    for (const std::string& group : simConfig.getGroupOrder()) {
+
+        ImGui::Separator();
+        ImGui::TextUnformatted(group.c_str());
+
+        const auto& paramsInGroup = simConfig.getGroupParams().at(group);
+
+        // render parameters in this group (name → ConfigParameter lookup)
+        for (const std::string& paramName : paramsInGroup) {
+            auto& p = simConfig.get(paramName);
+
+            ImGui::PushID(&p);
+            renderParameter(p);
+            ImGui::PopID();
+        }
     }
 
     ImGui::Separator();
