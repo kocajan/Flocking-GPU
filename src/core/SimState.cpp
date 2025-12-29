@@ -19,35 +19,35 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
     device = config.get("device");
     dimensions = config.get("dimensions");
 
-    basicBoidCountTarget = config.get("basic_boid_count");
-    predatorBoidCountTarget = config.get("predator_boid_count");
+    basicBoidCountTarget = config.get("basicBoidCount");
+    predatorBoidCountTarget = config.get("predatorBoidCount");
 
-    leftMouseEffect = config.get("left_mouse_effect");
-    rightMouseEffect = config.get("right_mouse_effect");
+    leftMouseEffect = config.get("leftMouseEffect");
+    rightMouseEffect = config.get("rightMouseEffect");
 
-    resetVersionSettings = config.get("reset_version_settings");
-    resetSimulation = config.get("reset_simulation");
-    deleteObstacles = config.get("delete_obstacles");
+    resetVersionSettings = config.get("resetVersionSettings");
+    resetSimulation = config.get("resetSimulation");
+    deleteObstacles = config.get("deleteObstacles");
     resetVersionSettings.render = ParamRender::Button;
     resetSimulation.render = ParamRender::Button;
     deleteObstacles.render = ParamRender::Button;
 
-    worldX = config.get("world_x");
-    worldY = config.get("world_y");
-    worldZ = config.get("world_z");
+    worldX = config.get("worldX");
+    worldY = config.get("worldY");
+    worldZ = config.get("worldZ");
 
-    basicBoidColor = config.get("basic_boid_color");
-    predatorBoidColor = config.get("predator_boid_color");
-    obstacleBoidColor = config.get("obstacle_color");
+    basicBoidColor = config.get("basicBoidColor");
+    predatorBoidColor = config.get("predatorBoidColor");
+    obstacleBoidColor = config.get("obstacleColor");
 
-    obstacleRadius = config.get("obstacle_radius");
-    predatorRadius = config.get("predator_boid_radius");
-    basicBoidRadius = config.get("basic_boid_radius");
+    obstacleRadius = config.get("obstacleRadius");
+    predatorRadius = config.get("predatorBoidRadius");
+    basicBoidRadius = config.get("basicBoidRadius");
 
-    maxBoidPopulationChangeRate = config.get("max_boid_population_change_rate");
+    maxBoidPopulationChangeRate = config.get("maxBoidPopulationChangeRate");
 
-    initialAxialSpeedRange = config.get("initial_axial_speed_range");
-
+    initialAxialSpeedRange = config.get("initialAxialSpeedRange");
+    
     eps = config.get("eps");
 
     version = versionParam;

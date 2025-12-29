@@ -43,7 +43,7 @@
     "Initial population": [
       {
         "type": "number",
-        "name": "basic_boid_count",
+        "name": "basicBoidCount",
         "label": "Number of Basic Boids",
         "description": "Initial number of basic boids",
         "default": 1000,
@@ -53,7 +53,7 @@
       },
       {
         "type": "number",
-        "name": "predator_boid_count",
+        "name": "predatorBoidCount",
         "label": "Number of Predator Boids",
         "description": "Initial number of predator boids",
         "default": 0,
@@ -66,7 +66,7 @@
     "Mouse interaction behavior": [
       {
         "type": "enum",
-        "name": "left_mouse_effect",
+        "name": "leftMouseEffect",
         "label": "Left Mouse Effect",
         "description": "Action triggered by left mouse button",
         "default": "Attract",
@@ -81,7 +81,7 @@
       },
       {
         "type": "enum",
-        "name": "right_mouse_effect",
+        "name": "rightMouseEffect",
         "label": "Right Mouse Effect",
         "description": "Action triggered by right mouse button",
         "default": "Repel",
@@ -99,7 +99,7 @@
     "World size": [
       {
         "type": "number",
-        "name": "world_x",
+        "name": "worldX",
         "label": "World X Size",
         "description": "World size in X dimension",
         "default": 1000,
@@ -109,7 +109,7 @@
       },
       {
         "type": "number",
-        "name": "world_y",
+        "name": "worldY",
         "label": "World Y Size",
         "description": "World size in Y dimension",
         "default": 500,
@@ -119,7 +119,7 @@
       },
       {
         "type": "number",
-        "name": "world_z",
+        "name": "worldZ",
         "label": "World Z Size",
         "description": "World size in Z dimension (used in 3D mode)",
         "default": 500,
@@ -132,21 +132,21 @@
     "Simulation reset and maintenance": [
       {
         "type": "binary",
-        "name": "delete_obstacles",
+        "name": "deleteObstacles",
         "label": "Delete Obstacles",
         "description": "Delete obstacles in the simulation",
         "default": false
       },
       {
         "type": "binary",
-        "name": "reset_version_settings",
+        "name": "resetVersionSettings",
         "label": "Reset Version Settings",
         "description": "Reset version settings to default values",
         "default": false
       },
       {
         "type": "binary",
-        "name": "reset_simulation",
+        "name": "resetSimulation",
         "label": "Reset Simulation",
         "description": "Reset simulation",
         "default": false
@@ -156,7 +156,7 @@
     "Appearance and visualization": [
       {
         "type": "enum",
-        "name": "basic_boid_color",
+        "name": "basicBoidColor",
         "label": "Basic Boid Color",
         "description": "Color of basic boids",
         "default": "WHITE",
@@ -164,7 +164,7 @@
       },
       {
         "type": "enum",
-        "name": "predator_boid_color",
+        "name": "predatorBoidColor",
         "label": "Predator Boid Color",
         "description": "Color of predator boids",
         "default": "RED",
@@ -172,7 +172,7 @@
       },
       {
         "type": "enum",
-        "name": "obstacle_color",
+        "name": "obstacleColor",
         "label": "Obstacle Color",
         "description": "Color of obstacles",
         "default": "GRAY",
@@ -183,7 +183,7 @@
     "Boid and obstacle geometry": [
       {
         "type": "number",
-        "name": "obstacle_radius",
+        "name": "obstacleRadius",
         "label": "Obstacle Radius",
         "description": "Radius of obstacles drawn with mouse",
         "default": 10,
@@ -193,7 +193,7 @@
       },
       {
         "type": "number",
-        "name": "basic_boid_radius",
+        "name": "basicBoidRadius",
         "label": "Basic Boid Radius",
         "description": "Radius of basic boids",
         "default": 2,
@@ -203,7 +203,7 @@
       },
       {
         "type": "number",
-        "name": "predator_boid_radius",
+        "name": "predatorBoidRadius",
         "label": "Predator Boid Radius",
         "description": "Radius of predator boids",
         "default": 3,
@@ -216,7 +216,7 @@
     "Population and initialization limits": [
       {
         "type": "number",
-        "name": "max_boid_population_change_rate",
+        "name": "maxBoidPopulationChangeRate",
         "label": "Max Boid Population Change Rate",
         "description": "Maximum number of boids that can be spawned or removed per second",
         "default": 20,
@@ -226,7 +226,7 @@
       },
       {
         "type": "number",
-        "name": "initial_axial_speed_range",
+        "name": "initialAxialSpeedRange",
         "label": "Initial Axial Speed Range",
         "description": "Range for initial boid speeds along each axis",
         "default": 100,
