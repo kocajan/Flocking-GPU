@@ -38,13 +38,13 @@ void Application::run(const std::string& configPath) {
     while (gui.isRunning()) {
         gui.beginFrame(worldX, worldY);
 
-        simulationUpdate(simState, simConfig, gui.getInteraction());
-
         // Check whether version has changed
         if (simState.version.string() != currentVersion) {
             currentVersion = simState.version.string();
             simConfig = versionManager.getSimConfig(currentVersion);
         }
+
+        simulationUpdate(simState, simConfig, gui.getInteraction());
 
         // Check whether to reset to default settings
         if (simState.resetVersionSettings.binary()) {
