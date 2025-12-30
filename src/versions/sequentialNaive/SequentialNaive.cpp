@@ -17,8 +17,11 @@ void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
 void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
 void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
 
-static inline float sqrLen(const Vec3& v);
+inline float periodicDelta(float d, float worldSize);
+inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const SequentialNaiveParameters& params);
+
 static inline Vec3 normalize(const Vec3& v, const float eps = 1e-5f);
+static inline float sqrLen(const Vec3& v);
 
 
 void simulationStepSequentialNaive(SequentialNaiveParameters& params) {
@@ -68,7 +71,6 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
         };
     };
 
-    
     // Initialize accumulators
     Vec3 personalSpace{0,0,0};
     Vec3 positionSum{0,0,0};
@@ -89,11 +91,7 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
         const Boid& o = params.boids[otherIdx];
 
         // Compute distance vector
-        Vec3 d = {
-            o.pos.x - b.pos.x,
-            o.pos.y - b.pos.y,
-            o.pos.z - b.pos.z
-        };
+        Vec3 d = periodicDeltaVec(b.pos, o.pos, params);
 
         // Get squared distance
         float d2 = sqrLen(d);
@@ -165,13 +163,7 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
     }
 
     // Move toward local target
-    Vec3 toTarget = {
-        b.targetPoint.x - b.pos.x,
-        b.targetPoint.y - b.pos.y,
-        b.targetPoint.z - b.pos.z
-    };
-    if (params.is2D)
-        toTarget.z = 0.0f;
+    Vec3 toTarget = periodicDeltaVec(b.pos, b.targetPoint, params);
     float toTargetDist2 = sqrLen(toTarget);
     
     // Recalculate the targetWeight to include the squared distance to target
@@ -230,11 +222,7 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
         Boid& pred = params.boids[predIdx];
 
         // Compute distance vector
-        Vec3 distVect = {
-            b.pos.x - pred.pos.x,
-            b.pos.y - pred.pos.y,
-            b.pos.z - pred.pos.z
-        };
+        Vec3 distVect = periodicDeltaVec(b.pos, pred.pos, params);
 
         float dist = std::sqrt(sqrLen(distVect));
         if (dist < params.eps)
@@ -311,13 +299,7 @@ void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentB
     // Chase the target boid if any
     if (b.targetBoidIdx != -1 && b.resting == false && b.stamina > 0.0f) {
         Boid& targetBoid = params.boids[b.targetBoidIdx];
-        Vec3 toTarget = {
-            targetBoid.pos.x - b.pos.x,
-            targetBoid.pos.y - b.pos.y,
-            targetBoid.pos.z - b.pos.z
-        };
-        if (params.is2D)
-            toTarget.z = 0.0f;
+        Vec3 toTarget = periodicDeltaVec(b.pos, targetBoid.pos, params);
         Vec3 toTargetN = normalize(toTarget, params.eps);
         float toTargetLen = std::sqrt(sqrLen(toTarget));
         b.acc.x = toTargetN.x * (toTargetLen * toTargetLen);
@@ -379,11 +361,7 @@ void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidI
         b.acc.y = 0.0f;
         b.acc.z = 0.0f;
 
-        Vec3 diff = {
-            b.pos.x - inter.point.x,
-            b.pos.y - inter.point.y,
-            b.pos.z - inter.point.z
-        };
+        Vec3 diff = periodicDeltaVec(inter.point, b.pos, params);
 
         float dist2 = sqrLen(diff);
         if (dist2 < params.eps)
@@ -427,11 +405,8 @@ void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int curr
     for (size_t obsIdx : params.obstacleBoidIndices) {
         const Boid& obs = params.boids[obsIdx];
 
-        Vec3 diff = {
-            b.pos.x - obs.pos.x,
-            b.pos.y - obs.pos.y,
-            0.0f
-        };
+        Vec3 diff = periodicDeltaVec(obs.pos, b.pos, params);
+        diff.z = 0.0f; // Ignore vertical component for obstacle avoidance
 
         float centerDist = std::sqrt(sqrLen(diff));
         float combinedRadius = rBoid + params.obstacleRadius;
@@ -666,11 +641,8 @@ void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoi
     for (size_t obsIdx : params.obstacleBoidIndices) {
         const Boid& obs = params.boids[obsIdx];
 
-        Vec3 diff = {
-            b.pos.x - obs.pos.x,
-            b.pos.y - obs.pos.y,
-            0.0f
-        };
+        Vec3 diff = periodicDeltaVec(obs.pos, b.pos, params);
+        diff.z = 0.0f; // Ignore vertical component for obstacle collisions
 
         float dist2 = sqrLen(diff);
         float combinedRadius = rBoid + params.obstacleRadius;
@@ -702,14 +674,44 @@ void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoi
     }
 }
 
-static inline float sqrLen(const Vec3& v) {
-    return v.x * v.x + v.y * v.y + v.z * v.z;
+
+inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const SequentialNaiveParameters& params) {
+    // Raw difference (to - from)
+    Vec3 d{
+        to.x - from.x,
+        to.y - from.y,
+        params.is2D ? 0.0f : (to.z - from.z)
+    };
+
+    // In bounce mode use plain Euclidean space
+    if (params.bounce)
+        return d;
+
+    // In wrapping mode adjust by world size
+    d.x = periodicDelta(d.x, params.worldX);
+    d.y = periodicDelta(d.y, params.worldY);
+
+    if (!params.is2D) {
+        d.z = periodicDelta(d.z, params.worldZ);
+    }
+
+    return d;
 }
 
-static inline Vec3 normalize(const Vec3& v, const float eps = 1e-5f) {
+inline float periodicDelta(float d, float worldSize) {
+    if (d >  0.5f * worldSize) d -= worldSize;
+    if (d < -0.5f * worldSize) d += worldSize;
+    return d;
+}
+
+static inline Vec3 normalize(const Vec3& v, const float eps) {
     float l2 = sqrLen(v);
     if (l2 < eps)
         return {0.0f, 0.0f, 0.0f};
     float inv = 1.0f / std::sqrt(l2);
     return { v.x * inv, v.y * inv, v.z * inv };
+}
+
+static inline float sqrLen(const Vec3& v) {
+    return v.x * v.x + v.y * v.y + v.z * v.z;
 }
