@@ -37,24 +37,15 @@ void simulationStepSequentialNaive(SequentialNaiveParameters& params) {
         b.acc = {0,0,0};
 
         if (b.type == BoidType::Basic) {
-            resolveBasicBoidBehavior(
-                params,
-                currentBoidIdx
-            );
+            resolveBasicBoidBehavior(params, currentBoidIdx);
         } else if (b.type == BoidType::Predator) {
-            resolvePredatorBoidBehavior(
-                params,
-                currentBoidIdx
-            );
+            resolvePredatorBoidBehavior(params, currentBoidIdx);
         } else {
             // Unknown boid type
             printf("Warning: Unknown boid type encountered in simulation step. (type=%d)\n", static_cast<int>(b.type));
             continue;
         }
-        resolveRest(
-            params,
-            currentBoidIdx
-        );
+        resolveRest(params, currentBoidIdx);
     }
 }
 

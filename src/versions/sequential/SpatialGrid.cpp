@@ -25,7 +25,6 @@ SpatialGrid::SpatialGrid(const SequentialParameters& params)
     }
 }
 
-
 int SpatialGrid::flattenIndex(int cx, int cy, int cz) const {
     return (cz * cellsY + cy) * cellsX + cx;
 }
@@ -48,6 +47,25 @@ int SpatialGrid::worldToCellIndex(float p, float worldSize, int cellCount) const
     return c;
 }
 
+void SpatialGrid::insertObjectToCell(BoidType type, int idx, Cell& cell) {
+    switch (type) {
+        case BoidType::Basic:
+            cell.basic.push_back(idx);
+            break;
+
+        case BoidType::Predator:
+            cell.predator.push_back(idx);
+            break;
+
+        case BoidType::Obstacle:
+            cell.obstacle.push_back(idx);
+            break;
+
+        default:
+            break;
+    }
+}
+
 void SpatialGrid::insertPointObject(const SequentialParameters& params, int idx) {
     if (hasZeroCells)
         return;
@@ -57,7 +75,9 @@ void SpatialGrid::insertPointObject(const SequentialParameters& params, int idx)
     int cy = worldToCellIndex(b.pos.y, params.worldY, cellsY);
     int cz = is2D ? 0 : worldToCellIndex(b.pos.z, params.worldZ, cellsZ);
 
-    cells[flattenIndex(cx,cy,cz)].push_back(idx);
+    auto& cell = cells[flattenIndex(cx,cy,cz)];
+
+    insertObjectToCell(b.type, idx, cell);
 }
 
 void SpatialGrid::insertRadialObject(const SequentialParameters& params, int idx, float radius) {
@@ -87,9 +107,8 @@ void SpatialGrid::insertRadialObject(const SequentialParameters& params, int idx
 
     for (int cx = cx0; cx <= cx1; ++cx)
     for (int cy = cy0; cy <= cy1; ++cy)
-    for (int cz = cz0; cz <= cz1; ++cz)
-    {
-        cells[flattenIndex(cx,cy,cz)].push_back(idx);
+    for (int cz = cz0; cz <= cz1; ++cz) {
+        insertObjectToCell(b.type, idx, cells[flattenIndex(cx,cy,cz)]);
     }
 }
 
@@ -99,8 +118,14 @@ void SpatialGrid::build(const SequentialParameters& params) {
         return;
     }
 
-    for (auto& c : cells)
-        c.clear();
+    if (isBuilt) {
+        // Clear existing cells
+        for (auto& c : cells) {
+            c.basic.clear();
+            c.predator.clear();
+            c.obstacle.clear();
+        }
+    }
 
     for (int i = 0; i < params.boidCount; ++i) {
         const Boid& b = params.boids[i];
@@ -116,13 +141,20 @@ void SpatialGrid::build(const SequentialParameters& params) {
             printf("Warning: Unknown boid type encountered in SpatialGrid build. (type=%d)\n", static_cast<int>(b.type));
             continue;
         }
-
         insertRadialObject(params, i, radius);
     }
     isBuilt = true;
 }
 
-std::unordered_set<int> SpatialGrid::getNeighborIndices(const SequentialParameters& params, int boidIndex) const {
+std::unordered_set<int> SpatialGrid::getNeighborIndices(const SequentialParameters& params, 
+                                                        int boidIndex, BoidType neighborType) const {
+    if (neighborType != BoidType::Basic &&
+        neighborType != BoidType::Predator &&
+        neighborType != BoidType::Obstacle) {
+        printf("Warning: Unknown boid type requested in SpatialGrid getNeighborIndices. (type=%d)\n", static_cast<int>(neighborType));
+        return {};
+    }
+
     if (hasZeroCells) {
         return {};
     }
@@ -165,13 +197,21 @@ std::unordered_set<int> SpatialGrid::getNeighborIndices(const SequentialParamete
             }
         }
 
-        const auto& cell = cells[flattenIndex(nx,ny,nz)];
+        const Cell& c = cells[flattenIndex(nx,ny,nz)];
 
-        if (cell.empty()) {
+        const std::vector<int>* cell = nullptr;
+        if (neighborType == BoidType::Basic)
+            cell = &c.basic;
+        else if (neighborType == BoidType::Predator)
+            cell = &c.predator;
+        else
+            cell = &c.obstacle;
+
+        if (cell->empty()) {
             continue;
         }
 
-        for (int idx : cell) {
+        for (int idx : *cell) {
             result.insert(idx);
         }
     }

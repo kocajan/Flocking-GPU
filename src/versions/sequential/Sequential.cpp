@@ -6,17 +6,17 @@
 #include "versions/sequential/SpatialGrid.hpp"
 
 
-void resolveBasicBoidBehavior(SequentialParameters& params, int currentBoidIdx);
+void resolveBasicBoidBehavior(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx);
 void resolvePredatorBoidBehavior(SequentialParameters& params, int currentBoidIdx);
-void resolveRest(SequentialParameters& params, int currentBoidIdx);
+void resolveRest(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx);
 
 void resolveMouseInteraction(SequentialParameters& params, int currentBoidIdx);
-void resolveObstacleAndWallAvoidance(SequentialParameters& params, int currentBoidIdx);
+void resolveObstacleAndWallAvoidance(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx);
 void resolveDynamics(SequentialParameters& params, int currentBoidIdx);
 
-void resolveCollisions(SequentialParameters& params, int currentBoidIdx);
+void resolveCollisions(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx);
 void resolveWallCollisions(SequentialParameters& params, int currentBoidIdx);
-void resolveObstacleCollisions(SequentialParameters& params, int currentBoidIdx);
+void resolveObstacleCollisions(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx);
 
 inline float periodicDelta(float d, float worldSize);
 inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const SequentialParameters& params);
@@ -28,6 +28,7 @@ static inline float sqrLen(const Vec3& v);
 void simulationStepSequential(SequentialParameters& params) {
     // First, create grid for spatial partitioning
     SpatialGrid grid(params);
+    grid.build(params);
 
     for (int currentBoidIdx = 0; currentBoidIdx < params.boidCount; ++currentBoidIdx) {
         // Get reference to current boid
@@ -41,28 +42,19 @@ void simulationStepSequential(SequentialParameters& params) {
         b.acc = {0,0,0};
 
         if (b.type == BoidType::Basic) {
-            resolveBasicBoidBehavior(
-                params,
-                currentBoidIdx
-            );
+            resolveBasicBoidBehavior(params, grid, currentBoidIdx);
         } else if (b.type == BoidType::Predator) {
-            resolvePredatorBoidBehavior(
-                params,
-                currentBoidIdx
-            );
+            resolvePredatorBoidBehavior(params, currentBoidIdx);
         } else {
             // Unknown boid type
             printf("Warning: Unknown boid type encountered in simulation step. (type=%d)\n", static_cast<int>(b.type));
             continue;
         }
-        resolveRest(
-            params,
-            currentBoidIdx
-        );
+        resolveRest(params, grid, currentBoidIdx);
     }
 }
 
-void resolveBasicBoidBehavior(SequentialParameters& params, int currentBoidIdx) {
+void resolveBasicBoidBehavior(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx) {
     // Get reference to current boid
     Boid& b = params.boids[currentBoidIdx];
 
@@ -83,7 +75,8 @@ void resolveBasicBoidBehavior(SequentialParameters& params, int currentBoidIdx) 
     uint64_t distantNeighborCount = 0;
 
     // Analyze other boids
-    for (int otherIdx : params.basicBoidIndices) {
+    auto neighborSet = grid.getNeighborIndices(params, currentBoidIdx, BoidType::Basic);
+    for (int otherIdx : neighborSet) {
         // Break if reached max neighbors
         if (neighborCount >= params.maxNeighborsBasic)
             break;
@@ -205,7 +198,8 @@ void resolveBasicBoidBehavior(SequentialParameters& params, int currentBoidIdx) 
     // Predator avoidance — simple random flee away from predators
     Vec3 predAvoidanceDir{0,0,0};
     int numPredators = 0;
-    for (size_t predIdx : params.predatorBoidIndices) {
+    auto predatorSet = grid.getNeighborIndices(params, currentBoidIdx, BoidType::Predator);
+    for (int predIdx : predatorSet) {
         // Get reference to predator boid
         Boid& pred = params.boids[predIdx];
 
@@ -310,19 +304,20 @@ void resolvePredatorBoidBehavior(SequentialParameters& params, int currentBoidId
     
 }
 
-void resolveRest(SequentialParameters& params, int currentBoidIdx) {
+void resolveRest(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx) {
     // Resolve mouse interactions
     resolveMouseInteraction(params, currentBoidIdx);
 
     // Resolve obstacle avoidance
-    resolveObstacleAndWallAvoidance(params, currentBoidIdx);
+    resolveObstacleAndWallAvoidance(params, grid, currentBoidIdx);
 
     // Resolve dynamics
     resolveDynamics(params, currentBoidIdx);
 
     // Resolve wall interactions
-    resolveCollisions(params, currentBoidIdx);
+    resolveCollisions(params, grid, currentBoidIdx);
 
+    // If 2D mode, clamp z position and velocity
     if (params.is2D) {
         params.boids[currentBoidIdx].pos.z = 0.0f;
         params.boids[currentBoidIdx].vel.z = 0.0f;
@@ -378,7 +373,7 @@ void resolveMouseInteraction(SequentialParameters& params, int currentBoidIdx) {
     }
 }
 
-void resolveObstacleAndWallAvoidance(SequentialParameters& params, int currentBoidIdx) {
+void resolveObstacleAndWallAvoidance(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx) {
     // Get reference to current boid
     Boid& b = params.boids[currentBoidIdx];
 
@@ -390,7 +385,8 @@ void resolveObstacleAndWallAvoidance(SequentialParameters& params, int currentBo
     Vec3 obstacleDirSum{0,0,0};
     float obstacleWeightSum = 0.0f;
     float obstacleCount = 0;
-    for (size_t obsIdx : params.obstacleBoidIndices) {
+    auto obstacleSet = grid.getNeighborIndices(params, currentBoidIdx, BoidType::Obstacle);
+    for (int obsIdx : obstacleSet) {
         const Boid& obs = params.boids[obsIdx];
 
         Vec3 diff = periodicDeltaVec(obs.pos, b.pos, params);
@@ -544,9 +540,9 @@ void resolveDynamics(SequentialParameters& params, int currentBoidIdx) {
     b.pos.z += b.vel.z * params.dt;
 }
 
-void resolveCollisions(SequentialParameters& params, int currentBoidIdx) {
+void resolveCollisions(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx) {
     resolveWallCollisions(params, currentBoidIdx);
-    resolveObstacleCollisions(params, currentBoidIdx);
+    resolveObstacleCollisions(params, grid, currentBoidIdx);
 }
 
 void resolveWallCollisions(SequentialParameters& params, int currentBoidIdx) {
@@ -618,7 +614,7 @@ void resolveWallCollisions(SequentialParameters& params, int currentBoidIdx) {
     }
 }
 
-void resolveObstacleCollisions(SequentialParameters& params, int currentBoidIdx) {
+void resolveObstacleCollisions(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx) {
     // Get reference to current boid
     Boid& b = params.boids[currentBoidIdx];
 
@@ -626,7 +622,8 @@ void resolveObstacleCollisions(SequentialParameters& params, int currentBoidIdx)
     const float rBoid = (b.type == BoidType::Basic) ? params.basicBoidRadius : params.predatorRadius;
 
     // Check collisions with obstacles
-    for (size_t obsIdx : params.obstacleBoidIndices) {
+    auto obstacleSet = grid.getNeighborIndices(params, currentBoidIdx, BoidType::Obstacle);
+    for (int obsIdx : obstacleSet) {
         const Boid& obs = params.boids[obsIdx];
 
         Vec3 diff = periodicDeltaVec(obs.pos, b.pos, params);

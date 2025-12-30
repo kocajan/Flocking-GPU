@@ -17,8 +17,16 @@ struct SpatialGrid {
     bool hasZeroCells;
     bool isBuilt;
 
-    // All boids live in one grid structure
-    std::vector<std::vector<int>> cells;
+    // Cell structure
+    struct Cell {
+        std::vector<int> basic;
+        std::vector<int> predator;
+        std::vector<int> obstacle;
+    };
+
+    // 3D grid of cells
+    std::vector<Cell> cells;
+
 
     explicit SpatialGrid(const SequentialParameters& params);
 
@@ -26,11 +34,14 @@ struct SpatialGrid {
     void build(const SequentialParameters& params);
 
     // Get neighbor boid indices for given boid
-    std::unordered_set<int> getNeighborIndices(const SequentialParameters& params, int boidIndex) const;
+    std::unordered_set<int> getNeighborIndices(const SequentialParameters& params, int boidIndex, BoidType neighborType) const;
 
 private:
     // Flatten 3D cell index to 1D 
     int flattenIndex(int cx, int cy, int cz) const;
+
+    // Insert object into appropriate cell based on its type
+    void insertObjectToCell(BoidType type, int boidIndex, Cell& cell);
 
     // Insert point objects
     void insertPointObject(const SequentialParameters& params, int boidIndex);
