@@ -13,7 +13,86 @@ struct SequentialParameters {
     // Reference to boid array
     std::vector<Boid>& boids;
 
-    // TODO: Add other parameters as needed
+    // References to boid index arrays
+    std::vector<size_t>& obstacleBoidIndices;
+    std::vector<size_t>& basicBoidIndices;
+    std::vector<size_t>& predatorBoidIndices;
+
+    // Interaction
+    Interaction interaction;
+
+    // Boid count
+    int boidCount;
+
+    // Simulation modes
+    bool is2D;
+    bool bounce;
+
+    // Boid radii
+    float basicBoidRadius;
+    float predatorRadius;
+    float obstacleRadius;
+
+    // World bounds
+    float worldX;
+    float worldY;
+    float worldZ;
+
+    // Constants
+    float eps;
+    float dt;
+
+    // Vision
+    float visionRangeBasic;
+    float visionRangeBasic2;
+    float visionRangePredator;
+
+    // Forces / multipliers
+    float maxForce;
+    float obstacleAvoidanceMultiplier;
+    float mouseInteractionMultiplier;
+
+    // Flocking weights
+    float cohesionWeightBasic;
+    float alignmentWeightBasic;
+    float separationWeightBasic;
+    float targetAttractionWeightBasic;
+
+    // Speeds (basic)
+    float cruisingSpeedBasic;
+    float maxSpeedBasic;
+    float minSpeedBasic;
+
+    // Speeds (predator)
+    float cruisingSpeedPredator;
+    float maxSpeedPredator;
+    float minSpeedPredator;
+
+    // Predator stamina
+    float maxStaminaPredator;
+    float staminaRecoveryRatePredator;
+    float staminaDrainRatePredator;
+
+    // Dynamics
+    float drag;
+    float noise;
+    float numStepsToStopDueToMaxDrag;
+
+    // Collision / bounce
+    float bounceFactor;
+
+    // Neighbor limit
+    float maxNeighborsBasic;
+
+    // Cached distances
+    float maxDistanceBetweenPoints;
+    float maxDistanceBetweenPoints2;
+
+    // Grid parameters
+    float cellSize;
+    int cellsX;
+    int cellsY;
+    int cellsZ;
 
     // Constructor
     SequentialParameters(SimState& s, const Config& c);

@@ -1,7 +1,705 @@
+#include <cmath>
+#include <algorithm>
+
 #include "versions/sequential/Sequential.hpp"
+#include "versions/sequential/SequentialParameters.hpp" 
+#include "versions/sequential/SpatialGrid.hpp"
 
 
-void sequentialSimulationStep(SequentialParameters& params) {
-    printf("Sequential simulation step\n");
-    printf("SimState tick: %lu\n", params.boids.size());
+void resolveBasicBoidBehavior(SequentialParameters& params, int currentBoidIdx);
+void resolvePredatorBoidBehavior(SequentialParameters& params, int currentBoidIdx);
+void resolveRest(SequentialParameters& params, int currentBoidIdx);
+
+void resolveMouseInteraction(SequentialParameters& params, int currentBoidIdx);
+void resolveObstacleAndWallAvoidance(SequentialParameters& params, int currentBoidIdx);
+void resolveDynamics(SequentialParameters& params, int currentBoidIdx);
+
+void resolveCollisions(SequentialParameters& params, int currentBoidIdx);
+void resolveWallCollisions(SequentialParameters& params, int currentBoidIdx);
+void resolveObstacleCollisions(SequentialParameters& params, int currentBoidIdx);
+
+inline float periodicDelta(float d, float worldSize);
+inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const SequentialParameters& params);
+
+static inline Vec3 normalize(const Vec3& v, const float eps = 1e-5f);
+static inline float sqrLen(const Vec3& v);
+
+
+void simulationStepSequential(SequentialParameters& params) {
+    // First, create grid for spatial partitioning
+    SpatialGrid grid(params);
+
+    for (int currentBoidIdx = 0; currentBoidIdx < params.boidCount; ++currentBoidIdx) {
+        // Get reference to current boid
+        Boid& b = params.boids[currentBoidIdx];
+
+        // Skip obstacles
+        if (b.type == BoidType::Obstacle || b.type == BoidType::Empty)
+            continue;
+
+        // Zero acceleration
+        b.acc = {0,0,0};
+
+        if (b.type == BoidType::Basic) {
+            resolveBasicBoidBehavior(
+                params,
+                currentBoidIdx
+            );
+        } else if (b.type == BoidType::Predator) {
+            resolvePredatorBoidBehavior(
+                params,
+                currentBoidIdx
+            );
+        } else {
+            // Unknown boid type
+            printf("Warning: Unknown boid type encountered in simulation step. (type=%d)\n", static_cast<int>(b.type));
+            continue;
+        }
+        resolveRest(
+            params,
+            currentBoidIdx
+        );
+    }
+}
+
+void resolveBasicBoidBehavior(SequentialParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
+
+    // Define helper to make weighted forces
+    auto makeWeightedForce = [&](const Vec3& dir, float weight) {
+        return Vec3{
+            dir.x * (params.maxForce * weight),
+            dir.y * (params.maxForce * weight),
+            dir.z * (params.maxForce * weight)
+        };
+    };
+
+    // Initialize accumulators
+    Vec3 personalSpace{0,0,0};
+    Vec3 positionSum{0,0,0};
+    Vec3 velocitySum{0,0,0};
+    uint64_t neighborCount = 0;
+    uint64_t distantNeighborCount = 0;
+
+    // Analyze other boids
+    for (int otherIdx : params.basicBoidIndices) {
+        // Break if reached max neighbors
+        if (neighborCount >= params.maxNeighborsBasic)
+            break;
+            
+        // Skip self
+        if (otherIdx == currentBoidIdx) continue;
+
+        // Get reference to other boid
+        const Boid& o = params.boids[otherIdx];
+
+        // Compute distance vector
+        Vec3 d = periodicDeltaVec(b.pos, o.pos, params);
+
+        // Get squared distance
+        float d2 = sqrLen(d);
+
+        // Skip if out of visual range
+        if (d2 > params.visionRangeBasic2)
+            continue;
+
+        // Compute distance and avoid zero-length
+        float dist = std::sqrt(d2);
+        if (dist < params.eps)
+            dist = params.eps;
+
+        // Increment neighbor count
+        neighborCount++;
+
+        // Separation - only inside protected range
+        if (dist < params.basicBoidRadius * 2.0f) {
+            float invd = 1.0f / dist;
+            personalSpace.x -= d.x * invd;
+            personalSpace.y -= d.y * invd;
+            personalSpace.z -= d.z * invd;
+        } else if (dist >= params.basicBoidRadius * 2.0f) {
+            // Cohesion - full vision range but outside protected range
+            positionSum.x += d.x;
+            positionSum.y += d.y;
+            positionSum.z += d.z;
+            distantNeighborCount++;
+        }
+
+        // Alignment - full vision range
+        velocitySum.x += o.vel.x;
+        velocitySum.y += o.vel.y;
+        velocitySum.z += o.vel.z;
+    }
+
+    Vec3 cohesionForce{0,0,0};
+    Vec3 alignmentForce{0,0,0};
+    if (distantNeighborCount > 0) {
+        float invN = 1.0f / distantNeighborCount;
+
+        // Cohesion - steer toward average delta
+        cohesionForce = {
+            positionSum.x * invN,
+            positionSum.y * invN,
+            positionSum.z * invN
+        };
+    }
+    
+    if (neighborCount > 0) {
+        float invN = 1.0f / neighborCount;
+
+        // Alignment - steer toward average velocity
+        Vec3 avgVel = {
+            velocitySum.x * invN,
+            velocitySum.y * invN,
+            velocitySum.z * invN
+        };
+        alignmentForce = {
+            avgVel.x - b.vel.x,
+            avgVel.y - b.vel.y,
+            avgVel.z - b.vel.z
+        };
+    }
+
+    // Move toward local target
+    Vec3 toTarget = periodicDeltaVec(b.pos, b.targetPoint, params);
+    float toTargetDist2 = sqrLen(toTarget);
+    
+    // Recalculate the targetWeight to include the squared distance to target
+    if (toTargetDist2 < params.eps)
+        toTargetDist2 = params.eps;
+    float distanceFactor = toTargetDist2 / 10 / params.maxDistanceBetweenPoints;
+    float adjustedTargetWeight = params.targetAttractionWeightBasic * distanceFactor;
+
+    // Create for for cruising in the current velocity with the desired cruising speed
+    Vec3 currentSpeedDir = normalize(b.vel, params.eps);
+    Vec3 cruisingVel = {
+        currentSpeedDir.x * params.cruisingSpeedBasic,
+        currentSpeedDir.y * params.cruisingSpeedBasic,
+        currentSpeedDir.z * params.cruisingSpeedBasic
+    };
+    Vec3 cruisingForce = {
+        cruisingVel.x - b.vel.x,
+        cruisingVel.y - b.vel.y,
+        cruisingVel.z - b.vel.z
+    };
+
+    // Get directions from the forces
+    Vec3 cohesionDir = normalize(cohesionForce, params.eps);
+    Vec3 alignmentDir = normalize(alignmentForce, params.eps);
+    Vec3 separationDir = normalize(personalSpace, params.eps);
+    Vec3 targetDir = normalize(toTarget, params.eps);
+
+    // Get weighted forces
+    Vec3 cohesionForceW = makeWeightedForce(cohesionDir, params.cohesionWeightBasic);
+    Vec3 alignmentForceW = makeWeightedForce(alignmentDir, params.alignmentWeightBasic);
+    Vec3 separationForceW = makeWeightedForce(separationDir, params.separationWeightBasic);
+    Vec3 targetForceW = makeWeightedForce(targetDir, adjustedTargetWeight);
+    Vec3 cruisingForceW = makeWeightedForce(cruisingForce, 0.1f);
+
+    // Apply the average force to acceleration
+    b.acc.x += cohesionForceW.x + alignmentForceW.x + separationForceW.x + targetForceW.x + cruisingForceW.x;
+    b.acc.y += cohesionForceW.y + alignmentForceW.y + separationForceW.y + targetForceW.y + cruisingForceW.y;
+    b.acc.z += cohesionForceW.z + alignmentForceW.z + separationForceW.z + targetForceW.z + cruisingForceW.z;
+
+    // Predator avoidance — simple random flee away from predators
+    Vec3 predAvoidanceDir{0,0,0};
+    int numPredators = 0;
+    for (size_t predIdx : params.predatorBoidIndices) {
+        // Get reference to predator boid
+        Boid& pred = params.boids[predIdx];
+
+        // Compute distance vector
+        Vec3 distVect = periodicDeltaVec(b.pos, pred.pos, params);
+
+        float dist = std::sqrt(sqrLen(distVect));
+        if (dist < params.eps)
+            dist = params.eps;
+
+        // Save info for predator chasing
+        if (dist <= params.visionRangePredator) {
+            if (pred.targetBoidIdx == -1 ||
+                dist < pred.targetBoidDistance)
+            {
+                pred.targetBoidIdx = currentBoidIdx;
+                pred.targetBoidDistance = dist;
+            }
+        }
+
+        // Skip if out of visual range
+        if (dist > params.visionRangeBasic)
+            continue;
+
+        // Increment predator count
+        numPredators++;
+
+        // Basic direction away from predator
+        Vec3 away = normalize(distVect, params.eps);
+
+        // Accumulate avoidance direction
+        float invd = 1.0f / dist;
+        predAvoidanceDir.x += away.x * invd;
+        predAvoidanceDir.y += away.y * invd;
+        predAvoidanceDir.z += away.z * invd;
+    }
+
+    // Apply escape impulse
+    if (numPredators > 0) {
+        // Panic - ignore flocking for this frame
+        b.acc = {0,0,0};
+
+        // Get escape direction
+        Vec3 escape = normalize(predAvoidanceDir, params.eps);
+        Vec3 escapeForceW = makeWeightedForce(escape, 1.0f);
+
+        // Apply the escape force
+        b.acc.x += escapeForceW.x;
+        b.acc.y += escapeForceW.y;
+        b.acc.z += escapeForceW.z;
+    }
+}
+
+void resolvePredatorBoidBehavior(SequentialParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
+
+    // First, try to maintain cruising speed
+    Vec3 currentSpeedDir = normalize(b.vel, params.eps);
+    Vec3 cruisingVel = {
+        currentSpeedDir.x * params.cruisingSpeedPredator,
+        currentSpeedDir.y * params.cruisingSpeedPredator,
+        currentSpeedDir.z * params.cruisingSpeedPredator
+    };
+    Vec3 cruisingForce = {
+        cruisingVel.x - b.vel.x,
+        cruisingVel.y - b.vel.y,
+        cruisingVel.z - b.vel.z
+    };
+    Vec3 cruisingForceW = {
+        cruisingForce.x * (params.maxForce * 0.5f),
+        cruisingForce.y * (params.maxForce * 0.5f),
+        cruisingForce.z * (params.maxForce * 0.5f)
+    };
+    b.acc.x += cruisingForceW.x;
+    b.acc.y += cruisingForceW.y;
+    b.acc.z += cruisingForceW.z;
+
+    // Chase the target boid if any
+    if (b.targetBoidIdx != -1 && b.resting == false && b.stamina > 0.0f) {
+        Boid& targetBoid = params.boids[b.targetBoidIdx];
+        Vec3 toTarget = periodicDeltaVec(b.pos, targetBoid.pos, params);
+        Vec3 toTargetN = normalize(toTarget, params.eps);
+        float toTargetLen = std::sqrt(sqrLen(toTarget));
+        b.acc.x = toTargetN.x * (toTargetLen * toTargetLen);
+        b.acc.y = toTargetN.y * (toTargetLen * toTargetLen);
+        b.acc.z = toTargetN.z * (toTargetLen * toTargetLen);
+        b.stamina -= params.staminaDrainRatePredator * params.dt;
+    } else if (b.stamina <= 0.0f && b.resting == false) {
+        b.resting = true;
+        b.stamina = 0.0f;
+    } else if (b.resting == true && b.stamina > params.maxStaminaPredator) {
+        b.resting = false;
+        b.stamina = params.maxStaminaPredator;
+    } else if (b.resting == true) {
+        b.stamina += params.staminaRecoveryRatePredator * params.dt;
+    }
+
+    // Delete the target info for the next round
+    b.targetBoidIdx = -1;
+    b.targetBoidDistance = -1.0f;
+    
+}
+
+void resolveRest(SequentialParameters& params, int currentBoidIdx) {
+    // Resolve mouse interactions
+    resolveMouseInteraction(params, currentBoidIdx);
+
+    // Resolve obstacle avoidance
+    resolveObstacleAndWallAvoidance(params, currentBoidIdx);
+
+    // Resolve dynamics
+    resolveDynamics(params, currentBoidIdx);
+
+    // Resolve wall interactions
+    resolveCollisions(params, currentBoidIdx);
+
+    if (params.is2D) {
+        params.boids[currentBoidIdx].pos.z = 0.0f;
+        params.boids[currentBoidIdx].vel.z = 0.0f;
+    }
+}
+
+void resolveMouseInteraction(SequentialParameters& params, int currentBoidIdx) {
+    // Get reference to current boid and interaction
+    Boid& b = params.boids[currentBoidIdx];
+    const Interaction& inter = params.interaction;
+
+    // Define helper to make weighted forces
+    auto makeWeightedForce = [&](const Vec3& dir, float weight) {
+        return Vec3{
+            dir.x * (params.maxForce * weight) * params.mouseInteractionMultiplier,
+            dir.y * (params.maxForce * weight) * params.mouseInteractionMultiplier,
+            dir.z * (params.maxForce * weight) * params.mouseInteractionMultiplier
+        };
+    };
+
+    if (inter.type != InteractionType::Empty) {
+        // Zero the so far accumulated acceleration
+        b.acc.x = 0.0f;
+        b.acc.y = 0.0f;
+        b.acc.z = 0.0f;
+
+        Vec3 diff = periodicDeltaVec(inter.point, b.pos, params);
+
+        float dist2 = sqrLen(diff);
+        if (dist2 < params.eps)
+            dist2 = params.eps;
+
+        // Create weight based on distance
+        float weight = dist2 / params.maxDistanceBetweenPoints2;
+        if (weight < 0.0f)
+            weight = 0.0f;
+
+        // Get normalized direction
+        Vec3 dir = normalize(diff, params.eps);
+
+        // Calculate weighted force
+        Vec3 weightedForce = makeWeightedForce(dir, weight);
+
+        if (inter.type == InteractionType::Attract) {
+            b.acc.x -= weightedForce.x;
+            b.acc.y -= weightedForce.y;
+            b.acc.z -= weightedForce.z;
+        } else {
+            b.acc.x += weightedForce.x;
+            b.acc.y += weightedForce.y;
+            b.acc.z += weightedForce.z;
+        }
+    }
+}
+
+void resolveObstacleAndWallAvoidance(SequentialParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
+
+    // Get parameters that depend on boid type
+    const float rBoid = (b.type == BoidType::Basic) ? params.basicBoidRadius : params.predatorRadius;
+    const float visualRange = (b.type == BoidType::Basic) ? params.visionRangeBasic : params.visionRangePredator;
+
+    // Resolve obstacle avoidance
+    Vec3 obstacleDirSum{0,0,0};
+    float obstacleWeightSum = 0.0f;
+    float obstacleCount = 0;
+    for (size_t obsIdx : params.obstacleBoidIndices) {
+        const Boid& obs = params.boids[obsIdx];
+
+        Vec3 diff = periodicDeltaVec(obs.pos, b.pos, params);
+        diff.z = 0.0f; // Ignore vertical component for obstacle avoidance
+
+        float centerDist = std::sqrt(sqrLen(diff));
+        float combinedRadius = rBoid + params.obstacleRadius;
+        float surfaceDist = centerDist - combinedRadius;
+
+        if (surfaceDist > visualRange)
+            continue;
+        obstacleCount++;
+
+        Vec3 dir = normalize(diff, params.eps);
+
+        // Proximity weight
+        float weight = std::exp(-0.1f * surfaceDist);
+
+        // Accumulate weighted direction
+        obstacleDirSum.x += dir.x * weight;
+        obstacleDirSum.y += dir.y * weight;
+        obstacleDirSum.z += dir.z * weight;
+
+        obstacleWeightSum += weight;
+    }
+
+
+    if (obstacleCount >= 1.0) {
+        // Calculate average direction
+        Vec3 avgDir = {
+            obstacleDirSum.x,
+            obstacleDirSum.y,
+            obstacleDirSum.z
+        };
+
+        // Calculate average weight
+        float averageWeight = obstacleWeightSum / obstacleCount;
+
+        Vec3 avoidDir = normalize(avgDir, params.eps);
+
+        // Apply as a single steering vector
+        b.acc.x += avoidDir.x * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        b.acc.y += avoidDir.y * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        b.acc.z += avoidDir.z * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+    }
+
+    // If the boid is close to walls, apply repelling force only if bounce is enabled
+    if (!params.bounce) {
+        return;
+    }
+
+    auto repelFromWall = [&](float d, float axisSign, float& accAxis)
+    {
+        if (d < visualRange) {
+            float weight = std::exp(-0.3f * d);
+            accAxis += axisSign * (params.maxForce * weight * params.obstacleAvoidanceMultiplier);
+        }
+    };
+
+    // Left wall
+    repelFromWall(b.pos.x - rBoid, 1.0f, b.acc.x);
+
+    // Right wall
+    repelFromWall((params.worldX - rBoid) - b.pos.x, -1.0f, b.acc.x);
+
+    // Bottom wall
+    repelFromWall(b.pos.y - rBoid, 1.0f, b.acc.y);
+
+    // Top wall
+    repelFromWall((params.worldY - rBoid) - b.pos.y, -1.0f, b.acc.y);
+
+    if (!params.is2D)
+    {
+        // Floor
+        repelFromWall(b.pos.z - rBoid, 1.0f, b.acc.z);
+
+        // Ceiling
+        repelFromWall((params.worldZ - rBoid) - b.pos.z, -1.0f, b.acc.z);
+    }
+}
+
+void resolveDynamics(SequentialParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
+
+    // Get parameters that depend on boid type
+    const float maxSpeed = (b.type == BoidType::Basic) ? params.maxSpeedBasic : params.maxSpeedPredator;
+    const float minSpeed = (b.type == BoidType::Basic) ? params.minSpeedBasic : params.minSpeedPredator;
+
+    // Acceleration drag (simple linear drag)
+    if (params.drag > 0.0f) {
+        Vec3 stopAcc = {
+            -b.vel.x / params.dt / params.numStepsToStopDueToMaxDrag,
+            -b.vel.y / params.dt / params.numStepsToStopDueToMaxDrag,
+            -b.vel.z / params.dt / params.numStepsToStopDueToMaxDrag
+        };
+
+        // apply fraction of full stop
+        b.acc.x += stopAcc.x * params.drag;
+        b.acc.y += stopAcc.y * params.drag;
+        b.acc.z += stopAcc.z * params.drag;
+    }
+
+    // Current steering magnitude
+    float accMagnitude = std::sqrt(sqrLen(b.acc));
+    Vec3 accDir = normalize(b.acc, params.eps);
+
+    // Random unit vector
+    Vec3 randVec = {
+        ((float)rand()/RAND_MAX - 0.5f),
+        ((float)rand()/RAND_MAX - 0.5f),
+        ((float)rand()/RAND_MAX - 0.5f)
+    };
+    Vec3 randDir = normalize(randVec, params.eps);
+
+    // blend steering vs randomness
+    Vec3 blended = {
+        accDir.x * (1.0f - params.noise) + randDir.x * params.noise,
+        accDir.y * (1.0f - params.noise) + randDir.y * params.noise,
+        accDir.z * (1.0f - params.noise) + randDir.z * params.noise
+    };
+
+    Vec3 finalDir = normalize(blended, params.eps);
+
+    // preserve magnitude
+    b.acc.x = finalDir.x * accMagnitude;
+    b.acc.y = finalDir.y * accMagnitude;
+    b.acc.z = finalDir.z * accMagnitude;
+
+    // Integrate
+    b.vel.x += b.acc.x * params.dt;
+    b.vel.y += b.acc.y * params.dt;
+    b.vel.z += b.acc.z * params.dt;
+
+    // Speed limits (Boids Lab style)
+    float speed = std::sqrt(sqrLen(b.vel));
+    if (speed > maxSpeed) {
+        float s = maxSpeed / speed;
+        b.vel.x *= s; 
+        b.vel.y *= s; 
+        b.vel.z *= s;
+    } else if (speed < minSpeed) {
+        float s = minSpeed / (speed + params.eps);
+        b.vel.x *= s; 
+        b.vel.y *= s; 
+        b.vel.z *= s;
+    }
+
+    b.pos.x += b.vel.x * params.dt;
+    b.pos.y += b.vel.y * params.dt;
+    b.pos.z += b.vel.z * params.dt;
+}
+
+void resolveCollisions(SequentialParameters& params, int currentBoidIdx) {
+    resolveWallCollisions(params, currentBoidIdx);
+    resolveObstacleCollisions(params, currentBoidIdx);
+}
+
+void resolveWallCollisions(SequentialParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
+    
+    // Get parameters that depend on boid type
+    const float rBoid = (b.type == BoidType::Basic) ? params.basicBoidRadius : params.predatorRadius;
+
+    
+    if (params.bounce) {
+        if (b.pos.x < rBoid) { 
+            b.pos.x = rBoid; 
+            b.vel.x = -b.vel.x * params.bounceFactor;
+            b.vel.y = b.vel.y * params.bounceFactor;
+            b.vel.z = b.vel.z * params.bounceFactor;
+        } else if (b.pos.x > params.worldX - rBoid) { 
+            b.pos.x = params.worldX - rBoid; 
+            b.vel.x = -b.vel.x * params.bounceFactor; 
+            b.vel.y = b.vel.y * params.bounceFactor;
+            b.vel.z = b.vel.z * params.bounceFactor;
+        }
+
+        if (b.pos.y < rBoid) { 
+            b.pos.y = rBoid; 
+            b.vel.y = -b.vel.y * params.bounceFactor; 
+            b.vel.x = b.vel.x * params.bounceFactor;
+            b.vel.z = b.vel.z * params.bounceFactor;
+        } else if (b.pos.y > params.worldY - rBoid) { 
+            b.pos.y = params.worldY - rBoid; 
+            b.vel.y = -b.vel.y * params.bounceFactor; 
+            b.vel.x = b.vel.x * params.bounceFactor;
+            b.vel.z = b.vel.z * params.bounceFactor;
+        }
+
+        if (!params.is2D) {
+            if (b.pos.z < rBoid) { 
+                b.pos.z = rBoid; 
+                b.vel.z = -b.vel.z * params.bounceFactor; 
+                b.vel.x = b.vel.x * params.bounceFactor; 
+                b.vel.y = b.vel.y * params.bounceFactor; 
+            } else if (b.pos.z > params.worldZ - rBoid) { 
+                b.pos.z = params.worldZ - rBoid; 
+                b.vel.z = -b.vel.z * params.bounceFactor; 
+                b.vel.x = b.vel.x * params.bounceFactor; 
+                b.vel.y = b.vel.y * params.bounceFactor; 
+            }
+        }
+    } else {
+        if (b.pos.x < 0) {
+            b.pos.x += params.worldX;
+        } else if (b.pos.x >= params.worldX) {
+            b.pos.x -= params.worldX;
+        }
+        
+        if (b.pos.y < 0) {
+            b.pos.y += params.worldY; 
+        } else if (b.pos.y >= params.worldY) {
+            b.pos.y -= params.worldY;
+        }
+        
+        if (!params.is2D) {
+            if (b.pos.z < 0) {
+                b.pos.z += params.worldZ;
+            } else if (b.pos.z >= params.worldZ) {
+                b.pos.z -= params.worldZ;
+            }
+        }
+    }
+}
+
+void resolveObstacleCollisions(SequentialParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
+
+    // Get parameters that depend on boid type
+    const float rBoid = (b.type == BoidType::Basic) ? params.basicBoidRadius : params.predatorRadius;
+
+    // Check collisions with obstacles
+    for (size_t obsIdx : params.obstacleBoidIndices) {
+        const Boid& obs = params.boids[obsIdx];
+
+        Vec3 diff = periodicDeltaVec(obs.pos, b.pos, params);
+        diff.z = 0.0f; // Ignore vertical component for obstacle collisions
+
+        float dist2 = sqrLen(diff);
+        float combinedRadius = rBoid + params.obstacleRadius;
+        float dist = std::sqrt(dist2) - combinedRadius;
+
+        if (dist < 0.0f) {
+            Vec3 n = normalize(diff);
+
+            // Push boid out of obstacle
+            b.pos.x += n.x * (-dist + params.eps);
+            b.pos.y += n.y * (-dist + params.eps);
+            b.pos.z += n.z * (-dist + params.eps);
+
+            // Reflection calculation
+            float vDotN = b.vel.x*n.x + b.vel.y*n.y + b.vel.z*n.z;
+
+            // Reflected velocity (full bounce)
+            Vec3 vReflect = {
+                b.vel.x - 2.0f * vDotN * n.x,
+                b.vel.y - 2.0f * vDotN * n.y,
+                b.vel.z - 2.0f * vDotN * n.z
+            };
+
+            // Apply bounce factor
+            b.vel.x = vReflect.x * params.bounceFactor;
+            b.vel.y = vReflect.y * params.bounceFactor;
+            b.vel.z = vReflect.z * params.bounceFactor;
+        }
+    }
+}
+
+
+inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const SequentialParameters& params) {
+    // Raw difference (to - from)
+    Vec3 d{
+        to.x - from.x,
+        to.y - from.y,
+        params.is2D ? 0.0f : (to.z - from.z)
+    };
+
+    // In bounce mode use plain Euclidean space
+    if (params.bounce)
+        return d;
+
+    // In wrapping mode adjust by world size
+    d.x = periodicDelta(d.x, params.worldX);
+    d.y = periodicDelta(d.y, params.worldY);
+
+    if (!params.is2D) {
+        d.z = periodicDelta(d.z, params.worldZ);
+    }
+
+    return d;
+}
+
+inline float periodicDelta(float d, float worldSize) {
+    if (d >  0.5f * worldSize) d -= worldSize;
+    if (d < -0.5f * worldSize) d += worldSize;
+    return d;
+}
+
+static inline Vec3 normalize(const Vec3& v, const float eps) {
+    float l2 = sqrLen(v);
+    if (l2 < eps)
+        return {0.0f, 0.0f, 0.0f};
+    float inv = 1.0f / std::sqrt(l2);
+    return { v.x * inv, v.y * inv, v.z * inv };
+}
+
+static inline float sqrLen(const Vec3& v) {
+    return v.x * v.x + v.y * v.y + v.z * v.z;
 }

@@ -97,7 +97,7 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
         float d2 = sqrLen(d);
 
         // Skip if out of visual range
-        if (d2 > params.visualRangeBasic2)
+        if (d2 > params.visionRangeBasic2)
             continue;
 
         // Compute distance and avoid zero-length
@@ -213,7 +213,7 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
             dist = params.eps;
 
         // Save info for predator chasing
-        if (dist <= params.visualRangePredator) {
+        if (dist <= params.visionRangePredator) {
             if (pred.targetBoidIdx == -1 ||
                 dist < pred.targetBoidDistance)
             {
@@ -223,7 +223,7 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
         }
 
         // Skip if out of visual range
-        if (dist > params.visualRangeBasic)
+        if (dist > params.visionRangeBasic)
             continue;
 
         // Increment predator count
@@ -380,7 +380,7 @@ void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int curr
 
     // Get parameters that depend on boid type
     const float rBoid = (b.type == BoidType::Basic) ? params.basicBoidRadius : params.predatorRadius;
-    const float visualRange = (b.type == BoidType::Basic) ? params.visualRangeBasic : params.visualRangePredator;
+    const float visualRange = (b.type == BoidType::Basic) ? params.visionRangeBasic : params.visionRangePredator;
 
     // Resolve obstacle avoidance
     Vec3 obstacleDirSum{0,0,0};

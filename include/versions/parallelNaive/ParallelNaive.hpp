@@ -3,4 +3,4 @@
 #include "versions/parallelNaive/ParallelNaiveParameters.hpp"
 
 
-void parallelNaiveSimulationStep(ParallelNaiveParameters& params);
+void simulationStepParallelNaive(ParallelNaiveParameters& params);

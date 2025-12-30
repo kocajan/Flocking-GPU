@@ -3,4 +3,4 @@
 #include "versions/sequential/SequentialParameters.hpp"
 
 
-void sequentialSimulationStep(SequentialParameters& params);
+void simulationStepSequential(SequentialParameters& params);

@@ -52,10 +52,6 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
 
     version = versionParam;
 
-    // Calculate parameters from the provided configuration
-    maxVisionRange2D = std::sqrt(worldX.number() * worldX.number() + worldY.number() * worldY.number());
-    maxVisionRange3D = std::sqrt(worldX.number() * worldX.number() + worldY.number() * worldY.number() + worldZ.number() * worldZ.number());
-
     tick = 0;
     basicBoidCount = 0;
     predatorBoidCount = 0;

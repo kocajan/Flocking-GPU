@@ -45,10 +45,14 @@ SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c
     dt = s.dt.number();
 
     // Vision ranges
-    float maxVisualRange = (is2D ? s.maxVisionRange2D : s.maxVisionRange3D);
-    visualRangeBasic = maxVisualRange * (c.number("visionBasic") / 100.0f);
-    visualRangePredator = maxVisualRange * (c.number("visionPredator") / 100.0f);
-    visualRangeBasic2 = visualRangeBasic * visualRangeBasic;
+    float maxVisionRange;
+    if (is2D)
+        maxVisionRange = std::sqrt(worldX*worldX + worldY*worldY);
+    else
+        maxVisionRange = std::sqrt(worldX*worldX + worldY*worldY + worldZ*worldZ);
+    visionRangeBasic = maxVisionRange * (c.number("visionBasic") / 100.0f);
+    visionRangePredator = maxVisionRange * (c.number("visionPredator") / 100.0f);
+    visionRangeBasic2 = visionRangeBasic * visionRangeBasic;
 
     // Obstacle + mouse
     obstacleAvoidanceMultiplier = c.number("obstacleAvoidanceMultiplier");

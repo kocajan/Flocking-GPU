@@ -3,4 +3,4 @@
 #include "versions/parallel/ParallelParameters.hpp"
 
 
-void parallelSimulationStep(ParallelParameters& params);
+void simulationStepParallel(ParallelParameters& params);

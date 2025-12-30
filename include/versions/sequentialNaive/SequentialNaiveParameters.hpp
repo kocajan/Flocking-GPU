@@ -43,9 +43,9 @@ struct SequentialNaiveParameters {
     float dt;
 
     // Vision
-    float visualRangeBasic;
-    float visualRangeBasic2;
-    float visualRangePredator;
+    float visionRangeBasic;
+    float visionRangeBasic2;
+    float visionRangePredator;
 
     // Forces / multipliers
     float maxForce;

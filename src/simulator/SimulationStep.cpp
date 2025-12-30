@@ -24,15 +24,15 @@ void simulationStep(SimState& simState, Config& simConfig)
     }
     else if (version == "sequential") {
         SequentialParameters parameters(simState, simConfig);
-        sequentialSimulationStep(parameters);
+        simulationStepSequential(parameters);
     }
     else if (version == "parallelNaive") {
         ParallelNaiveParameters parameters(simState, simConfig);
-        parallelNaiveSimulationStep(parameters);
+        simulationStepParallelNaive(parameters);
     }
     else if (version == "parallel") {
         ParallelParameters parameters(simState, simConfig);
-        parallelSimulationStep(parameters);
+        simulationStepParallel(parameters);
     }
     else {
         throw std::runtime_error("Unknown simulation version: " + version);
