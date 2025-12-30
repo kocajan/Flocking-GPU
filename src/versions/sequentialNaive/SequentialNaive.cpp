@@ -6,35 +6,20 @@
 
 
 void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx);
-
 void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx);
+void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx);
 
+void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx);
 void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int currentBoidIdx);
-
 void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx);
 
 void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
-
-void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx);
-
-void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx);
-
 void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
-
 void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
 
+static inline float sqrLen(const Vec3& v);
+static inline Vec3 normalize(const Vec3& v, const float eps = 1e-5f);
 
-static inline float sqrLen(const Vec3& v) {
-    return v.x * v.x + v.y * v.y + v.z * v.z;
-}
-
-static inline Vec3 normalize(const Vec3& v, const float EPS = 1e-5f) {
-    float l2 = sqrLen(v);
-    if (l2 < EPS)
-        return {0.0f, 0.0f, 0.0f};
-    float inv = 1.0f / std::sqrt(l2);
-    return { v.x * inv, v.y * inv, v.z * inv };
-}
 
 void simulationStepSequentialNaive(SequentialNaiveParameters& params) {
     for (int currentBoidIdx = 0; currentBoidIdx < params.boidCount; ++currentBoidIdx) {
@@ -67,103 +52,6 @@ void simulationStepSequentialNaive(SequentialNaiveParameters& params) {
             params,
             currentBoidIdx
         );
-    }
-}
-
-void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int currentBoidIdx) {
-    // Get reference to current boid
-    Boid& b = params.boids[currentBoidIdx];
-
-    // Get parameters that depend on boid type
-    const float rBoid = (b.type == BoidType::Basic) ? params.basicBoidRadius : params.predatorRadius;
-    const float visualRange = (b.type == BoidType::Basic) ? params.visualRangeBasic : params.visualRangePredator;
-
-    // Resolve obstacle avoidance
-    Vec3 obstacleDirSum{0,0,0};
-    float obstacleWeightSum = 0.0f;
-    float obstacleCount = 0;
-    for (size_t obsIdx : params.obstacleBoidIndices) {
-        const Boid& obs = params.boids[obsIdx];
-
-        Vec3 diff = {
-            b.pos.x - obs.pos.x,
-            b.pos.y - obs.pos.y,
-            0.0f
-        };
-
-        float centerDist = std::sqrt(sqrLen(diff));
-        float combinedRadius = rBoid + params.obstacleRadius;
-        float surfaceDist = centerDist - combinedRadius;
-
-        if (surfaceDist > visualRange)
-            continue;
-        obstacleCount++;
-
-        Vec3 dir = normalize(diff, params.eps);
-
-        // Proximity weight
-        float weight = std::exp(-0.1f * surfaceDist);
-
-        // Accumulate weighted direction
-        obstacleDirSum.x += dir.x * weight;
-        obstacleDirSum.y += dir.y * weight;
-        obstacleDirSum.z += dir.z * weight;
-
-        obstacleWeightSum += weight;
-    }
-
-
-    if (obstacleCount >= 1.0) {
-        // Calculate average direction
-        Vec3 avgDir = {
-            obstacleDirSum.x,
-            obstacleDirSum.y,
-            obstacleDirSum.z
-        };
-
-        // Calculate average weight
-        float averageWeight = obstacleWeightSum / obstacleCount;
-
-        Vec3 avoidDir = normalize(avgDir, params.eps);
-
-        // Apply as a single steering vector
-        b.acc.x += avoidDir.x * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
-        b.acc.y += avoidDir.y * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
-        b.acc.z += avoidDir.z * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
-    }
-
-    // If the boid is close to walls, apply repelling force only if bounce is enabled
-    if (!params.bounce) {
-        return;
-    }
-
-    auto repelFromWall = [&](float d, float axisSign, float& accAxis)
-    {
-        if (d < visualRange) {
-            float weight = std::exp(-0.3f * d);
-            accAxis += axisSign * (params.maxForce * weight * params.obstacleAvoidanceMultiplier);
-        }
-    };
-
-    // Left wall
-    repelFromWall(b.pos.x - rBoid, 1.0f, b.acc.x);
-
-    // Right wall
-    repelFromWall((params.worldX - rBoid) - b.pos.x, -1.0f, b.acc.x);
-
-    // Bottom wall
-    repelFromWall(b.pos.y - rBoid, 1.0f, b.acc.y);
-
-    // Top wall
-    repelFromWall((params.worldY - rBoid) - b.pos.y, -1.0f, b.acc.y);
-
-    if (!params.is2D)
-    {
-        // Floor
-        repelFromWall(b.pos.z - rBoid, 1.0f, b.acc.z);
-
-        // Ceiling
-        repelFromWall((params.worldZ - rBoid) - b.pos.z, -1.0f, b.acc.z);
     }
 }
 
@@ -452,6 +340,175 @@ void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentB
     
 }
 
+void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx) {
+    // Resolve mouse interactions
+    resolveMouseInteraction(params, currentBoidIdx);
+
+    // Resolve obstacle avoidance
+    resolveObstacleAndWallAvoidance(params, currentBoidIdx);
+
+    // Resolve dynamics
+    resolveDynamics(params, currentBoidIdx);
+
+    // Resolve wall interactions
+    resolveCollisions(params, currentBoidIdx);
+
+    if (params.is2D) {
+        params.boids[currentBoidIdx].pos.z = 0.0f;
+        params.boids[currentBoidIdx].vel.z = 0.0f;
+    }
+}
+
+void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx) {
+    // Get reference to current boid and interaction
+    Boid& b = params.boids[currentBoidIdx];
+    const Interaction& inter = params.interaction;
+
+    // Define helper to make weighted forces
+    auto makeWeightedForce = [&](const Vec3& dir, float weight) {
+        return Vec3{
+            dir.x * (params.maxForce * weight) * params.mouseInteractionMultiplier,
+            dir.y * (params.maxForce * weight) * params.mouseInteractionMultiplier,
+            dir.z * (params.maxForce * weight) * params.mouseInteractionMultiplier
+        };
+    };
+
+    if (inter.type != InteractionType::Empty) {
+        // Zero the so far accumulated acceleration
+        b.acc.x = 0.0f;
+        b.acc.y = 0.0f;
+        b.acc.z = 0.0f;
+
+        Vec3 diff = {
+            b.pos.x - inter.point.x,
+            b.pos.y - inter.point.y,
+            b.pos.z - inter.point.z
+        };
+
+        float dist2 = sqrLen(diff);
+        if (dist2 < params.eps)
+            dist2 = params.eps;
+
+        // Create weight based on distance
+        float weight = dist2 / params.maxDistanceBetweenPoints2;
+        if (weight < 0.0f)
+            weight = 0.0f;
+
+        // Get normalized direction
+        Vec3 dir = normalize(diff, params.eps);
+
+        // Calculate weighted force
+        Vec3 weightedForce = makeWeightedForce(dir, weight);
+
+        if (inter.type == InteractionType::Attract) {
+            b.acc.x -= weightedForce.x;
+            b.acc.y -= weightedForce.y;
+            b.acc.z -= weightedForce.z;
+        } else {
+            b.acc.x += weightedForce.x;
+            b.acc.y += weightedForce.y;
+            b.acc.z += weightedForce.z;
+        }
+    }
+}
+
+void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int currentBoidIdx) {
+    // Get reference to current boid
+    Boid& b = params.boids[currentBoidIdx];
+
+    // Get parameters that depend on boid type
+    const float rBoid = (b.type == BoidType::Basic) ? params.basicBoidRadius : params.predatorRadius;
+    const float visualRange = (b.type == BoidType::Basic) ? params.visualRangeBasic : params.visualRangePredator;
+
+    // Resolve obstacle avoidance
+    Vec3 obstacleDirSum{0,0,0};
+    float obstacleWeightSum = 0.0f;
+    float obstacleCount = 0;
+    for (size_t obsIdx : params.obstacleBoidIndices) {
+        const Boid& obs = params.boids[obsIdx];
+
+        Vec3 diff = {
+            b.pos.x - obs.pos.x,
+            b.pos.y - obs.pos.y,
+            0.0f
+        };
+
+        float centerDist = std::sqrt(sqrLen(diff));
+        float combinedRadius = rBoid + params.obstacleRadius;
+        float surfaceDist = centerDist - combinedRadius;
+
+        if (surfaceDist > visualRange)
+            continue;
+        obstacleCount++;
+
+        Vec3 dir = normalize(diff, params.eps);
+
+        // Proximity weight
+        float weight = std::exp(-0.1f * surfaceDist);
+
+        // Accumulate weighted direction
+        obstacleDirSum.x += dir.x * weight;
+        obstacleDirSum.y += dir.y * weight;
+        obstacleDirSum.z += dir.z * weight;
+
+        obstacleWeightSum += weight;
+    }
+
+
+    if (obstacleCount >= 1.0) {
+        // Calculate average direction
+        Vec3 avgDir = {
+            obstacleDirSum.x,
+            obstacleDirSum.y,
+            obstacleDirSum.z
+        };
+
+        // Calculate average weight
+        float averageWeight = obstacleWeightSum / obstacleCount;
+
+        Vec3 avoidDir = normalize(avgDir, params.eps);
+
+        // Apply as a single steering vector
+        b.acc.x += avoidDir.x * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        b.acc.y += avoidDir.y * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        b.acc.z += avoidDir.z * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+    }
+
+    // If the boid is close to walls, apply repelling force only if bounce is enabled
+    if (!params.bounce) {
+        return;
+    }
+
+    auto repelFromWall = [&](float d, float axisSign, float& accAxis)
+    {
+        if (d < visualRange) {
+            float weight = std::exp(-0.3f * d);
+            accAxis += axisSign * (params.maxForce * weight * params.obstacleAvoidanceMultiplier);
+        }
+    };
+
+    // Left wall
+    repelFromWall(b.pos.x - rBoid, 1.0f, b.acc.x);
+
+    // Right wall
+    repelFromWall((params.worldX - rBoid) - b.pos.x, -1.0f, b.acc.x);
+
+    // Bottom wall
+    repelFromWall(b.pos.y - rBoid, 1.0f, b.acc.y);
+
+    // Top wall
+    repelFromWall((params.worldY - rBoid) - b.pos.y, -1.0f, b.acc.y);
+
+    if (!params.is2D)
+    {
+        // Floor
+        repelFromWall(b.pos.z - rBoid, 1.0f, b.acc.z);
+
+        // Ceiling
+        repelFromWall((params.worldZ - rBoid) - b.pos.z, -1.0f, b.acc.z);
+    }
+}
+
 void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx) {
     // Get reference to current boid
     Boid& b = params.boids[currentBoidIdx];
@@ -645,74 +702,14 @@ void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoi
     }
 }
 
-void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx) {
-    // Get reference to current boid and interaction
-    Boid& b = params.boids[currentBoidIdx];
-    const Interaction& inter = params.interaction;
-
-    // Define helper to make weighted forces
-    auto makeWeightedForce = [&](const Vec3& dir, float weight) {
-        return Vec3{
-            dir.x * (params.maxForce * weight) * params.mouseInteractionMultiplier,
-            dir.y * (params.maxForce * weight) * params.mouseInteractionMultiplier,
-            dir.z * (params.maxForce * weight) * params.mouseInteractionMultiplier
-        };
-    };
-
-    if (inter.type != InteractionType::Empty) {
-        // Zero the so far accumulated acceleration
-        b.acc.x = 0.0f;
-        b.acc.y = 0.0f;
-        b.acc.z = 0.0f;
-
-        Vec3 diff = {
-            b.pos.x - inter.point.x,
-            b.pos.y - inter.point.y,
-            b.pos.z - inter.point.z
-        };
-
-        float dist2 = sqrLen(diff);
-        if (dist2 < params.eps)
-            dist2 = params.eps;
-
-        // Create weight based on distance
-        float weight = dist2 / params.maxDistanceBetweenPoints2;
-        if (weight < 0.0f)
-            weight = 0.0f;
-
-        // Get normalized direction
-        Vec3 dir = normalize(diff, params.eps);
-
-        // Calculate weighted force
-        Vec3 weightedForce = makeWeightedForce(dir, weight);
-
-        if (inter.type == InteractionType::Attract) {
-            b.acc.x -= weightedForce.x;
-            b.acc.y -= weightedForce.y;
-            b.acc.z -= weightedForce.z;
-        } else {
-            b.acc.x += weightedForce.x;
-            b.acc.y += weightedForce.y;
-            b.acc.z += weightedForce.z;
-        }
-    }
+static inline float sqrLen(const Vec3& v) {
+    return v.x * v.x + v.y * v.y + v.z * v.z;
 }
 
-void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx) {
-    // Resolve mouse interactions
-    resolveMouseInteraction(params, currentBoidIdx);
-
-    // Resolve obstacle avoidance
-    resolveObstacleAndWallAvoidance(params, currentBoidIdx);
-
-    // Resolve dynamics
-    resolveDynamics(params, currentBoidIdx);
-
-    // Resolve wall interactions
-    resolveCollisions(params, currentBoidIdx);
-
-    if (params.is2D) {
-        params.boids[currentBoidIdx].pos.z = 0.0f;
-        params.boids[currentBoidIdx].vel.z = 0.0f;
-    }
+static inline Vec3 normalize(const Vec3& v, const float eps = 1e-5f) {
+    float l2 = sqrLen(v);
+    if (l2 < eps)
+        return {0.0f, 0.0f, 0.0f};
+    float inv = 1.0f / std::sqrt(l2);
+    return { v.x * inv, v.y * inv, v.z * inv };
 }
