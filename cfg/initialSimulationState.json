@@ -196,7 +196,7 @@
         "name": "basicBoidRadius",
         "label": "Basic Boid Radius",
         "description": "Radius of basic boids",
-        "default": 5,
+        "default": 4,
         "min": 1,
         "max": 10,
         "step": 0.1
@@ -206,7 +206,7 @@
         "name": "predatorBoidRadius",
         "label": "Predator Boid Radius",
         "description": "Radius of predator boids",
-        "default": 7,
+        "default": 6,
         "min": 1,
         "max": 10,
         "step": 0.1

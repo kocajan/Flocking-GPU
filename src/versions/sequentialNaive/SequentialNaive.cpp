@@ -111,14 +111,14 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
         // Separation - only inside protected range
         if (dist < params.basicBoidRadius * 2.0f) {
             float invd = 1.0f / dist;
-            personalSpace.x -= (o.pos.x - b.pos.x) * invd;
-            personalSpace.y -= (o.pos.y - b.pos.y) * invd;
-            personalSpace.z -= (o.pos.z - b.pos.z) * invd;
+            personalSpace.x -= d.x * invd;
+            personalSpace.y -= d.y * invd;
+            personalSpace.z -= d.z * invd;
         } else if (dist >= params.basicBoidRadius * 2.0f) {
             // Cohesion - full vision range but outside protected range
-            positionSum.x += o.pos.x;
-            positionSum.y += o.pos.y;
-            positionSum.z += o.pos.z;
+            positionSum.x += d.x;
+            positionSum.y += d.y;
+            positionSum.z += d.z;
             distantNeighborCount++;
         }
 
@@ -133,16 +133,11 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
     if (distantNeighborCount > 0) {
         float invN = 1.0f / distantNeighborCount;
 
-        // Cohesion - steer toward average position
-        Vec3 avgPos = {
+        // Cohesion - steer toward average delta
+        cohesionForce = {
             positionSum.x * invN,
             positionSum.y * invN,
             positionSum.z * invN
-        };
-        cohesionForce = {
-            avgPos.x - b.pos.x,
-            avgPos.y - b.pos.y,
-            avgPos.z - b.pos.z
         };
     }
     
@@ -169,7 +164,7 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
     // Recalculate the targetWeight to include the squared distance to target
     if (toTargetDist2 < params.eps)
         toTargetDist2 = params.eps;
-    float distanceFactor = toTargetDist2 / params.maxDistanceBetweenPoints;
+    float distanceFactor = toTargetDist2 / 10 / params.maxDistanceBetweenPoints;
     float adjustedTargetWeight = params.targetAttractionWeightBasic * distanceFactor;
 
     // Create for for cruising in the current velocity with the desired cruising speed
@@ -196,23 +191,12 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
     Vec3 alignmentForceW = makeWeightedForce(alignmentDir, params.alignmentWeightBasic);
     Vec3 separationForceW = makeWeightedForce(separationDir, params.separationWeightBasic);
     Vec3 targetForceW = makeWeightedForce(targetDir, adjustedTargetWeight);
-    Vec3 cruisingForceW = makeWeightedForce(cruisingForce, 0.5f);
-
-    // Average the forces (just sum - they are already weighted)
-    Vec3 averageForce = {
-        cohesionForceW.x + alignmentForceW.x + separationForceW.x + targetForceW.x + cruisingForceW.x,
-        cohesionForceW.y + alignmentForceW.y + separationForceW.y + targetForceW.y + cruisingForceW.y,
-        cohesionForceW.z + alignmentForceW.z + separationForceW.z + targetForceW.z + cruisingForceW.z
-    };
-    float numForces = 5.0f;
-    averageForce.x /= numForces;
-    averageForce.y /= numForces;
-    averageForce.z /= numForces;
+    Vec3 cruisingForceW = makeWeightedForce(cruisingForce, 0.1f);
 
     // Apply the average force to acceleration
-    b.acc.x += averageForce.x;
-    b.acc.y += averageForce.y;
-    b.acc.z += averageForce.z;
+    b.acc.x += cohesionForceW.x + alignmentForceW.x + separationForceW.x + targetForceW.x + cruisingForceW.x;
+    b.acc.y += cohesionForceW.y + alignmentForceW.y + separationForceW.y + targetForceW.y + cruisingForceW.y;
+    b.acc.z += cohesionForceW.z + alignmentForceW.z + separationForceW.z + targetForceW.z + cruisingForceW.z;
 
     // Predator avoidance — simple random flee away from predators
     Vec3 predAvoidanceDir{0,0,0};
