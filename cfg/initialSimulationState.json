@@ -102,7 +102,7 @@
         "name": "worldX",
         "label": "World X Size",
         "description": "World size in X dimension",
-        "default": 1000,
+        "default": 3000,
         "min": 50,
         "max": 2000,
         "step": 10
@@ -112,7 +112,7 @@
         "name": "worldY",
         "label": "World Y Size",
         "description": "World size in Y dimension",
-        "default": 500,
+        "default": 1500,
         "min": 50,
         "max": 2000,
         "step": 10
@@ -122,7 +122,7 @@
         "name": "worldZ",
         "label": "World Z Size",
         "description": "World size in Z dimension (used in 3D mode)",
-        "default": 500,
+        "default": 1500,
         "min": 50,
         "max": 2000,
         "step": 10
@@ -186,7 +186,7 @@
         "name": "obstacleRadius",
         "label": "Obstacle Radius",
         "description": "Radius of obstacles drawn with mouse",
-        "default": 10,
+        "default": 15,
         "min": 1,
         "max": 100,
         "step": 1
@@ -196,7 +196,7 @@
         "name": "basicBoidRadius",
         "label": "Basic Boid Radius",
         "description": "Radius of basic boids",
-        "default": 2,
+        "default": 5,
         "min": 1,
         "max": 10,
         "step": 0.1
@@ -206,7 +206,7 @@
         "name": "predatorBoidRadius",
         "label": "Predator Boid Radius",
         "description": "Radius of predator boids",
-        "default": 3,
+        "default": 7,
         "min": 1,
         "max": 10,
         "step": 0.1
