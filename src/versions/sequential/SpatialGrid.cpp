@@ -4,6 +4,7 @@
 
 #include "versions/sequential/SpatialGrid.hpp"
 
+
 SpatialGrid::SpatialGrid(const SequentialParameters& params)
     : cellSize(params.cellSize),
       cellsX(params.cellsX),
