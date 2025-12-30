@@ -1,8 +1,8 @@
 #include <cmath>
 #include <algorithm>
+#include <unordered_set>
 
 #include "versions/sequential/SpatialGrid.hpp"
-
 
 SpatialGrid::SpatialGrid(const SequentialParameters& params)
     : cellSize(params.cellSize),
@@ -10,19 +10,22 @@ SpatialGrid::SpatialGrid(const SequentialParameters& params)
       cellsY(params.cellsY),
       cellsZ(params.cellsZ),
       is2D(params.is2D),
-      bounce(params.bounce) {
-
-    isBuilt = false;
-
+      bounce(params.bounce),
+      isBuilt(false)
+{
     if (cellsX <= 0 || cellsY <= 0 || cellsZ <= 0) {
         hasZeroCells = true;
-        cellsX = 0;
-        cellsY = 0;
-        cellsZ = 0;
+        cellsX = cellsY = cellsZ = 0;
     } else {
         hasZeroCells = false;
-        cells.resize(cellsX * cellsY * cellsZ);
+        size_t total = static_cast<size_t>(cellsX) * cellsY * cellsZ;
+        basicCells.resize(total);
+        predatorCells.resize(total);
+        obstacleCells.resize(total);
     }
+
+    // Reserve scratch buffer capacity up-front
+    scratch.reserve(1024);
 }
 
 int SpatialGrid::flattenIndex(int cx, int cy, int cz) const {
@@ -35,7 +38,6 @@ int SpatialGrid::worldToCellIndex(float p, float worldSize, int cellCount) const
         return std::clamp(c, 0, cellCount - 1);
     }
 
-    // Wrapping mode
     if (p < 0) p += worldSize;
     if (p >= worldSize) p -= worldSize;
 
@@ -47,42 +49,18 @@ int SpatialGrid::worldToCellIndex(float p, float worldSize, int cellCount) const
     return c;
 }
 
-void SpatialGrid::insertObjectToCell(BoidType type, int idx, Cell& cell) {
-    switch (type) {
-        case BoidType::Basic:
-            cell.basic.push_back(idx);
-            break;
-
-        case BoidType::Predator:
-            cell.predator.push_back(idx);
-            break;
-
-        case BoidType::Obstacle:
-            cell.obstacle.push_back(idx);
-            break;
-
-        default:
-            break;
-    }
-}
-
-void SpatialGrid::insertPointObject(const SequentialParameters& params, int idx) {
-    if (hasZeroCells)
-        return;
+void SpatialGrid::insertPointObject(std::vector<Cell>& grid, const SequentialParameters& params, int idx) {
     const Boid& b = params.boids[idx];
 
     int cx = worldToCellIndex(b.pos.x, params.worldX, cellsX);
     int cy = worldToCellIndex(b.pos.y, params.worldY, cellsY);
     int cz = is2D ? 0 : worldToCellIndex(b.pos.z, params.worldZ, cellsZ);
 
-    auto& cell = cells[flattenIndex(cx,cy,cz)];
-
-    insertObjectToCell(b.type, idx, cell);
+    grid[flattenIndex(cx,cy,cz)].items.push_back(idx);
 }
 
-void SpatialGrid::insertRadialObject(const SequentialParameters& params, int idx, float radius) {
-    if (hasZeroCells)
-        return;
+
+void SpatialGrid::insertRadialObject(std::vector<Cell>& grid, const SequentialParameters& params, int idx, float radius) {
     const Boid& b = params.boids[idx];
 
     float minX = b.pos.x - radius;
@@ -108,9 +86,10 @@ void SpatialGrid::insertRadialObject(const SequentialParameters& params, int idx
     for (int cx = cx0; cx <= cx1; ++cx)
     for (int cy = cy0; cy <= cy1; ++cy)
     for (int cz = cz0; cz <= cz1; ++cz) {
-        insertObjectToCell(b.type, idx, cells[flattenIndex(cx,cy,cz)]);
+        grid[flattenIndex(cx,cy,cz)].items.push_back(idx);
     }
 }
+
 
 void SpatialGrid::build(const SequentialParameters& params) {
     if (hasZeroCells) {
@@ -119,70 +98,73 @@ void SpatialGrid::build(const SequentialParameters& params) {
     }
 
     if (isBuilt) {
-        // Clear existing cells
-        for (auto& c : cells) {
-            c.basic.clear();
-            c.predator.clear();
-            c.obstacle.clear();
-        }
+        for (auto& c : basicCells)    c.items.clear();
+        for (auto& c : predatorCells) c.items.clear();
+        for (auto& c : obstacleCells) c.items.clear();
     }
 
-    for (int i = 0; i < params.boidCount; ++i) {
+    for (int i = 0; i < params.boidCount; ++i)
+    {
         const Boid& b = params.boids[i];
 
-        float radius = 0.0f;
-        if (b.type == BoidType::Obstacle) {
-            radius = params.obstacleRadius;
-        } else if (b.type == BoidType::Basic) {
-            radius = params.basicBoidRadius;
-        } else if (b.type == BoidType::Predator) {
-            radius = params.predatorRadius;
-        } else {
-            printf("Warning: Unknown boid type encountered in SpatialGrid build. (type=%d)\n", static_cast<int>(b.type));
-            continue;
+        switch (b.type) {
+            case BoidType::Basic:
+                insertPointObject(basicCells, params, i);
+                break;
+            case BoidType::Predator:
+                insertPointObject(predatorCells, params, i);
+                break;
+            case BoidType::Obstacle:
+                insertRadialObject(obstacleCells, params, i, params.obstacleRadius);
+                break;
+            default:
+                break;
         }
-        insertRadialObject(params, i, radius);
     }
+
     isBuilt = true;
 }
 
-std::unordered_set<int> SpatialGrid::getNeighborIndices(const SequentialParameters& params, 
+const std::vector<int>& SpatialGrid::getNeighborIndices(const SequentialParameters& params, 
                                                         int boidIndex, BoidType neighborType) const {
-    if (neighborType != BoidType::Basic &&
-        neighborType != BoidType::Predator &&
-        neighborType != BoidType::Obstacle) {
-        printf("Warning: Unknown boid type requested in SpatialGrid getNeighborIndices. (type=%d)\n", static_cast<int>(neighborType));
-        return {};
+    scratch.clear();
+
+    if (hasZeroCells)
+        return scratch;
+
+    const std::vector<Cell>* grid =
+        (neighborType == BoidType::Basic)    ? &basicCells :
+        (neighborType == BoidType::Predator) ? &predatorCells :
+        (neighborType == BoidType::Obstacle) ? &obstacleCells :
+                                               nullptr;
+
+    if (!grid) {
+        printf("Warning: Requested neighbor type has no associated grid. (type=%d)\n", static_cast<int>(neighborType));
+        return scratch;
     }
 
-    if (hasZeroCells) {
-        return {};
-    }
     const Boid& b = params.boids[boidIndex];
 
     int cx = worldToCellIndex(b.pos.x, params.worldX, cellsX);
     int cy = worldToCellIndex(b.pos.y, params.worldY, cellsY);
     int cz = is2D ? 0 : worldToCellIndex(b.pos.z, params.worldZ, cellsZ);
 
-    std::unordered_set<int> result;
-    result.reserve(64);
-
     int zmin = is2D ? 0 : -1;
     int zmax = is2D ? 0 :  1;
 
-    for (int dx=-1; dx<=1; ++dx)
-    for (int dy=-1; dy<=1; ++dy)
-    for (int dz=zmin; dz<=zmax; ++dz) {
+    for (int dx = -1; dx <= 1; ++dx)
+    for (int dy = -1; dy <= 1; ++dy)
+    for (int dz = zmin; dz <= zmax; ++dz) {
         int nx = cx + dx;
         int ny = cy + dy;
         int nz = cz + dz;
 
         if (bounce) {
-            // Hard boundaries
-            if (nx < 0 || nx >= cellsX || ny < 0 || ny >= cellsY || nz < 0 || nz >= cellsZ)
+            if (nx < 0 || nx >= cellsX ||
+                ny < 0 || ny >= cellsY ||
+                nz < 0 || nz >= cellsZ)
                 continue;
         } else {
-            // Wrapping mode
             if (nx < 0) nx += cellsX;
             if (nx >= cellsX) nx -= cellsX;
 
@@ -197,24 +179,17 @@ std::unordered_set<int> SpatialGrid::getNeighborIndices(const SequentialParamete
             }
         }
 
-        const Cell& c = cells[flattenIndex(nx,ny,nz)];
+        const auto& cell = (*grid)[flattenIndex(nx,ny,nz)].items;
 
-        const std::vector<int>* cell = nullptr;
-        if (neighborType == BoidType::Basic)
-            cell = &c.basic;
-        else if (neighborType == BoidType::Predator)
-            cell = &c.predator;
-        else
-            cell = &c.obstacle;
-
-        if (cell->empty()) {
-            continue;
-        }
-
-        for (int idx : *cell) {
-            result.insert(idx);
-        }
+        if (!cell.empty())
+            scratch.insert(scratch.end(), cell.begin(), cell.end());
     }
 
-    return result;
+    if (neighborType == BoidType::Obstacle) {
+        std::unordered_set<int> uniqueIndices(scratch.begin(), scratch.end());
+        scratch.assign(uniqueIndices.begin(), uniqueIndices.end());
+    }
+
+    return scratch;
 }
+

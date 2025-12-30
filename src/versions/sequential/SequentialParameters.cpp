@@ -24,20 +24,29 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     predatorRadius = s.predatorRadius.number();
     obstacleRadius = s.obstacleRadius.number();
 
+    // Boundary mode
+    bounce = c.binary("bounce");
+    bounceFactor = c.number("bounceFactor") / 100.0f;
+
     // World bounds
     worldX = s.worldX.number();
     worldY = s.worldY.number();
     worldZ = s.worldZ.number();
     float longestWorldEdge = std::max({worldX, worldY, is2D ? 0.0f : worldZ});
 
-    // Precompute max distance between points in the world
+    // World diagonal
+    float worldDiag;
     if (is2D)
-        maxDistanceBetweenPoints = std::sqrt(worldX*worldX + worldY*worldY);
+        worldDiag = std::sqrt(worldX * worldX + worldY * worldY);
     else
-        maxDistanceBetweenPoints = std::sqrt(worldX*worldX + worldY*worldY + worldZ*worldZ);
+        worldDiag = std::sqrt(worldX * worldX + worldY * worldY + worldZ * worldZ);
 
-    if (!bounce)
-        maxDistanceBetweenPoints *= 0.5f;
+    // Precompute max distance between points in the world
+    if (bounce) {
+        maxDistanceBetweenPoints = worldDiag * 0.5f;
+    } else {
+        maxDistanceBetweenPoints = worldDiag;
+    }
     maxDistanceBetweenPoints2 = maxDistanceBetweenPoints * maxDistanceBetweenPoints;
 
     // Core numeric constants
@@ -45,13 +54,8 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     dt = s.dt.number();
 
     // Vision ranges
-    float maxVisionRange;
-    if (is2D)
-        maxVisionRange = std::sqrt(worldX*worldX + worldY*worldY);
-    else
-        maxVisionRange = std::sqrt(worldX*worldX + worldY*worldY + worldZ*worldZ);
-    visionRangeBasic = maxVisionRange * (c.number("visionBasic") / 100.0f);
-    visionRangePredator = maxVisionRange * (c.number("visionPredator") / 100.0f);
+    visionRangeBasic = worldDiag * (c.number("visionBasic") / 100.0f);
+    visionRangePredator = worldDiag * (c.number("visionPredator") / 100.0f);
     visionRangeBasic2 = visionRangeBasic * visionRangeBasic;
 
     // Obstacle + mouse
@@ -97,10 +101,6 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     drag  = std::clamp(c.number("drag") / 100.0f, 0.0f, 1.0f);
     noise = std::clamp(c.number("noise") / 100.0f, 0.0f, 1.0f);
     numStepsToStopDueToMaxDrag = 100.0f;
-
-    // Boundary mode
-    bounce = c.binary("bounce");
-    bounceFactor = c.number("bounceFactor") / 100.0f;
 
     // Neighbor selection
     maxNeighborsBasic = static_cast<float>(s.basicBoidCount) * (c.number("neighbourAccuracy") / 100.0f);

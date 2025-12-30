@@ -75,8 +75,8 @@ void resolveBasicBoidBehavior(SequentialParameters& params, SpatialGrid& grid, i
     uint64_t distantNeighborCount = 0;
 
     // Analyze other boids
-    auto neighborSet = grid.getNeighborIndices(params, currentBoidIdx, BoidType::Basic);
-    for (int otherIdx : neighborSet) {
+    const auto& neighbors = grid.getNeighborIndices(params, currentBoidIdx, BoidType::Basic);
+    for (int otherIdx : neighbors) {
         // Break if reached max neighbors
         if (neighborCount >= params.maxNeighborsBasic)
             break;
@@ -198,8 +198,8 @@ void resolveBasicBoidBehavior(SequentialParameters& params, SpatialGrid& grid, i
     // Predator avoidance — simple random flee away from predators
     Vec3 predAvoidanceDir{0,0,0};
     int numPredators = 0;
-    auto predatorSet = grid.getNeighborIndices(params, currentBoidIdx, BoidType::Predator);
-    for (int predIdx : predatorSet) {
+    const auto& predators = grid.getNeighborIndices(params, currentBoidIdx, BoidType::Predator);
+    for (int predIdx : predators) {
         // Get reference to predator boid
         Boid& pred = params.boids[predIdx];
 
