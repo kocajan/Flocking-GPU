@@ -4,10 +4,18 @@
 #include <vector>
 #include <variant>
 #include <string>
+#include <cassert>
 
-// Basic helper types
+//
+// ============================================================================
+//  Basic math + color types
+// ============================================================================
+//
+
 struct Vec3 {
-    float x, y, z;
+    float x;
+    float y;
+    float z;
 };
 
 struct Color {
@@ -17,7 +25,13 @@ struct Color {
     int a;
 };
 
-// In-Simulation interaction types
+
+//
+// ============================================================================
+//  Interaction types (runtime mouse / environment actions)
+// ============================================================================
+//
+
 enum class InteractionType : uint8_t {
     Repel,
     Attract,
@@ -25,11 +39,17 @@ enum class InteractionType : uint8_t {
 };
 
 struct Interaction {
-    InteractionType type;
-    Vec3 point;
+    InteractionType type{InteractionType::Empty};
+    Vec3 point{0.0f, 0.0f, 0.0f};
 };
 
-// Boid types
+
+//
+// ============================================================================
+//  Boid classification
+// ============================================================================
+//
+
 enum class BoidType : uint8_t {
     Basic,
     Predator,
@@ -37,27 +57,128 @@ enum class BoidType : uint8_t {
     Empty
 };
 
-struct Boid {
-    Vec3 pos;
-    Vec3 vel;
-    Vec3 acc;
-    Vec3 targetPoint;
 
-    BoidType type;
+//
+// ============================================================================
+//  Boid population container (Structure of Arrays)
+// ============================================================================
+//
+//  Notes:
+//   - Each field is stored in its own contiguous array for cache efficiency.
+//   - This layout is designed for parallel CPU and CUDA execution.
+//   - Index lists allow fast per-type iteration.
+//   - Free-list supports reuse without immediate compaction.
+//
+struct Boids {
 
-    std::string color;
+    //
+    // Core SoA fields
+    //
 
-    int targetBoidIdx;
+    std::vector<Vec3> pos;          // position
+    std::vector<Vec3> vel;          // velocity
+    std::vector<Vec3> acc;          // accumulated acceleration
+    std::vector<Vec3> targetPoint;  // local target
 
-    bool resting;
+    std::vector<uint8_t> type;      // BoidType (stored compactly)
+    std::vector<float> stamina;
+    std::vector<uint8_t> resting;
 
-    float targetBoidDistance;
-    float stamina;
-    float radius;
+    std::vector<int>   targetBoidIdx;
+    std::vector<float> targetBoidDistance;
+
+    size_t count = 0;               // total occupied entries
+
+
+    //
+    // Bookkeeping by boid type
+    //
+
+    uint64_t basicBoidCount    = 0;
+    uint64_t predatorBoidCount = 0;
+    uint64_t obstacleBoidCount = 0;
+
+    std::vector<size_t> basicBoidIndices;
+    std::vector<size_t> predatorBoidIndices;
+    std::vector<size_t> obstacleBoidIndices;
+
+
+    //
+    // Free-list for index reuse / deferred compaction
+    //
+
+    std::vector<size_t> freeBoidIndices;
+
+    //==========================================================================
+    // Lifecycle helpers
+    //==========================================================================
+
+    void resize(size_t n) {
+        count = n;
+
+        pos.resize(n);
+        vel.resize(n);
+        acc.resize(n);
+        targetPoint.resize(n);
+
+        type.resize(n);
+        stamina.resize(n);
+        resting.resize(n);
+
+        targetBoidIdx.resize(n);
+        targetBoidDistance.resize(n);
+    }
+
+    void clear() {
+        count = 0;
+
+        pos.clear();
+        vel.clear();
+        acc.clear();
+        targetPoint.clear();
+
+        type.clear();
+        stamina.clear();
+        resting.clear();
+
+        targetBoidIdx.clear();
+        targetBoidDistance.clear();
+
+        basicBoidCount    = 0;
+        predatorBoidCount = 0;
+        obstacleBoidCount = 0;
+
+        basicBoidIndices.clear();
+        predatorBoidIndices.clear();
+        obstacleBoidIndices.clear();
+
+        freeBoidIndices.clear();
+    }
+
+    void assertConsistent() const {
+        const size_t n = count;
+
+        assert(pos.size() == n);
+        assert(vel.size() == n);
+        assert(acc.size() == n);
+        assert(targetPoint.size() == n);
+
+        assert(type.size() == n);
+        assert(stamina.size() == n);
+        assert(resting.size() == n);
+
+        assert(targetBoidIdx.size() == n);
+        assert(targetBoidDistance.size() == n);
+    }
 };
 
-// ############# ConfigParameter related types #############
-// Parameter types
+
+//
+// ============================================================================
+//  Config parameter types (UI + configuration system)
+// ============================================================================
+//
+
 enum class ParamType {
     Number,
     Binary,
@@ -65,42 +186,56 @@ enum class ParamType {
     Enum
 };
 
-// Preferred rendering style for GUI
+//
+// Preferred rendering style in GUI
+//
 enum class ParamRender {
     Checkbox,
     Button,
     ToggleButton,
-    Slider,         
+    Slider,
     Drag,
     Input
 };
 
-// Range types for ConfigParameter
-// ---------- Number ----------
+
+//
+// ============================================================================
+//  Parameter ranges
+// ============================================================================
+//
+
+// Number parameter limits
 struct NumberRange {
-    float min = 0.0f;
-    float max = 1.0f;
+    float min  = 0.0f;
+    float max  = 1.0f;
     float step = 0.01f;
 };
 
-// ---------- Binary ----------
+// Boolean parameter flags
 struct BinaryRange {
     bool allowTrue  = true;
     bool allowFalse = true;
 };
 
-// ---------- String ----------
+// String parameter constraints
 struct StringRange {
-    bool freeText = true;                      // allow arbitrary input
-    std::vector<std::string> options;          // optional allowed values
+    bool freeText = true;                 // allow arbitrary input
+    std::vector<std::string> options;     // optional allowed values
 };
 
-// ---------- Enum ----------
+// Enum parameter options
 struct EnumRange {
     std::vector<std::string> options;
 };
 
-// Define unified value container
+
+//
+// ============================================================================
+//  Unified parameter storage
+// ============================================================================
+//
+
 using ParamValue = std::variant<
     bool,
     int,
@@ -108,7 +243,6 @@ using ParamValue = std::variant<
     std::string
 >;
 
-// Define custom range placeholder
 using ParamRange = std::variant<
     NumberRange,
     BinaryRange,

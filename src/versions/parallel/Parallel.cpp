@@ -3,5 +3,5 @@
 
 void simulationStepParallel(ParallelParameters& params) {
     printf("Parallel simulation step\n");
-    printf("SimState tick: %lu\n", params.boids.size());
+    printf("SimState has %zu boids.\n", params.boids.count);
 }

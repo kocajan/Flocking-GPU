@@ -35,75 +35,132 @@ namespace simulator{
     }
 
     // Free and allocate boid slots
-    size_t allocateBoidSlot(std::vector<Boid>& boids, std::vector<size_t>& freeBoidIndices) {
-        if (!freeBoidIndices.empty()) {
-            size_t idx = freeBoidIndices.back();
-            freeBoidIndices.pop_back();
+    size_t allocateBoidSlot(Boids& b) {
+        if (!b.freeBoidIndices.empty()) {
+            size_t idx = b.freeBoidIndices.back();
+            b.freeBoidIndices.pop_back();
             return idx;
         }
-        boids.emplace_back();
-        return boids.size() - 1;
+
+        size_t idx = b.count;
+        b.resize(b.count + 1);
+        return idx;
     }
 
-    void freeBoidSlot(std::vector<Boid>& boids, std::vector<size_t>& freeBoidIndices, size_t idx) {
-        assert(idx < boids.size());
-
-        boids[idx].type = BoidType::Empty;
-        freeBoidIndices.push_back(idx);
+    void freeBoidSlot(Boids& b, size_t idx) {
+        assert(idx < b.count);
+        b.type[idx] = static_cast<uint8_t>(BoidType::Empty);
+        b.freeBoidIndices.push_back(idx);
     }
 
-    void spawnBoids(std::vector<Boid>& boids, std::vector<size_t>& freeBoidIndices,
-                    float wx, float wy, float wz, float speedRange,
-                    BoidType type, std::vector<size_t>& indices, uint64_t& count, int howMany, 
-                    ConfigParameter& radius, ConfigParameter& color, std::string dimensions) {
+    void writeSpawnData(
+        SimState& s,
+        size_t idx,
+        BoidType type,
+        const Vec3& pos,
+        const Vec3& vel
+    ) {
+        Boids& b = s.boids;
+
+        b.type[idx] = static_cast<uint8_t>(type);
+
+        b.pos[idx] = pos;
+        b.vel[idx] = vel;
+        b.acc[idx] = {0,0,0};
+
+        b.targetPoint[idx] = {
+            s.worldX.number() * 0.5f,
+            s.worldY.number() * 0.5f,
+            s.worldZ.number() * 0.5f
+        };
+
+        b.targetBoidIdx[idx]      = -1;
+        b.targetBoidDistance[idx] = -1.0f;
+
+        b.stamina[idx] = 100.0f;
+        b.resting[idx] = 0;
+    }
+
+    void spawnBoids(
+        SimState& s,
+        BoidType type,
+        std::vector<size_t>& indices,
+        uint64_t& count,
+        int howMany
+    ) {
+        Boids& b = s.boids;
+
+        const float wx = s.worldX.number();
+        const float wy = s.worldY.number();
+        const float wz = s.worldZ.number();
+        const float speed = s.initialAxialSpeedRange.number();
+
         for (int i = 0; i < howMany; ++i) {
-            size_t idx = allocateBoidSlot(boids, freeBoidIndices);
-            Boid& b = boids[idx];
+            size_t idx = allocateBoidSlot(b);
 
-            b.type = type;
-            b.pos = { randRange(0,wx), randRange(0,wy), randRange(0,wz) };
-            b.vel = { randRange(-speedRange,speedRange), randRange(-speedRange,speedRange), randRange(-speedRange,speedRange) };
-            b.acc = {0,0,0};
-            // b.target = { randRange(wx*0.25f, wx*0.75f), randRange(wy*0.25f, wy*0.75f), 0.0f };
-            b.targetPoint = { wx*0.5f,wy*0.5f, wz*0.5f };
+            Vec3 pos {
+                randRange(0, wx),
+                randRange(0, wy),
+                randRange(0, wz)
+            };
 
-            b.targetBoidIdx = -1;
-            b.targetBoidDistance = -1.0f;
-            b.radius = radius.number();
-            b.color = color.string();
-            b.stamina = 100.0f;
-            b.resting = false;
+            Vec3 vel {
+                randRange(-speed, speed),
+                randRange(-speed, speed),
+                randRange(-speed, speed)
+            };
 
-            if (dimensions == "2D") {
-                b.pos.z = 0;
-                b.vel.z = 0;
-            }
+            if (s.dimensions.string() == "2D")
+                vel.z = pos.z = 0.0f;
+
+            writeSpawnData(s, idx, type, pos, vel);
 
             indices.push_back(idx);
             ++count;
         }
     }
 
-    void removeBoids(std::vector<Boid>& boids, std::vector<size_t>& freeBoidIndices, std::vector<size_t>& indices, uint64_t& count, int howMany) {
+    void removeBoids(
+        Boids& b,
+        std::vector<size_t>& indices,
+        uint64_t& count,
+        int howMany
+    ) {
         while (howMany-- > 0 && !indices.empty()) {
             size_t idx = indices.back();
             indices.pop_back();
-            freeBoidSlot(boids, freeBoidIndices, idx);
+
+            freeBoidSlot(b, idx);
             --count;
         }
     }
 
-    int deleteAllInRadius(SimState& s, std::vector<size_t>& indices, uint64_t& count, float x, float y, float radius) {
+    int deleteAllInRadius(
+        SimState& s,
+        std::vector<size_t>& indices,
+        uint64_t& count,
+        float x, float y,
+        float radius
+    ) {
         int removed = 0;
+        Boids& b = s.boids;
 
-        for (size_t i = 0; i < indices.size(); ) {
-            const size_t idx = indices[i];
-            const Boid& b = s.boids[idx];
+        const float r2 = radius * radius;
 
-            if (dist2(b.pos.x, b.pos.y, x, y) <= radius * radius) {
-                freeBoidSlot(s.boids, s.freeBoidIndices, idx);
+        for (size_t i = 0; i < indices.size(); )
+        {
+            size_t idx = indices[i];
+            const Vec3& p = b.pos[idx];
+
+            const float dx = p.x - x;
+            const float dy = p.y - y;
+
+            if (dx*dx + dy*dy <= r2) {
+                freeBoidSlot(b, idx);
+
                 indices[i] = indices.back();
                 indices.pop_back();
+
                 --count;
                 ++removed;
             } else {
@@ -114,71 +171,71 @@ namespace simulator{
         return removed;
     }
 
-    // Spawn helpers
+    // Spawn helpers (for interactive spawning)
     void spawnPredator(SimState& s, float x, float y) {
         if (!canIncreaseTarget(s.predatorBoidCountTarget))
             return;
 
-        size_t idx = allocateBoidSlot(s.boids, s.freeBoidIndices);
-        Boid& b = s.boids[idx];
+        Boids& b = s.boids;
 
-        b.type = BoidType::Predator;
-        b.pos = { x, y, 0.0f };
-        b.vel = {};
-        b.acc = {};
-        b.targetPoint = {};
-        b.targetBoidIdx = -1;
-        b.targetBoidDistance = -1.0f;
-        b.radius = s.predatorRadius.number();
-        b.color = s.predatorBoidColor.string();
-        b.stamina = 100.0f;
-        b.resting = false;
+        size_t idx = allocateBoidSlot(b);
 
-        s.predatorBoidIndices.push_back(idx);
-        ++s.predatorBoidCount;
+        float speed = s.initialAxialSpeedRange.number();
+        float worldZ = s.worldZ.number();
+
+        Vec3 pos { x, y, randRange(0, worldZ) };
+        Vec3 vel {
+            randRange(-speed, speed),
+            randRange(-speed, speed),
+            randRange(-speed, speed)
+        };
+
+        if (s.dimensions.string() == "2D")
+            pos.z = 0.0f;
+
+        writeSpawnData(s, idx, BoidType::Predator, pos, vel);
+
+        b.predatorBoidIndices.push_back(idx);
+        ++b.predatorBoidCount;
+
+        // keep UI target in sync with manual spawn
         s.predatorBoidCountTarget.number() += 1.0f;
     }
 
     void spawnObstacle(SimState& s, float x, float y) {
-        size_t idx = allocateBoidSlot(s.boids, s.freeBoidIndices);
-        Boid& b = s.boids[idx];
+        Boids& b = s.boids;
 
-        b.type = BoidType::Obstacle;
-        b.pos = { x, y, 0.0f };
-        b.vel = {};
-        b.acc = {};
-        b.targetPoint = {};
-        b.targetBoidIdx = -1;
-        b.targetBoidDistance = -1.0f;
-        b.radius = s.obstacleRadius.number();
-        b.color = s.obstacleBoidColor.string();
-        b.stamina = 100.0f;
-        b.resting = false;
+        size_t idx = allocateBoidSlot(b);
 
-        s.obstacleBoidIndices.push_back(idx);
-        ++s.obstacleBoidCount;
+        Vec3 pos { x, y, 0.0f };
+        Vec3 vel { 0.0f, 0.0f, 0.0f };
+
+        if (s.dimensions.string() == "2D")
+            pos.z = 0.0f;
+
+        writeSpawnData(s, idx, BoidType::Obstacle, pos, vel);
+
+        b.obstacleBoidIndices.push_back(idx);
+        ++b.obstacleBoidCount;
     }
 
     // Regulation for a specific boid type
-    void regulateType(SimState& s, BoidType type, std::vector<size_t>& indices, uint64_t& count, 
-                      ConfigParameter& target, ConfigParameter& radius, ConfigParameter& color) {
-        const int tgt   = (int)target.number();
-        const int cur   = (int)count;
-        const int delta = tgt - cur;
-        const int maxDelta  = (int)s.maxBoidPopulationChangeRate.number();
-        std::vector<Boid>& boids = s.boids;
-        std::vector<size_t>& freeBoidIndices = s.freeBoidIndices;
-        const float worldX = s.worldX.number();
-        const float worldY = s.worldY.number();
-        const float worldZ = s.worldZ.number();
-        const float speedRange = s.initialAxialSpeedRange.number();
-        const std::string dimensions = s.dimensions.string();
+    void regulateType(
+        SimState& s,
+        BoidType type,
+        std::vector<size_t>& indices,
+        uint64_t& count,
+        ConfigParameter& target
+    ) {
+        const int tgt = (int)target.number();
+        const int cur = (int)count;
 
-        if (delta > 0) {
-            spawnBoids(boids, freeBoidIndices, worldX, worldY, worldZ, speedRange, 
-                       type, indices, count, std::min(delta, maxDelta), radius, color, dimensions);
-        } else if (delta < 0) {
-            removeBoids(boids, freeBoidIndices, indices, count, std::min(-delta, maxDelta));
-        }
+        const int delta = tgt - cur;
+        const int maxDelta = (int)s.maxBoidPopulationChangeRate.number();
+
+        if (delta > 0)
+            spawnBoids(s, type, indices, count, std::min(delta, maxDelta));
+        else if (delta < 0)
+            removeBoids(s.boids, indices, count, std::min(-delta, maxDelta));
     }
 }

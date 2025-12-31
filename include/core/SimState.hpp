@@ -7,76 +7,103 @@
 #include "config/ConfigParameter.hpp"
 
 
+//------------------------------------------------------------------------------
+// Simulation State
+//
+// Holds:
+//  - configuration parameters
+//  - runtime state
+//  - current boid population (SoA container)
+//------------------------------------------------------------------------------
 class SimState {
 public:
     explicit SimState(const Config& config, ConfigParameter versionParam);
 
-    // Initial configuration (for resets)
+    //-------------------------------------------------------------------------
+    // Persistent initial configuration (used for reset-to-defaults)
+    //-------------------------------------------------------------------------
     Config initialConfig;
     ConfigParameter initialVersionParam;
 
-    // Parameters from config
-    ConfigParameter dt;
-    ConfigParameter paused;
+    //-------------------------------------------------------------------------
+    // Simulation control
+    //-------------------------------------------------------------------------
+    ConfigParameter dt;              // timestep
+    ConfigParameter paused;          // pause toggle
+    uint64_t tick = 0;               // simulation step counter
+
+    // Dimensions / world mode (2D / 3D)
     ConfigParameter dimensions;
 
+    //-------------------------------------------------------------------------
+    // Population targets (used by population manager)
+    //-------------------------------------------------------------------------
     ConfigParameter basicBoidCountTarget;
     ConfigParameter predatorBoidCountTarget;
 
+    //-------------------------------------------------------------------------
+    // Interaction & input effects
+    //-------------------------------------------------------------------------
     ConfigParameter leftMouseEffect;
     ConfigParameter rightMouseEffect;
+    Interaction interaction;
 
+    //-------------------------------------------------------------------------
+    // Reset / control commands
+    //-------------------------------------------------------------------------
     ConfigParameter resetVersionSettings;
     ConfigParameter resetSimulation;
     ConfigParameter deleteObstacles;
 
+    //-------------------------------------------------------------------------
+    // World geometry
+    //-------------------------------------------------------------------------
     ConfigParameter worldX;
     ConfigParameter worldY;
     ConfigParameter worldZ;
 
+    //-------------------------------------------------------------------------
+    // Rendering colors
+    //-------------------------------------------------------------------------
     ConfigParameter basicBoidColor;
     ConfigParameter predatorBoidColor;
     ConfigParameter obstacleBoidColor;
 
+    //-------------------------------------------------------------------------
+    // Radii / physical footprint
+    //-------------------------------------------------------------------------
     ConfigParameter obstacleRadius;
     ConfigParameter predatorRadius;
     ConfigParameter basicBoidRadius;
 
+    //-------------------------------------------------------------------------
+    // Population dynamics / constraints
+    //-------------------------------------------------------------------------
     ConfigParameter maxBoidPopulationChangeRate;
 
+    // Initial random velocity range
     ConfigParameter initialAxialSpeedRange;
 
+    // Numerical stability parameters
     ConfigParameter eps;
 
-    // Additional runtime state
-    // - Version parameter containing current version and available versions
+    //-------------------------------------------------------------------------
+    // Version / implementation selector
+    //-------------------------------------------------------------------------
     ConfigParameter version;
 
-    // - Simulation tick counter
-    uint64_t tick;
+    //-------------------------------------------------------------------------
+    // Boid population storage (SoA layout)
+    //-------------------------------------------------------------------------
+    Boids boids;
 
-    // - Boid population
-    std::vector<Boid> boids;
+    //-------------------------------------------------------------------------
+    // Reset helpers
+    //-------------------------------------------------------------------------
 
-    // - Boid type counters
-    uint64_t basicBoidCount;
-    uint64_t predatorBoidCount;
-    uint64_t obstacleBoidCount;
-
-    // - Boid type indices
-    std::vector<size_t> basicBoidIndices;
-    std::vector<size_t> predatorBoidIndices;
-    std::vector<size_t> obstacleBoidIndices;
-
-    // - Define interaction
-    Interaction interaction;
-
-    // - Free boid indices for reuse
-    std::vector<size_t> freeBoidIndices;
-
-    // Reset from configuration
+    // Reset from new configuration (e.g., UI configuration change)
     void resetToNewConfig(const Config& config, ConfigParameter versionParam);
 
-    // Reset to initial configuration
+    // Reset to initial startup configuration
     void resetToDefaults();
 };

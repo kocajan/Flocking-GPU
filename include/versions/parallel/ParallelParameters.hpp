@@ -11,7 +11,7 @@
 
 struct ParallelParameters {
     // Reference to boid array
-    std::vector<Boid>& boids;
+    Boids& boids;
 
     // TODO: Add other parameters as needed
 

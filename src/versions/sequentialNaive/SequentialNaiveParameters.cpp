@@ -7,11 +7,11 @@
 
 SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c) 
     : boids(s.boids), 
-      obstacleBoidIndices(s.obstacleBoidIndices), 
-      basicBoidIndices(s.basicBoidIndices), 
-      predatorBoidIndices(s.predatorBoidIndices) {
+      obstacleBoidIndices(s.boids.obstacleBoidIndices), 
+      basicBoidIndices(s.boids.basicBoidIndices), 
+      predatorBoidIndices(s.boids.predatorBoidIndices) {
     // Get boid count from length of boid array
-    boidCount = static_cast<int>(s.boids.size());
+    boidCount = (static_cast<int>(s.boids.count));
 
     // Interaction
     interaction = s.interaction;
@@ -103,5 +103,5 @@ SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c
     numStepsToStopDueToMaxDrag = 100.0f;
 
     // Neighbor selection
-    maxNeighborsBasic = static_cast<float>(s.basicBoidCount) * (c.number("neighbourAccuracy") / 100.0f);
+    maxNeighborsBasic = static_cast<float>(s.boids.basicBoidCount) * (c.number("neighbourAccuracy") / 100.0f);
 }

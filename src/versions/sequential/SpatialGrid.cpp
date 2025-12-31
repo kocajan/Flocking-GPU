@@ -51,23 +51,22 @@ int SpatialGrid::worldToCellIndex(float p, float worldSize, int cellCount) const
 }
 
 void SpatialGrid::insertPointObject(std::vector<Cell>& grid, const SequentialParameters& params, int idx) {
-    const Boid& b = params.boids[idx];
+    const Vec3& p = params.boids.pos[idx];
 
-    int cx = worldToCellIndex(b.pos.x, params.worldX, cellsX);
-    int cy = worldToCellIndex(b.pos.y, params.worldY, cellsY);
-    int cz = is2D ? 0 : worldToCellIndex(b.pos.z, params.worldZ, cellsZ);
-
+    int cx = worldToCellIndex(p.x, params.worldX, cellsX);
+    int cy = worldToCellIndex(p.y, params.worldY, cellsY);
+    int cz = is2D ? 0 : worldToCellIndex(p.z, params.worldZ, cellsZ);
     grid[flattenIndex(cx,cy,cz)].items.push_back(idx);
 }
 
 
 void SpatialGrid::insertRadialObject(std::vector<Cell>& grid, const SequentialParameters& params, int idx, float radius) {
-    const Boid& b = params.boids[idx];
+    const Vec3& p = params.boids.pos[idx];
 
-    float minX = b.pos.x - radius;
-    float maxX = b.pos.x + radius;
-    float minY = b.pos.y - radius;
-    float maxY = b.pos.y + radius;
+    float minX = p.x - radius;
+    float maxX = p.x + radius;
+    float minY = p.y - radius;
+    float maxY = p.y + radius;
 
     int cx0 = worldToCellIndex(minX, params.worldX, cellsX);
     int cx1 = worldToCellIndex(maxX, params.worldX, cellsX);
@@ -77,8 +76,8 @@ void SpatialGrid::insertRadialObject(std::vector<Cell>& grid, const SequentialPa
     int cz0 = 0, cz1 = 0;
 
     if (!is2D) {
-        float minZ = b.pos.z - radius;
-        float maxZ = b.pos.z + radius;
+        float minZ = p.z - radius;
+        float maxZ = p.z + radius;
 
         cz0 = worldToCellIndex(minZ, params.worldZ, cellsZ);
         cz1 = worldToCellIndex(maxZ, params.worldZ, cellsZ);
@@ -104,11 +103,10 @@ void SpatialGrid::build(const SequentialParameters& params) {
         for (auto& c : obstacleCells) c.items.clear();
     }
 
-    for (int i = 0; i < params.boidCount; ++i)
-    {
-        const Boid& b = params.boids[i];
+    for (int i = 0; i < params.boidCount; ++i) {
+        const BoidType type = static_cast<BoidType>(params.boids.type[i]);
 
-        switch (b.type) {
+        switch (type) {
             case BoidType::Basic:
                 insertPointObject(basicCells, params, i);
                 break;
@@ -144,12 +142,11 @@ const std::vector<int>& SpatialGrid::getNeighborIndices(const SequentialParamete
         return scratch;
     }
 
-    const Boid& b = params.boids[boidIndex];
+    const Vec3& p = params.boids.pos[boidIndex];
 
-    int cx = worldToCellIndex(b.pos.x, params.worldX, cellsX);
-    int cy = worldToCellIndex(b.pos.y, params.worldY, cellsY);
-    int cz = is2D ? 0 : worldToCellIndex(b.pos.z, params.worldZ, cellsZ);
-
+    int cx = worldToCellIndex(p.x, params.worldX, cellsX);
+    int cy = worldToCellIndex(p.y, params.worldY, cellsY);
+    int cz = is2D ? 0 : worldToCellIndex(p.z, params.worldZ, cellsZ);
     int zmin = is2D ? 0 : -1;
     int zmax = is2D ? 0 :  1;
 

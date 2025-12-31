@@ -11,7 +11,7 @@
 
 struct SequentialParameters {
     // Reference to boid array
-    std::vector<Boid>& boids;
+    Boids& boids;
 
     // References to boid index arrays
     std::vector<size_t>& obstacleBoidIndices;

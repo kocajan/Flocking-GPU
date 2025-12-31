@@ -13,30 +13,26 @@ void regulateBoidPopulation(SimState& s) {
     simulator::regulateType(
         s,
         BoidType::Basic,
-        s.basicBoidIndices,
-        s.basicBoidCount,
-        s.basicBoidCountTarget,
-        s.basicBoidRadius,
-        s.basicBoidColor
+        s.boids.basicBoidIndices,
+        s.boids.basicBoidCount,
+        s.basicBoidCountTarget
     );
 
     simulator::regulateType(
         s,
         BoidType::Predator,
-        s.predatorBoidIndices,
-        s.predatorBoidCount,
-        s.predatorBoidCountTarget,
-        s.predatorRadius,
-        s.predatorBoidColor
+        s.boids.predatorBoidIndices,
+        s.boids.predatorBoidCount,
+        s.predatorBoidCountTarget
     );
 
-    if (s.deleteObstacles.binary()) {
+    if (s.deleteObstacles.binary())
+    {
         simulator::removeBoids(
             s.boids,
-            s.freeBoidIndices,
-            s.obstacleBoidIndices,
-            s.obstacleBoidCount,
-            static_cast<int>(s.obstacleBoidCount)
+            s.boids.obstacleBoidIndices,
+            s.boids.obstacleBoidCount,
+            (int)s.boids.obstacleBoidCount
         );
     }
 }
