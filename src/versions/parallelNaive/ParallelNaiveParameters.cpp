@@ -8,7 +8,7 @@
 
 ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     : cpu{.hBoids = s.boids} {
-        
+
     Boids& boids = s.boids;
 
     //
@@ -19,9 +19,7 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     cpu.blockSize = 256;
     cpu.hBoidCount = static_cast<int>(boids.count);
 
-    cpu.gridSize =
-        (cpu.hBoidCount + cpu.blockSize - 1) / cpu.blockSize;
-
+    cpu.gridSize = (cpu.hBoidCount + cpu.blockSize - 1) / cpu.blockSize;
 
     //
     // ================================================================
@@ -179,10 +177,6 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     //
     // Interaction
     //
-    cpu.hInteraction.type =
-        s.leftMouseEffect.string() == "attract" ? InteractionType::Attract :
-        s.leftMouseEffect.string() == "repel"   ? InteractionType::Repel :
-                                                  InteractionType::Empty;
-
+    cpu.hInteraction.type = s.interaction.type;
     cpu.hInteraction.point = s.interaction.point;
 }

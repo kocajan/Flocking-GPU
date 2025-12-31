@@ -17,7 +17,6 @@ static void HandleError(cudaError_t error, const char* file, int line) {
     } 
 }
 
-
 __global__ void simulationStepParallelNaiveKernel(ParallelNaiveParameters::GPUParams params);
 
 
@@ -82,6 +81,11 @@ void simulationStepParallelNaive(ParallelNaiveParameters& params) {
 
     g.dBoids     = d;
     g.dBoidCount = N;
+
+    g.dBoids.basicBoidCount    = h.basicBoidCount;
+    g.dBoids.predatorBoidCount = h.predatorBoidCount;
+    g.dBoids.obstacleBoidCount = h.obstacleBoidCount;
+    g.dBoids.count = N;
 
     g.dIs2D   = params.cpu.hIs2D;
     g.dBounce = params.cpu.hBounce;
@@ -156,6 +160,7 @@ void simulationStepParallelNaive(ParallelNaiveParameters& params) {
     CHECK_ERROR(cudaMemcpy(h.pos.data(), d.pos, vec3Size, cudaMemcpyDeviceToHost));
     CHECK_ERROR(cudaMemcpy(h.vel.data(), d.vel, vec3Size, cudaMemcpyDeviceToHost));
     CHECK_ERROR(cudaMemcpy(h.acc.data(), d.acc, vec3Size, cudaMemcpyDeviceToHost));
+    CHECK_ERROR(cudaMemcpy(h.targetPoint.data(), d.targetPoint, vec3Size, cudaMemcpyDeviceToHost));
 
     CHECK_ERROR(cudaMemcpy(h.targetBoidIdx.data(),      d.targetBoidIdx,      sizeof(int)   * N, cudaMemcpyDeviceToHost));
     CHECK_ERROR(cudaMemcpy(h.targetBoidDistance.data(), d.targetBoidDistance, sizeof(float) * N, cudaMemcpyDeviceToHost));

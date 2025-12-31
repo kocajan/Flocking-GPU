@@ -72,9 +72,7 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     // =============================
     //
     for (int k = 0; k < count; ++k) {
-        printf("HERE1\n");
         size_t j = indices[k];
-        printf("HERE2\n");
         if (j == i)
             continue;
 
