@@ -3,6 +3,7 @@
 # =========================
 CXX := g++
 CC  := gcc
+NVCC := nvcc
 
 CXXFLAGS := -std=c++20 -O2 -Wall -Wextra \
             -Iinclude \
@@ -11,6 +12,11 @@ CXXFLAGS := -std=c++20 -O2 -Wall -Wextra \
 
 CFLAGS := -O2 -Wall -Wextra \
           -Ithird_party/glad/include
+
+NVCCFLAGS := -std=c++20 -O2 \
+             -Iinclude \
+             -Ithird_party \
+             -Ithird_party/glad/include
 
 # =========================
 # Libraries
@@ -30,13 +36,16 @@ BIN       := flocking
 # =========================
 CPP_SRC := $(shell find $(SRC_DIR) $(TP_DIR)/imgui -name '*.cpp')
 C_SRC   := $(shell find $(TP_DIR)/glad -name '*.c')
+CU_SRC  := $(shell find $(SRC_DIR) -name '*.cu')
 
 # =========================
 # Objects
 # =========================
 CPP_OBJ := $(CPP_SRC:%.cpp=$(BUILD_DIR)/%.o)
 C_OBJ   := $(C_SRC:%.c=$(BUILD_DIR)/%.o)
-OBJ     := $(CPP_OBJ) $(C_OBJ)
+CU_OBJ  := $(CU_SRC:%.cu=$(BUILD_DIR)/%.o)
+
+OBJ := $(CPP_OBJ) $(C_OBJ) $(CU_OBJ)
 
 # =========================
 # Targets
@@ -44,7 +53,7 @@ OBJ     := $(CPP_OBJ) $(C_OBJ)
 all: $(BIN)
 
 $(BIN): $(OBJ)
-	$(CXX) $^ -o $@ $(LIBS)
+	$(NVCC) $^ -o $@ $(LIBS) -lcudart
 
 # =========================
 # Compile rules
@@ -57,25 +66,22 @@ $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/%.o: %.cu
+	@mkdir -p $(dir $@)
+	$(NVCC) $(NVCCFLAGS) -c $< -o $@
+
 # =========================
 # Utilities
 # =========================
-
-# clean = remove build artifacts, keep third party sources
 clean:
 	rm -rf $(BUILD_DIR) $(BIN)
 
-# fclean = full clean including any extra generated dirs
 fclean: clean
-	# remove optional caches or generated vendor outputs here
-	# (keeps actual third_party source tree untouched)
 	@echo "Full cleanup done."
 
-# rebuild convenience target
 re: fclean all
 
 run: all
 	./$(BIN)
 
 .PHONY: all clean fclean re run
-

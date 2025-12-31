@@ -43,6 +43,11 @@ struct Interaction {
     Vec3 point{0.0f, 0.0f, 0.0f};
 };
 
+struct DeviceInteraction {
+    uint8_t type;
+    Vec3 point;
+};
+
 
 //
 // ============================================================================
@@ -172,6 +177,32 @@ struct Boids {
     }
 };
 
+// GPU-side mirror of Boids struct
+struct DeviceBoids {
+    // Core SoA fields
+    Vec3*    pos      = nullptr;
+    Vec3*    vel      = nullptr;
+    Vec3*    acc      = nullptr;
+    Vec3*    targetPoint = nullptr;
+
+    uint8_t* type     = nullptr;
+    float*   stamina  = nullptr;
+    uint8_t* resting  = nullptr;
+
+    int*     targetBoidIdx       = nullptr;
+    float*   targetBoidDistance  = nullptr;
+
+    size_t   count   = 0;
+
+    // Type index lists
+    size_t*  basicBoidIndices    = nullptr;
+    size_t*  predatorBoidIndices = nullptr;
+    size_t*  obstacleBoidIndices = nullptr;
+
+    uint64_t basicBoidCount    = 0;
+    uint64_t predatorBoidCount = 0;
+    uint64_t obstacleBoidCount = 0;
+};
 
 //
 // ============================================================================
