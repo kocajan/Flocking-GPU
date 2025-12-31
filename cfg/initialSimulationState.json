@@ -21,7 +21,7 @@
       }
     ],
 
-    "Simulation space and execution": [
+    "Simulation space": [
       {
         "type": "enum",
         "name": "dimensions",
@@ -29,14 +29,6 @@
         "description": "Simulation dimensionality",
         "default": "2D",
         "options": ["2D", "3D"]
-      },
-      {
-        "type": "enum",
-        "name": "device",
-        "label": "Device",
-        "description": "Computation device",
-        "default": "CPU",
-        "options": ["CPU", "GPU"]
       }
     ],
 

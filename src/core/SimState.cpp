@@ -16,7 +16,6 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
     // Config parameters
     dt = config.get("dt");
     paused = config.get("paused");
-    device = config.get("device");
     dimensions = config.get("dimensions");
 
     basicBoidCountTarget = config.get("basicBoidCount");

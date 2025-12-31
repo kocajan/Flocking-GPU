@@ -18,7 +18,6 @@ public:
     // Parameters from config
     ConfigParameter dt;
     ConfigParameter paused;
-    ConfigParameter device;
     ConfigParameter dimensions;
 
     ConfigParameter basicBoidCountTarget;

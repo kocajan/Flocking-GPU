@@ -175,7 +175,6 @@ void GUI::renderControlGui(Config& simConfig, SimState& simState) {
     ImGui::TextUnformatted("Simulation State");
 
     renderParameter(simState.paused);
-    renderParameter(simState.device);
     renderParameter(simState.dimensions);
     renderParameter(simState.basicBoidCountTarget);
     renderParameter(simState.predatorBoidCountTarget);
