@@ -88,6 +88,7 @@ struct SequentialNaiveParameters {
     float maxDistanceBetweenPoints;
     float maxDistanceBetweenPoints2;
 
-    // Constructor
+    // Constructor / destructor
     SequentialNaiveParameters(SimState& s, const Config& c);
+    ~SequentialNaiveParameters(); 
 };

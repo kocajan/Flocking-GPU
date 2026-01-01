@@ -9,185 +9,97 @@
 
 
 struct ParallelNaiveParameters {
-
-    //
-    // =====================================================================
-    //  GPU parameter block (POD — copied to device memory)
-    // =====================================================================
-    //
-    //  Only contains:
-    //   - primitive values
-    //   - raw pointers into SoA arrays
-    //
     struct GPUParams {
         // Boid data — device pointers
         DeviceBoids dBoids;
 
-        // Boid counts
-        int dBoidCount;
-
-        // Simulation flags
-        bool dIs2D;
-        bool dBounce;
-
-        // Radii
-        float dBasicBoidRadius;
-        float dPredatorRadius;
-        float dObstacleRadius;
-
-        // World bounds
-        float dWorldX;
-        float dWorldY;
-        float dWorldZ;
-
-        // Constants
-        float dEps;
-        float dDt;
-
-        // Vision
-        float dVisionRangeBasic;
-        float dVisionRangeBasic2;
-        float dVisionRangePredator;
-
-        // Forces / multipliers
-        float dMaxForce;
-        float dObstacleAvoidanceMultiplier;
-        float dMouseInteractionMultiplier;
-
-        // Flocking weights
-        float dCohesionWeightBasic;
-        float dAlignmentWeightBasic;
-        float dSeparationWeightBasic;
-        float dTargetAttractionWeightBasic;
-
-        // Speeds (basic)
-        float dCruisingSpeedBasic;
-        float dMaxSpeedBasic;
-        float dMinSpeedBasic;
-
-        // Speeds (predator)
-        float dCruisingSpeedPredator;
-        float dMaxSpeedPredator;
-        float dMinSpeedPredator;
-
-        // Predator stamina
-        float dMaxStaminaPredator;
-        float dStaminaRecoveryRatePredator;
-        float dStaminaDrainRatePredator;
-
-        // Dynamics
-        float dDrag;
-        float dNoise;
-        float dNumStepsToStopDueToMaxDrag;
-
-        // Collision / bounce
-        float dBounceFactor;
-
-        // Neighbor selection
-        float dMaxNeighborsBasic;
-
-        // Cached distances
-        float dMaxDistanceBetweenPoints;
-        float dMaxDistanceBetweenPoints2;
-
         // Interaction
         DeviceInteraction dInteraction;
+
+        // Boid counts
+        int boidCount;
+
+        // Simulation flags
+        bool is2D;
+        bool bounce;
+
+        // Radii
+        float basicBoidRadius;
+        float predatorRadius;
+        float obstacleRadius;
+
+        // World bounds
+        float worldX;
+        float worldY;
+        float worldZ;
+
+        // Constants
+        float eps;
+        float dt;
+
+        // Vision
+        float visionRangeBasic;
+        float visionRangeBasic2;
+        float visionRangePredator;
+
+        // Forces / multipliers
+        float maxForce;
+        float obstacleAvoidanceMultiplier;
+        float mouseInteractionMultiplier;
+
+        // Flocking weights
+        float cohesionWeightBasic;
+        float alignmentWeightBasic;
+        float separationWeightBasic;
+        float targetAttractionWeightBasic;
+
+        // Speeds (basic)
+        float cruisingSpeedBasic;
+        float maxSpeedBasic;
+        float minSpeedBasic;
+
+        // Speeds (predator)
+        float cruisingSpeedPredator;
+        float maxSpeedPredator;
+        float minSpeedPredator;
+
+        // Predator stamina
+        float maxStaminaPredator;
+        float staminaRecoveryRatePredator;
+        float staminaDrainRatePredator;
+
+        // Dynamics
+        float drag;
+        float noise;
+        float numStepsToStopDueToMaxDrag;
+
+        // Collision / bounce
+        float bounceFactor;
+
+        // Neighbor selection
+        int maxNeighborsBasic;
+
+        // Cached distances
+        float maxDistanceBetweenPoints;
+        float maxDistanceBetweenPoints2;
     };
 
-
-    //
-    // =====================================================================
-    //  CPU Parameters
-    // =====================================================================
-    //
     struct CPUParams {
         // Simulation configuration
-        int blockSize = 256;
-        int gridSize  = 1;
+        int blockSize;
+        int gridSize;
 
         // Boid data — device pointers
         Boids &hBoids;
-
-        // Boid counts
-        int hBoidCount;
-
-        // Simulation flags
-        bool hIs2D;
-        bool hBounce;
-
-        // Radii
-        float hBasicBoidRadius;
-        float hPredatorRadius;
-        float hObstacleRadius;
-
-        // World bounds
-        float hWorldX;
-        float hWorldY;
-        float hWorldZ;
-
-        // Constants
-        float hEps;
-        float hDt;
-
-        // Vision
-        float hVisionRangeBasic;
-        float hVisionRangeBasic2;
-        float hVisionRangePredator;
-
-        // Forces / multipliers
-        float hMaxForce;
-        float hObstacleAvoidanceMultiplier;
-        float hMouseInteractionMultiplier;
-
-        // Flocking weights
-        float hCohesionWeightBasic;
-        float hAlignmentWeightBasic;
-        float hSeparationWeightBasic;
-        float hTargetAttractionWeightBasic;
-
-        // Speeds (basic)
-        float hCruisingSpeedBasic;
-        float hMaxSpeedBasic;
-        float hMinSpeedBasic;
-
-        // Speeds (predator)
-        float hCruisingSpeedPredator;
-        float hMaxSpeedPredator;
-        float hMinSpeedPredator;
-
-        // Predator stamina
-        float hMaxStaminaPredator;
-        float hStaminaRecoveryRatePredator;
-        float hStaminaDrainRatePredator;
-
-        // Dynamics
-        float hDrag;
-        float hNoise;
-        float hNumStepsToStopDueToMaxDrag;
-
-        // Collision / bounce
-        float hBounceFactor;
-
-        // Neighbor selection
-        float hMaxNeighborsBasic;
-
-        // Cached distances
-        float hMaxDistanceBetweenPoints;
-        float hMaxDistanceBetweenPoints2;
-
-        // Interaction
-        Interaction hInteraction;
     };
 
     // CPU scheduling config
     CPUParams cpu;
 
-    // GPU parameter block (to be uploaded)
+    // GPU parameter block
     GPUParams gpu;
 
-
-    //
-    // Constructor — builds cpu + gpu views from SimState + Config
-    //
+    // Constructor / destructor
     ParallelNaiveParameters(SimState& s, const Config& c);
+    ~ParallelNaiveParameters();
 };

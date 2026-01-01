@@ -21,13 +21,17 @@ __device__ inline float sqrLen(const Vec3& v);
 __device__ inline Vec3 normalize(const Vec3& v, float eps);
 __device__ inline float periodicDelta(float d, float worldSize);
 __device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelNaiveParameters::GPUParams& params);
-__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce);
 
 
 __global__ void simulationStepParallelNaiveKernel(ParallelNaiveParameters::GPUParams params) {
+    // Compute current boid index
     int currentBoidIdx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (currentBoidIdx >= params.dBoidCount)
+
+    // Out of bounds check
+    if (currentBoidIdx >= params.boidCount)
         return;
+    
+    // Fetch boid type
     uint8_t tRaw = params.dBoids.type[currentBoidIdx];
     BoidType type = static_cast<BoidType>(tRaw);
 
@@ -47,561 +51,497 @@ __global__ void simulationStepParallelNaiveKernel(ParallelNaiveParameters::GPUPa
     resolveRest(params, currentBoidIdx);
 }
 
-__device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& params, int i) {
+__device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+    // Get boid data
     DeviceBoids& boids = params.dBoids;
 
-    Vec3 p = boids.pos[i];
-    Vec3 v = boids.vel[i];
-    Vec3 a = boids.acc[i];
-    Vec3 target = boids.targetPoint[i];
+    // Load state
+    Vec3 pos = boids.pos[currentBoidIdx];
+    Vec3 vel = boids.vel[currentBoidIdx];
+    Vec3 acc = boids.acc[currentBoidIdx];
+    Vec3 target = boids.targetPoint[currentBoidIdx];
 
-    // accumulators
+    // Helper to create weighted force vectors
+    auto makeWeightedForce = [&](const Vec3& d, float w) {
+        float k = params.maxForce * w;
+        return Vec3{ d.x * k, d.y * k, d.z * k };
+    };
+
+    // Define accumulators and counters
     Vec3 personalSpace{0,0,0};
-    Vec3 positionSum{0,0,0};
-    Vec3 velocitySum{0,0,0};
+    Vec3 posSum{0,0,0};
+    Vec3 velSum{0,0,0};
 
     int neighborCount = 0;
     int distantNeighborCount = 0;
 
-    const size_t* indices = boids.basicBoidIndices;
-    int count = boids.basicBoidCount;
-
-    //
-    // =============================
-    // Neighbor scan
-    // =============================
-    //
-    for (int k = 0; k < count; ++k) {
-        size_t j = indices[k];
-        if (j == i)
+    // Analyze other basic boids
+    for (int otherIdxBasics = 0; otherIdxBasics < boids.basicBoidCount; ++otherIdxBasics) {
+        size_t otherIdx = boids.basicBoidIndices[otherIdxBasics];
+        
+        if (otherIdx == currentBoidIdx)
             continue;
 
-        if (neighborCount >= (int)params.dMaxNeighborsBasic)
+        if (neighborCount >= params.maxNeighborsBasic)
             break;
 
-        Vec3 op = boids.pos[j];
-        Vec3 ov = boids.vel[j];
-        Vec3 d = periodicDeltaVec(p, op, params);
-        float d2 = sqrLen(d);
+        // Get other boid data
+        Vec3 oPos = boids.pos[otherIdx];
+        Vec3 oVel = boids.vel[otherIdx];
 
-        if (d2 > params.dVisionRangeBasic2)
+        Vec3 distVect = periodicDeltaVec(pos, oPos, params);
+        float dist2 = sqrLen(distVect);
+
+        if (dist2 > params.visionRangeBasic2)
             continue;
-
-        float dist = sqrtf(d2);
-        if (dist < params.dEps)
-            dist = params.dEps;
 
         ++neighborCount;
 
-        //
-        // Separation region
-        //
-        if (dist < params.dBasicBoidRadius * 2.0f)
-        {
+        float dist = sqrtf(dist2);
+        if (dist < params.eps)
+            dist = params.eps;
+
+        // Gather data for behavior rules
+        if (dist < params.basicBoidRadius * 2.0f) {
+            // Separation
             float invd = 1.0f / dist;
-            personalSpace.x -= d.x * invd;
-            personalSpace.y -= d.y * invd;
-            personalSpace.z -= d.z * invd;
-        }
-        //
-        // Cohesion region
-        //
-        else
-        {
-            positionSum.x += d.x;
-            positionSum.y += d.y;
-            positionSum.z += d.z;
+            personalSpace.x -= distVect.x * invd;
+            personalSpace.y -= distVect.y * invd;
+            personalSpace.z -= distVect.z * invd;
+        } else {
+            // Cohesion
+            posSum.x += distVect.x;
+            posSum.y += distVect.y;
+            posSum.z += distVect.z;
             ++distantNeighborCount;
         }
 
-        //
-        // Alignment (all neighbors)
-        //
-        velocitySum.x += ov.x;
-        velocitySum.y += ov.y;
-        velocitySum.z += ov.z;
+        // Alignment
+        velSum.x += oVel.x;
+        velSum.y += oVel.y;
+        velSum.z += oVel.z;
     }
 
-    //
-    // =============================
-    // Cohesion / Alignment
-    // =============================
-    //
+    // Calculate cohesion and alignment forces
     Vec3 cohesionForce{0,0,0};
     Vec3 alignmentForce{0,0,0};
 
-    if (distantNeighborCount > 0)
-    {
+    if (distantNeighborCount > 0) {
         float invN = 1.0f / (float)distantNeighborCount;
 
         cohesionForce = {
-            positionSum.x * invN,
-            positionSum.y * invN,
-            positionSum.z * invN
+            posSum.x * invN,
+            posSum.y * invN,
+            posSum.z * invN
         };
     }
 
-    if (neighborCount > 0)
-    {
+    if (neighborCount > 0) {
         float invN = 1.0f / (float)neighborCount;
 
         Vec3 avgVel = {
-            velocitySum.x * invN,
-            velocitySum.y * invN,
-            velocitySum.z * invN
+            velSum.x * invN,
+            velSum.y * invN,
+            velSum.z * invN
         };
 
         alignmentForce = {
-            avgVel.x - v.x,
-            avgVel.y - v.y,
-            avgVel.z - v.z
+            avgVel.x - vel.x,
+            avgVel.y - vel.y,
+            avgVel.z - vel.z
         };
     }
 
-    //
-    // =============================
     // Target attraction
-    // =============================
-    //
-    Vec3 toTarget = periodicDeltaVec(p, target, params);
+    Vec3 toTarget = periodicDeltaVec(pos, target, params);
     float toTarget2 = sqrLen(toTarget);
 
-    if (toTarget2 < params.dEps)
-        toTarget2 = params.dEps;
+    if (toTarget2 < params.eps)
+        toTarget2 = params.eps;
 
-    float distanceFactor =
-        toTarget2 / 10.0f / params.dMaxDistanceBetweenPoints;
-    float adjustedTargetWeight =
-        params.dTargetAttractionWeightBasic * distanceFactor;
+    float distanceFactor = toTarget2 / 10.0f / params.maxDistanceBetweenPoints;
+    float adjustedTargetWeight = params.targetAttractionWeightBasic * distanceFactor;
 
-    //
     // Cruising force
-    //
-    Vec3 currentDir = normalize(v, params.dEps);
+    Vec3 currentDir = normalize(vel, params.eps);
 
     Vec3 cruisingVel = {
-        currentDir.x * params.dCruisingSpeedBasic,
-        currentDir.y * params.dCruisingSpeedBasic,
-        currentDir.z * params.dCruisingSpeedBasic
+        currentDir.x * params.cruisingSpeedBasic,
+        currentDir.y * params.cruisingSpeedBasic,
+        currentDir.z * params.cruisingSpeedBasic
     };
 
     Vec3 cruisingForce = {
-        cruisingVel.x - v.x,
-        cruisingVel.y - v.y,
-        cruisingVel.z - v.z
+        cruisingVel.x - vel.x,
+        cruisingVel.y - vel.y,
+        cruisingVel.z - vel.z
     };
 
-    //
     // Normalize force directions
-    //
-    Vec3 cohesionDir   = normalize(cohesionForce, params.dEps);
-    Vec3 alignmentDir  = normalize(alignmentForce, params.dEps);
-    Vec3 separationDir = normalize(personalSpace, params.dEps);
-    Vec3 targetDir     = normalize(toTarget, params.dEps);
+    Vec3 cohesionDir = normalize(cohesionForce, params.eps);
+    Vec3 alignmentDir = normalize(alignmentForce, params.eps);
+    Vec3 separationDir = normalize(personalSpace, params.eps);
+    Vec3 targetDir = normalize(toTarget, params.eps);
 
-    Vec3 cohesionW   = makeWeightedForce(cohesionDir,   params.dCohesionWeightBasic, params.dMaxForce);
-    Vec3 alignmentW  = makeWeightedForce(alignmentDir,  params.dAlignmentWeightBasic, params.dMaxForce);
-    Vec3 separationW = makeWeightedForce(separationDir, params.dSeparationWeightBasic, params.dMaxForce);
-    Vec3 targetW     = makeWeightedForce(targetDir,     adjustedTargetWeight, params.dMaxForce);
-    Vec3 cruisingW   = makeWeightedForce(cruisingForce, 0.1f, params.dMaxForce);
-    //
+    Vec3 cohesionW = makeWeightedForce(cohesionDir, params.cohesionWeightBasic);
+    Vec3 alignmentW = makeWeightedForce(alignmentDir, params.alignmentWeightBasic);
+    Vec3 separationW = makeWeightedForce(separationDir, params.separationWeightBasic);
+    Vec3 targetW = makeWeightedForce(targetDir, adjustedTargetWeight);
+    Vec3 cruisingW = makeWeightedForce(cruisingForce, 0.1f);
+
     // Apply to acceleration accumulator
-    //
-    a.x += cohesionW.x + alignmentW.x + separationW.x + targetW.x + cruisingW.x;
-    a.y += cohesionW.y + alignmentW.y + separationW.y + targetW.y + cruisingW.y;
-    a.z += cohesionW.z + alignmentW.z + separationW.z + targetW.z + cruisingW.z;
+    acc.x += cohesionW.x + alignmentW.x + separationW.x + targetW.x + cruisingW.x;
+    acc.y += cohesionW.y + alignmentW.y + separationW.y + targetW.y + cruisingW.y;
+    acc.z += cohesionW.z + alignmentW.z + separationW.z + targetW.z + cruisingW.z;
 
-    //
-    // =============================
     // Predator avoidance
-    // =============================
-    //
     Vec3 predAvoid{0,0,0};
     int numPred = 0;
 
     const size_t* preds = boids.predatorBoidIndices;
     int predCount = boids.predatorBoidCount;
 
-    for (int k = 0; k < predCount; ++k)
-    {
-        size_t j = preds[k];
+    for (int predIdxPredators = 0; predIdxPredators < predCount; ++predIdxPredators) {
+        size_t predIdx = preds[predIdxPredators];
 
-        Vec3 pp = boids.pos[j];
-        Vec3 d = periodicDeltaVec(pp, p, params);
+        Vec3 pPos = boids.pos[predIdx];
+        Vec3 distVec = periodicDeltaVec(pPos, pos, params);
 
-        float dist = sqrtf(sqrLen(d));
-        if (dist < params.dEps)
-            dist = params.dEps;
+        float dist = sqrtf(sqrLen(distVec));
+        if (dist < params.eps)
+            dist = params.eps;
 
-        //
-        // Predator chase bookkeeping
-        //
-        if (dist <= params.dVisionRangePredator)
-        {
-            int& tgtIdx  = boids.targetBoidIdx[j];
-            float& tgtDist = boids.targetBoidDistance[j];
+        // Predator chase targeting
+        if (dist <= params.visionRangePredator) {
+            int& tgtIdx  = boids.targetBoidIdx[predIdx];
+            float& tgtDist = boids.targetBoidDistance[predIdx];
 
-            if (tgtIdx == -1 || dist < tgtDist)
-            {
-                tgtIdx = i;
+            if (tgtIdx == -1 || dist < tgtDist) {
+                tgtIdx = currentBoidIdx;
                 tgtDist = dist;
             }
         }
 
-        if (dist > params.dVisionRangeBasic)
+        if (dist > params.visionRangeBasic)
             continue;
 
         ++numPred;
 
-        Vec3 away = normalize(d, params.dEps);
-        float invd = 5.0f / dist;
+        Vec3 away = normalize(distVec, params.eps);
+        float escapeWeight = 5.0f / dist;
 
-        predAvoid.x += away.x * invd;
-        predAvoid.y += away.y * invd;
-        predAvoid.z += away.z * invd;
+        predAvoid.x += away.x * escapeWeight;
+        predAvoid.y += away.y * escapeWeight;
+        predAvoid.z += away.z * escapeWeight;
     }
 
-    //
     // Panic mode override
-    //
-    if (numPred > 0)
-    {
-        a = {0,0,0};
+    if (numPred > 0) {
+        Vec3 escape = normalize(predAvoid, params.eps);
+        Vec3 escapeForceW = makeWeightedForce(escape, 1.0f);
 
-        Vec3 escape = normalize(predAvoid, params.dEps);
-        Vec3 escapeW = makeWeightedForce(escape, 1.0f, params.dMaxForce);
+        // If escape force is stronger than current acceleration, override it
+        if (sqrLen(escapeForceW) > sqrLen(acc)) {
+            acc.x = 0.0f;
+            acc.y = 0.0f;
+            acc.z = 0.0f;
+        }
 
-        // always override CPU’s condition
-        a = escapeW;
+        acc.x += escapeForceW.x;
+        acc.y += escapeForceW.y;
+        acc.z += escapeForceW.z;
     }
 
-    //
-    // write back
-    //
-    boids.acc[i] = a;
+    // Write back
+    boids.acc[currentBoidIdx] = acc;
 }
 
-__device__
-void resolvePredatorBoidBehavior(ParallelNaiveParameters::GPUParams& params,
-                                 int i)
-{
+__device__ void resolvePredatorBoidBehavior(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
-    Vec3 p = boids.pos[i];
-    Vec3 v = boids.vel[i];
-    Vec3 a = boids.acc[i];
+    Vec3 pos = boids.pos[currentBoidIdx];
+    Vec3 vel = boids.vel[currentBoidIdx];
+    Vec3 acc = boids.acc[currentBoidIdx];
 
-    int&   targetIdx  = boids.targetBoidIdx[i];
-    float& targetDist = boids.targetBoidDistance[i];
+    int& targetIdx  = boids.targetBoidIdx[currentBoidIdx];
+    float& targetDist = boids.targetBoidDistance[currentBoidIdx];
 
-    float& stamina = boids.stamina[i];
-    uint8_t& resting = boids.resting[i];
+    float& stamina = boids.stamina[currentBoidIdx];
+    uint8_t& resting = boids.resting[currentBoidIdx];
 
-    //
     // Maintain cruising speed
-    //
-    Vec3 dir = normalize(v, params.dEps);
+    Vec3 velDir = normalize(vel, params.eps);
 
     Vec3 cruisingVel = {
-        dir.x * params.dCruisingSpeedPredator,
-        dir.y * params.dCruisingSpeedPredator,
-        dir.z * params.dCruisingSpeedPredator
+        velDir.x * params.cruisingSpeedPredator,
+        velDir.y * params.cruisingSpeedPredator,
+        velDir.z * params.cruisingSpeedPredator
     };
 
     Vec3 cruisingForce = {
-        cruisingVel.x - v.x,
-        cruisingVel.y - v.y,
-        cruisingVel.z - v.z
+        cruisingVel.x - vel.x,
+        cruisingVel.y - vel.y,
+        cruisingVel.z - vel.z
     };
 
+    float cruisingForceWeight = 0.5f;
     Vec3 cruisingForceW = {
-        cruisingForce.x * (params.dMaxForce * 0.5f),
-        cruisingForce.y * (params.dMaxForce * 0.5f),
-        cruisingForce.z * (params.dMaxForce * 0.5f)
+        cruisingForce.x * (params.maxForce * cruisingForceWeight),
+        cruisingForce.y * (params.maxForce * cruisingForceWeight),
+        cruisingForce.z * (params.maxForce * cruisingForceWeight)
     };
 
-    a.x += cruisingForceW.x;
-    a.y += cruisingForceW.y;
-    a.z += cruisingForceW.z;
+    acc.x += cruisingForceW.x;
+    acc.y += cruisingForceW.y;
+    acc.z += cruisingForceW.z;
 
-    //
     // Chase current target
-    //
-    if (targetIdx != -1 && !resting && stamina > 0.0f)
-    {
-        Vec3 tp = boids.pos[targetIdx];
+    if (targetIdx != -1 && !resting && stamina > 0.0f) {
+        // Chasing
+        Vec3 tPos = boids.pos[targetIdx];
 
-        Vec3 toTarget = periodicDeltaVec(p, tp, params);
-        Vec3 toTargetN = normalize(toTarget, params.dEps);
+        Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params);
+        Vec3 toTargetDir = normalize(toTargetVec, params.eps);
 
-        float d = sqrtf(sqrLen(toTarget));
-        float d2 = d * d;
+        float dist = sqrtf(sqrLen(toTargetVec));
+        float dist2 = dist * dist;
 
-        a.x = toTargetN.x * d2;
-        a.y = toTargetN.y * d2;
-        a.z = toTargetN.z * d2;
+        acc.x = toTargetDir.x * dist2;
+        acc.y = toTargetDir.y * dist2;
+        acc.z = toTargetDir.z * dist2;
 
-        stamina -= params.dStaminaDrainRatePredator * params.dDt;
-    }
-    //
-    // Exhausted → enter rest mode
-    //
-    else if (stamina <= 0.0f && !resting)
-    {
+        stamina -= params.staminaDrainRatePredator * params.dt;
+    } else if (stamina <= 0.0f && !resting) {
+        // Exhausted -> enter rest mode
         resting = 1;
         stamina = 0.0f;
-    }
-    //
-    // Fully recovered → exit rest mode
-    //
-    else if (resting && stamina > params.dMaxStaminaPredator)
-    {
+    } else if (resting && stamina > params.maxStaminaPredator) {
+        // Finished resting
         resting = 0;
-        stamina = params.dMaxStaminaPredator;
-    }
-    //
-    // Recovering during rest
-    //
-    else if (resting)
-    {
-        stamina += params.dStaminaRecoveryRatePredator * params.dDt;
+        stamina = params.maxStaminaPredator;
+    } else if (resting) {
+        // Recovering stamina during rest
+        stamina += params.staminaRecoveryRatePredator * params.dt;
     }
 
-    //
     // Clear target for next frame
-    //
     targetIdx  = -1;
     targetDist = -1.0f;
 
-    //
-    // write back
-    //
-    boids.acc[i] = a;
-    boids.vel[i] = v;
+    // Write back
+    boids.acc[currentBoidIdx] = acc;
+    boids.vel[currentBoidIdx] = vel;
 }
 
-__device__
-void resolveRest(ParallelNaiveParameters::GPUParams& params,
-                 int i)
-{
+__device__ void resolveRest(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
-    //
-    // Mouse interaction
-    //
-    resolveMouseInteraction(params, i);
+    resolveMouseInteraction(params, currentBoidIdx);
 
-    //
-    // Obstacles + wall avoidance
-    //
-    resolveObstacleAndWallAvoidance(params, i);
+    resolveObstacleAndWallAvoidance(params, currentBoidIdx);
 
-    //
-    // Dynamics integration
-    //
-    resolveDynamics(params, i);
+    resolveDynamics(params, currentBoidIdx);
 
-    //
-    // Collisions
-    //
-    resolveCollisions(params, i);
+    resolveCollisions(params, currentBoidIdx);
 
-    //
-    // Enforce 2D mode
-    //
-    if (params.dIs2D)
-    {
-        boids.pos[i].z = 0.0f;
-        boids.vel[i].z = 0.0f;
+    // Enforce 2D constraint if needed
+    if (params.is2D) {
+        boids.pos[currentBoidIdx].z = 0.0f;
+        boids.vel[currentBoidIdx].z = 0.0f;
     }
 }
 
-__device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& params, int i) {
+__device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
-    Vec3& p = boids.pos[i];
-    Vec3& a = boids.acc[i];
+    Vec3 pos = boids.pos[currentBoidIdx];
+    Vec3 acc = boids.acc[currentBoidIdx];
 
-    const DeviceInteraction& inter = params.dInteraction;
+    const DeviceInteraction& interaction = params.dInteraction;
 
-    auto makeWeightedForce = [&] (const Vec3& dir, float weight) {
-        float s = params.dMaxForce * weight * params.dMouseInteractionMultiplier;
-        return Vec3{ dir.x * s, dir.y * s, dir.z * s };
+    auto makeWeightedForce = [&](const Vec3& dir, float weight) {
+        float k = params.maxForce * weight * params.mouseInteractionMultiplier;
+        return Vec3{ dir.x * k, dir.y * k, dir.z * k };
     };
 
-    if (inter.type == static_cast<uint8_t>(InteractionType::Empty))
+    if (interaction.type == static_cast<uint8_t>(InteractionType::Empty))
         return;
 
-    // reset acceleration
-    a.x = 0.0f;
-    a.y = 0.0f;
-    a.z = 0.0f;
+    acc.x = 0.0f;
+    acc.y = 0.0f;
+    acc.z = 0.0f;
 
-    Vec3 diff = periodicDeltaVec(inter.point, p, params);
+    Vec3 diff = periodicDeltaVec(interaction.point, pos, params);
 
     float dist2 = sqrLen(diff);
-    if (dist2 < params.dEps)
-        dist2 = params.dEps;
+    if (dist2 < params.eps)
+        dist2 = params.eps;
 
-    float weight = dist2 / params.dMaxDistanceBetweenPoints2;
+    // Calculate weight based on distance
+    float weight = dist2 / params.maxDistanceBetweenPoints2;
     if (weight < 0.0f)
         weight = 0.0f;
 
-    Vec3 dir = normalize(diff, params.dEps);
+    Vec3 dir = normalize(diff, params.eps);
     Vec3 weightedForce = makeWeightedForce(dir, weight);
 
-    if (inter.type == static_cast<uint8_t>(InteractionType::Attract)) {
-        a.x -= weightedForce.x;
-        a.y -= weightedForce.y;
-        a.z -= weightedForce.z;
+    if (interaction.type == static_cast<uint8_t>(InteractionType::Attract)) {
+        acc.x -= weightedForce.x;
+        acc.y -= weightedForce.y;
+        acc.z -= weightedForce.z;
     } else {
-        a.x += weightedForce.x;
-        a.y += weightedForce.y;
-        a.z += weightedForce.z;
+        acc.x += weightedForce.x;
+        acc.y += weightedForce.y;
+        acc.z += weightedForce.z;
     }
+
+    // Write back
+    boids.acc[currentBoidIdx] = acc;
 }
 
-__device__ void resolveObstacleAndWallAvoidance(ParallelNaiveParameters::GPUParams& params, int i) {
+__device__ void resolveObstacleAndWallAvoidance(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
-    Vec3& p = boids.pos[i];
-    Vec3& a = boids.acc[i];
+    Vec3 pos = boids.pos[currentBoidIdx];
+    Vec3 acc = boids.acc[currentBoidIdx];
 
-    // type-dependent params
-    BoidType type = static_cast<BoidType>(boids.type[i]);
+    BoidType type = static_cast<BoidType>(boids.type[currentBoidIdx]);
 
     float rBoid =
         (type == BoidType::Basic)
-            ? params.dBasicBoidRadius
-            : params.dPredatorRadius;
+            ? params.basicBoidRadius
+            : params.predatorRadius;
 
     float visualRange =
         (type == BoidType::Basic)
-            ? params.dVisionRangeBasic
-            : params.dVisionRangePredator;
+            ? params.visionRangeBasic
+            : params.visionRangePredator;
 
-    // ------------ obstacle avoidance -------------
-    Vec3  obstacleDirSum{0,0,0};
-    float obstacleWeightSum = 0.0f;
-    float obstacleCount     = 0.0f;
+    // Obstacle avoidance
+    Vec3  obsDirSum{0,0,0};
+    float obsWeightSum = 0.0f;
+    float obsCount = 0;
 
-    const size_t* obsIndices = boids.obstacleBoidIndices;
-    int obsCount             = boids.obstacleBoidCount;
+    for (int obsIdxObstacles = 0; obsIdxObstacles < boids.obstacleBoidCount; ++obsIdxObstacles) {
+        size_t obsIdx = boids.obstacleBoidIndices[obsIdxObstacles];
+        const Vec3& oPos = boids.pos[obsIdx];
 
-    for (int k = 0; k < obsCount; ++k) {
-        size_t obsIdx = obsIndices[k];
-        const Vec3& po = boids.pos[obsIdx];
-
-        Vec3 diff = periodicDeltaVec(po, p, params);
+        Vec3 diff = periodicDeltaVec(oPos, pos, params);
         diff.z = 0.0f;
 
         float centerDist = sqrtf(sqrLen(diff));
-        float combinedRadius = rBoid + params.dObstacleRadius;
+        float combinedRadius = rBoid + params.obstacleRadius;
         float surfaceDist = centerDist - combinedRadius;
 
         if (surfaceDist > visualRange)
             continue;
 
-        obstacleCount += 1.0f;
+        obsCount += 1.0f;
 
-        Vec3 dir = normalize(diff, params.dEps);
+        Vec3 dir = normalize(diff, params.eps);
 
         float weight = __expf(-0.1f * surfaceDist);
 
-        obstacleDirSum.x += dir.x * weight;
-        obstacleDirSum.y += dir.y * weight;
-        obstacleDirSum.z += dir.z * weight;
+        obsDirSum.x += dir.x * weight;
+        obsDirSum.y += dir.y * weight;
+        obsDirSum.z += dir.z * weight;
 
-        obstacleWeightSum += weight;
+        obsWeightSum += weight;
     }
 
-    if (obstacleCount >= 1.0f) {
+    if (obsCount >= 1.0f) {
         Vec3 avgDir = {
-            obstacleDirSum.x,
-            obstacleDirSum.y,
-            obstacleDirSum.z
+            obsDirSum.x,
+            obsDirSum.y,
+            obsDirSum.z
         };
 
-        float averageWeight = obstacleWeightSum / obstacleCount;
-        Vec3 avoidDir = normalize(avgDir, params.dEps);
+        float averageWeight = obsWeightSum / obsCount;
+        Vec3 avoidDir = normalize(avgDir, params.eps);
 
-        float scale = params.dMaxForce * averageWeight * params.dObstacleAvoidanceMultiplier;
-        a.x += avoidDir.x * scale;
-        a.y += avoidDir.y * scale;
-        a.z += avoidDir.z * scale;
+        float scale = params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        acc.x += avoidDir.x * scale;
+        acc.y += avoidDir.y * scale;
+        acc.z += avoidDir.z * scale;
     }
 
-    // ------------ wall repulsion (only if bounce) -------------
-    if (!params.dBounce)
+    // Wall repulsion (only if bounce is enabled)
+    if (!params.bounce) {
+        // Write back
+        boids.acc[currentBoidIdx] = acc;
         return;
+    }
 
     auto repelFromWall = [&] (float d, float axisSign, float& accAxis) {
         if (d < visualRange) {
             float weight = __expf(-0.3f * d);
-            accAxis += axisSign * (params.dMaxForce * weight * params.dObstacleAvoidanceMultiplier);
+            accAxis += axisSign * (params.maxForce * weight * params.obstacleAvoidanceMultiplier);
         }
     };
 
-    // left / right
-    repelFromWall(p.x - rBoid,                1.0f,  a.x);
-    repelFromWall((params.dWorldX - rBoid)-p.x, -1.0f, a.x);
+    // Left / right
+    repelFromWall(pos.x - rBoid, 1.0f,  acc.x);
+    repelFromWall((params.worldX - rBoid) - pos.x, -1.0f, acc.x);
 
-    // bottom / top
-    repelFromWall(p.y - rBoid,                1.0f,  a.y);
-    repelFromWall((params.dWorldY - rBoid)-p.y, -1.0f, a.y);
-
-    if (!params.dIs2D) {
-        // floor / ceiling
-        repelFromWall(p.z - rBoid,                1.0f,  a.z);
-        repelFromWall((params.dWorldZ - rBoid)-p.z, -1.0f, a.z);
+    // Bottom / top
+    repelFromWall(pos.y - rBoid, 1.0f,  acc.y);
+    repelFromWall((params.worldY - rBoid) - pos.y, -1.0f, acc.y);
+    
+    if (!params.is2D) {
+        // Front / back
+        repelFromWall(pos.z - rBoid, 1.0f,  acc.z);
+        repelFromWall((params.worldZ - rBoid) - pos.z, -1.0f, acc.z);
     }
+
+    // Write back
+    boids.acc[currentBoidIdx] = acc;
 }
 
-__device__ void resolveDynamics(ParallelNaiveParameters::GPUParams& params, int i) {
+__device__ void resolveDynamics(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
-    Vec3& p = boids.pos[i];
-    Vec3& v = boids.vel[i];
-    Vec3& a = boids.acc[i];
+    Vec3 pos = boids.pos[currentBoidIdx];
+    Vec3 vel = boids.vel[currentBoidIdx];
+    Vec3 acc = boids.acc[currentBoidIdx];
 
-    BoidType type = static_cast<BoidType>(boids.type[i]);
+    BoidType type = static_cast<BoidType>(boids.type[currentBoidIdx]);
 
     float maxSpeed =
         (type == BoidType::Basic)
-            ? params.dMaxSpeedBasic
-            : params.dMaxSpeedPredator;
+            ? params.maxSpeedBasic
+            : params.maxSpeedPredator;
 
     float minSpeed =
         (type == BoidType::Basic)
-            ? params.dMinSpeedBasic
-            : params.dMinSpeedPredator;
+            ? params.minSpeedBasic
+            : params.minSpeedPredator;
 
-    // drag
-    if (params.dDrag > 0.0f) {
-        float invStop = 1.0f / (params.dDt * params.dNumStepsToStopDueToMaxDrag);
+    // Drag
+    if (params.drag > 0.0f) {
+        float invStop = 1.0f / (params.dt * params.numStepsToStopDueToMaxDrag);
         Vec3 stopAcc = {
-            -v.x * invStop,
-            -v.y * invStop,
-            -v.z * invStop
+            -vel.x * invStop,
+            -vel.y * invStop,
+            -vel.z * invStop
         };
 
-        a.x += stopAcc.x * params.dDrag;
-        a.y += stopAcc.y * params.dDrag;
-        a.z += stopAcc.z * params.dDrag;
+        acc.x += stopAcc.x * params.drag;
+        acc.y += stopAcc.y * params.drag;
+        acc.z += stopAcc.z * params.drag;
     }
 
-    // steering magnitude
-    float accMag = sqrtf(sqrLen(a));
-    Vec3 accDir  = normalize(a, params.dEps);
+    // Noise
+    float accMag = sqrtf(sqrLen(acc));
+    Vec3 accDir  = normalize(acc, params.eps);
 
-    // pseudo-random vector in [-0.5,0.5]^3
+    // TODO: PLACEHOLDER random vector, replace with proper RNG later
     Vec3 randVec = {
         1.0f,
         1.0f,
         1.0f
     };
-    Vec3 randDir = normalize(randVec, params.dEps);
+    Vec3 randDir = normalize(randVec, params.eps);
 
-    // blend steering vs randomness
+    // TODO: PLACEHOLDER noise factor, replace with proper parameter later
     // float n = params.noise;
     float n = 0.0f;
     Vec3 blended = {
@@ -610,158 +550,177 @@ __device__ void resolveDynamics(ParallelNaiveParameters::GPUParams& params, int 
         accDir.z * (1.0f - n) + randDir.z * n
     };
 
-    Vec3 finalDir = normalize(blended, params.dEps);
+    // Final acceleration
+    Vec3 finalDir = normalize(blended, params.eps);
 
-    a.x = finalDir.x * accMag;
-    a.y = finalDir.y * accMag;
-    a.z = finalDir.z * accMag;
+    acc.x = finalDir.x * accMag;
+    acc.y = finalDir.y * accMag;
+    acc.z = finalDir.z * accMag;
 
-    // integrate
-    v.x += a.x * params.dDt;
-    v.y += a.y * params.dDt;
-    v.z += a.z * params.dDt;
+    vel.x += acc.x * params.dt;
+    vel.y += acc.y * params.dt;
+    vel.z += acc.z * params.dt;
 
-    float speed2 = sqrLen(v);
+    float speed2 = sqrLen(vel);
     float speed  = sqrtf(speed2);
 
     if (speed > maxSpeed) {
-        float s = maxSpeed / (speed + params.dEps);
-        v.x *= s;
-        v.y *= s;
-        v.z *= s;
+        float s = maxSpeed / (speed + params.eps);
+        vel.x *= s;
+        vel.y *= s;
+        vel.z *= s;
     } else if (speed < minSpeed) {
-        float s = minSpeed / (speed + params.dEps);
-        v.x *= s;
-        v.y *= s;
-        v.z *= s;
+        float s = minSpeed / (speed + params.eps);
+        vel.x *= s;
+        vel.y *= s;
+        vel.z *= s;
     }
 
-    p.x += v.x * params.dDt;
-    p.y += v.y * params.dDt;
-    p.z += v.z * params.dDt;
+    pos.x += vel.x * params.dt;
+    pos.y += vel.y * params.dt;
+    pos.z += vel.z * params.dt;
+
+    // Write back
+    boids.pos[currentBoidIdx] = pos;
+    boids.vel[currentBoidIdx] = vel;
+    boids.acc[currentBoidIdx] = acc;
 }
 
-__device__ void resolveCollisions(ParallelNaiveParameters::GPUParams& params, int i) {
-    resolveWallCollisions(params, i);
-    resolveObstacleCollisions(params, i);
+__device__ void resolveCollisions(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+    resolveWallCollisions(params, currentBoidIdx);
+    resolveObstacleCollisions(params, currentBoidIdx);
 }
 
-__device__ void resolveWallCollisions(ParallelNaiveParameters::GPUParams& params, int i) {
+__device__ void resolveWallCollisions(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
-    Vec3& p = boids.pos[i];
-    Vec3& v = boids.vel[i];
+    Vec3 pos = boids.pos[currentBoidIdx];
+    Vec3 vel = boids.vel[currentBoidIdx];
 
-    BoidType type = static_cast<BoidType>(boids.type[i]);
+    BoidType type = static_cast<BoidType>(boids.type[currentBoidIdx]);
 
     float rBoid =
         (type == BoidType::Basic)
-            ? params.dBasicBoidRadius
-            : params.dPredatorRadius;
+            ? params.basicBoidRadius
+            : params.predatorRadius;
 
-    if (params.dBounce) {
-        if (p.x < rBoid) {
-            p.x = rBoid;
-            v.x = -v.x * params.dBounceFactor;
-            v.y =  v.y * params.dBounceFactor;
-            v.z =  v.z * params.dBounceFactor;
-        }
-        else if (p.x > params.dWorldX - rBoid) {
-            p.x = params.dWorldX - rBoid;
-            v.x = -v.x * params.dBounceFactor;
-            v.y =  v.y * params.dBounceFactor;
-            v.z =  v.z * params.dBounceFactor;
-        }
-
-        if (p.y < rBoid) {
-            p.y = rBoid;
-            v.y = -v.y * params.dBounceFactor;
-            v.x =  v.x * params.dBounceFactor;
-            v.z =  v.z * params.dBounceFactor;
-        }
-        else if (p.y > params.dWorldY - rBoid) {
-            p.y = params.dWorldY - rBoid;
-            v.y = -v.y * params.dBounceFactor;
-            v.x =  v.x * params.dBounceFactor;
-            v.z =  v.z * params.dBounceFactor;
+    if (params.bounce) {
+        if (pos.x < rBoid) {
+            pos.x = rBoid;
+            vel.x = -vel.x * params.bounceFactor;
+            vel.y =  vel.y * params.bounceFactor;
+            vel.z =  vel.z * params.bounceFactor;
+        } else if (pos.x > params.worldX - rBoid) {
+            pos.x = params.worldX - rBoid;
+            vel.x = -vel.x * params.bounceFactor;
+            vel.y =  vel.y * params.bounceFactor;
+            vel.z =  vel.z * params.bounceFactor;
         }
 
-        if (!params.dIs2D) {
-            if (p.z < rBoid) {
-                p.z = rBoid;
-                v.z = -v.z * params.dBounceFactor;
-                v.x =  v.x * params.dBounceFactor;
-                v.y =  v.y * params.dBounceFactor;
+        if (pos.y < rBoid) {
+            pos.y = rBoid;
+            vel.y = -vel.y * params.bounceFactor;
+            vel.x =  vel.x * params.bounceFactor;
+            vel.z =  vel.z * params.bounceFactor;
+        } else if (pos.y > params.worldY - rBoid) {
+            pos.y = params.worldY - rBoid;
+            vel.y = -vel.y * params.bounceFactor;
+            vel.x =  vel.x * params.bounceFactor;
+            vel.z =  vel.z * params.bounceFactor;
+        }
+
+        if (!params.is2D) {
+            if (pos.z < rBoid) {
+                pos.z = rBoid;
+                vel.z = -vel.z * params.bounceFactor;
+                vel.x =  vel.x * params.bounceFactor;
+                vel.y =  vel.y * params.bounceFactor;
             }
-            else if (p.z > params.dWorldZ - rBoid) {
-                p.z = params.dWorldZ - rBoid;
-                v.z = -v.z * params.dBounceFactor;
-                v.x =  v.x * params.dBounceFactor;
-                v.y =  v.y * params.dBounceFactor;
+            else if (pos.z > params.worldZ - rBoid) {
+                pos.z = params.worldZ - rBoid;
+                vel.z = -vel.z * params.bounceFactor;
+                vel.x =  vel.x * params.bounceFactor;
+                vel.y =  vel.y * params.bounceFactor;
             }
         }
     } else {
-        if (p.x < 0.0f)        p.x += params.dWorldX;
-        else if (p.x >= params.dWorldX) p.x -= params.dWorldX;
+        if (pos.x < 0.0f) {        
+            pos.x += params.worldX;
+        } else if (pos.x >= params.worldX) {
+            pos.x -= params.worldX;
+        }
 
-        if (p.y < 0.0f)        p.y += params.dWorldY;
-        else if (p.y >= params.dWorldY) p.y -= params.dWorldY;
+        if (pos.y < 0.0f) {        
+            pos.y += params.worldY;
+        } else if (pos.y >= params.worldY) {
+            pos.y -= params.worldY;
+        }
 
-        if (!params.dIs2D) {
-            if (p.z < 0.0f)         p.z += params.dWorldZ;
-            else if (p.z >= params.dWorldZ) p.z -= params.dWorldZ;
+        if (!params.is2D) {
+            if (pos.z < 0.0f) {        
+                pos.z += params.worldZ;
+            } else if (pos.z >= params.worldZ) {
+                pos.z -= params.worldZ;
+            }
         }
     }
+
+    // Write back
+    boids.pos[currentBoidIdx] = pos;
+    boids.vel[currentBoidIdx] = vel;
 }
 
-__device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& params, int i) {
+__device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
-    Vec3& p = boids.pos[i];
-    Vec3& v = boids.vel[i];
+    Vec3 pos = boids.pos[currentBoidIdx];
+    Vec3 vel = boids.vel[currentBoidIdx];
 
-    BoidType type = static_cast<BoidType>(boids.type[i]);
+    BoidType type = static_cast<BoidType>(boids.type[currentBoidIdx]);
 
     float rBoid =
         (type == BoidType::Basic)
-            ? params.dBasicBoidRadius
-            : params.dPredatorRadius;
+            ? params.basicBoidRadius
+            : params.predatorRadius;
 
     const size_t* obsIndices = boids.obstacleBoidIndices;
-    int obsCount             = boids.obstacleBoidCount;
+    int obsCount = boids.obstacleBoidCount;
 
-    for (int k = 0; k < obsCount; ++k) {
-        size_t obsIdx = obsIndices[k];
-        const Vec3& po = boids.pos[obsIdx];
+    for (int obsIdxObstacles = 0; obsIdxObstacles < obsCount; ++obsIdxObstacles) {
+        size_t obsIdx = obsIndices[obsIdxObstacles];
+        const Vec3& oPos = boids.pos[obsIdx];
 
-        Vec3 diff = periodicDeltaVec(po, p, params);
+        Vec3 diff = periodicDeltaVec(oPos, pos, params);
         diff.z = 0.0f;
 
         float dist2 = sqrLen(diff);
-        float combinedRadius = rBoid + params.dObstacleRadius;
+        float combinedRadius = rBoid + params.obstacleRadius;
         float dist = sqrtf(dist2) - combinedRadius;
 
         if (dist < 0.0f) {
-            Vec3 n = normalize(diff, params.dEps);
-
-            p.x += n.x * (-dist + params.dEps);
-            p.y += n.y * (-dist + params.dEps);
-            p.z += n.z * (-dist + params.dEps);
-            float vDotN = v.x*n.x + v.y*n.y + v.z*n.z;
+            Vec3 dir = normalize(diff, params.eps);
+            
+            pos.x += dir.x * (-dist + params.eps);
+            pos.y += dir.y * (-dist + params.eps);
+            pos.z += dir.z * (-dist + params.eps);
+            float vDotN = vel.x*dir.x + vel.y*dir.y + vel.z*dir.z;
 
             Vec3 vReflect = {
-                v.x - 2.0f * vDotN * n.x,
-                v.y - 2.0f * vDotN * n.y,
-                v.z - 2.0f * vDotN * n.z
+                vel.x - 2.0f * vDotN * dir.x,
+                vel.y - 2.0f * vDotN * dir.y,
+                vel.z - 2.0f * vDotN * dir.z
             };
 
-            v.x = vReflect.x * params.dBounceFactor;
-            v.y = vReflect.y * params.dBounceFactor;
-            v.z = vReflect.z * params.dBounceFactor;
+            vel.x = vReflect.x * params.bounceFactor;
+            vel.y = vReflect.y * params.bounceFactor;
+            vel.z = vReflect.z * params.bounceFactor;
         }
     }
-}
 
+    // Write back
+    boids.pos[currentBoidIdx] = pos;
+    boids.vel[currentBoidIdx] = vel;
+}
 
 __device__ inline float sqrLen(const Vec3& v) {
     return v.x*v.x + v.y*v.y + v.z*v.z;
@@ -769,8 +728,9 @@ __device__ inline float sqrLen(const Vec3& v) {
 
 __device__ inline Vec3 normalize(const Vec3& v, float eps) {
     float l2 = sqrLen(v);
-    if (l2 < eps)
+    if (l2 < eps) {
         return {0,0,0};
+    }
 
     float inv = rsqrtf(l2);
     return { v.x*inv, v.y*inv, v.z*inv };
@@ -783,25 +743,20 @@ __device__ inline float periodicDelta(float d, float worldSize) {
 }
 
 __device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelNaiveParameters::GPUParams& params) {
-    Vec3 d = {
+    Vec3 distVec = {
         to.x - from.x,
         to.y - from.y,
-        params.dIs2D ? 0.0f : (to.z - from.z)
+        params.is2D ? 0.0f : (to.z - from.z)
     };
 
-    if (params.dBounce)
-        return d;
+    if (params.bounce)
+        return distVec;
+        
+    distVec.x = periodicDelta(distVec.x, params.worldX);
+    distVec.y = periodicDelta(distVec.y, params.worldY);
 
-    d.x = periodicDelta(d.x, params.dWorldX);
-    d.y = periodicDelta(d.y, params.dWorldY);
+    if (!params.is2D)
+        distVec.z = periodicDelta(distVec.z, params.worldZ);
 
-    if (!params.dIs2D)
-        d.z = periodicDelta(d.z, params.dWorldZ);
-
-    return d;
-}
-
-__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce) {
-    float k = maxForce * w;
-    return { d.x * k, d.y * k, d.z * k };
+    return distVec;
 }

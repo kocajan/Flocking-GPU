@@ -14,8 +14,7 @@
 #include "versions/sequentialNaive/SequentialNaiveParameters.hpp"
 
 
-void simulationStep(SimState& simState, Config& simConfig)
-{
+void simulationStep(SimState& simState, Config& simConfig) {
     const std::string& version = simState.version.string();
 
     if (version == "sequentialNaive") {

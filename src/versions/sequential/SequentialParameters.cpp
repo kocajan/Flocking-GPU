@@ -10,6 +10,11 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
       obstacleBoidIndices(s.boids.obstacleBoidIndices), 
       basicBoidIndices(s.boids.basicBoidIndices), 
       predatorBoidIndices(s.boids.predatorBoidIndices) {
+    // Define helper function for converting percentage weights
+    auto percentToWeight = [](float percent) {
+        return std::clamp(percent / 100.0f, 0.0f, 1.0f);
+    };
+
     // Get boid count from length of boid array
     boidCount = (static_cast<int>(s.boids.count));
 
@@ -26,7 +31,7 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
 
     // Boundary mode
     bounce = c.binary("bounce");
-    bounceFactor = c.number("bounceFactor") / 100.0f;
+    bounceFactor = percentToWeight(c.number("bounceFactor"));
 
     // World bounds
     worldX = s.worldX.number();
@@ -54,8 +59,8 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     dt = s.dt.number();
 
     // Vision ranges
-    visionRangeBasic = worldDiag * (c.number("visionBasic") / 100.0f);
-    visionRangePredator = worldDiag * (c.number("visionPredator") / 100.0f);
+    visionRangeBasic = worldDiag * percentToWeight(c.number("visionBasic"));
+    visionRangePredator = worldDiag * percentToWeight(c.number("visionPredator"));
     visionRangeBasic2 = visionRangeBasic * visionRangeBasic;
 
     // Obstacle + mouse
@@ -63,27 +68,27 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     mouseInteractionMultiplier  = c.number("mouseInteractionMultiplier");
 
     // Flocking weights (normalized 0–1 later in behavior code)
-    cohesionWeightBasic = std::clamp(c.number("cohesionBasic") / 100.0f, 0.0f, 1.0f);
-    alignmentWeightBasic = std::clamp(c.number("alignmentBasic") / 100.0f, 0.0f, 1.0f);
-    separationWeightBasic = std::clamp(c.number("separationBasic") / 100.0f, 0.0f, 1.0f);
+    cohesionWeightBasic = percentToWeight(c.number("cohesionBasic"));
+    alignmentWeightBasic = percentToWeight(c.number("alignmentBasic"));
+    separationWeightBasic = percentToWeight(c.number("separationBasic"));
 
-    targetAttractionWeightBasic = std::clamp(c.number("targetAttractionBasic") / 100.0f, 0.0f, 1.0f);
+    targetAttractionWeightBasic = percentToWeight(c.number("targetAttractionBasic"));
 
     // Calculate max speed based on the longest world edge
     float maxSpeed = longestWorldEdge / 10.0f;
 
     // Basic boid speeds
-    float cruisingSpeedBasicPercentage = std::clamp(c.number("cruisingSpeedBasic") / 100.0f, 0.0f, 1.0f);
-    float maxSpeedBasicPercentage = std::clamp(c.number("maxSpeedBasic") / 100.0f, 0.0f, 1.0f);
-    float minSpeedBasicPercentage = std::clamp(c.number("minSpeedBasic") / 100.0f, 0.0f, 1.0f);
+    float cruisingSpeedBasicPercentage = percentToWeight(c.number("cruisingSpeedBasic"));
+    float maxSpeedBasicPercentage = percentToWeight(c.number("maxSpeedBasic"));
+    float minSpeedBasicPercentage = percentToWeight(c.number("minSpeedBasic"));
     maxSpeedBasic = maxSpeed * maxSpeedBasicPercentage;
     minSpeedBasic = maxSpeed * minSpeedBasicPercentage;
     cruisingSpeedBasic = maxSpeedBasic * cruisingSpeedBasicPercentage;
 
     // Predator speeds
-    float cruisingSpeedPredatorPercentage = std::clamp(c.number("cruisingSpeedPredator") / 100.0f, 0.0f, 1.0f);
-    float maxSpeedPredatorPercentage = std::clamp(c.number("maxSpeedPredator") / 100.0f, 0.0f, 1.0f);
-    float minSpeedPredatorPercentage = std::clamp(c.number("minSpeedPredator") / 100.0f, 0.0f, 1.0f);
+    float cruisingSpeedPredatorPercentage = percentToWeight(c.number("cruisingSpeedPredator"));
+    float maxSpeedPredatorPercentage = percentToWeight(c.number("maxSpeedPredator"));
+    float minSpeedPredatorPercentage = percentToWeight(c.number("minSpeedPredator"));
     maxSpeedPredator = maxSpeed * maxSpeedPredatorPercentage;
     minSpeedPredator = maxSpeed * minSpeedPredatorPercentage;
     cruisingSpeedPredator = maxSpeedPredator * cruisingSpeedPredatorPercentage;
@@ -94,17 +99,17 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     staminaDrainRatePredator = c.number("predatorStaminaDrainRate");
 
     // Calculate max force based on max speed
-    float maxForcePercentage = std::clamp(c.number("maxForce") / 100.0f, 0.0f, 1.0f);
+    float maxForcePercentage = percentToWeight(c.number("maxForce"));
     maxForce = maxSpeed * maxForcePercentage;
 
     // Dynamics
-    drag  = std::clamp(c.number("drag") / 100.0f, 0.0f, 1.0f);
-    noise = std::clamp(c.number("noise") / 100.0f, 0.0f, 1.0f);
+    drag  = percentToWeight(c.number("drag"));
+    noise = percentToWeight(c.number("noise"));
     numStepsToStopDueToMaxDrag = 100.0f;
 
     // Neighbor selection
-    maxNeighborsBasic = static_cast<float>(s.boids.basicBoidCount) * (c.number("neighbourAccuracy") / 100.0f);
-
+    maxNeighborsBasic = static_cast<float>(s.boids.basicBoidCount) * percentToWeight(c.number("neighbourAccuracy"));
+    
     // Cell parameters
     cellSize = std::max(visionRangeBasic, visionRangePredator); 
     if (cellSize > eps) {
@@ -116,4 +121,8 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
         cellsY = 0;
         cellsZ = 0;
     }
+}
+
+SequentialParameters::~SequentialParameters() {
+    // Nothing to do here
 }

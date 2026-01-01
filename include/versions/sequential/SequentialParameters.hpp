@@ -94,6 +94,7 @@ struct SequentialParameters {
     int cellsY;
     int cellsZ;
 
-    // Constructor
+    // Constructor / destructor
     SequentialParameters(SimState& s, const Config& c);
+    ~SequentialParameters();
 };
