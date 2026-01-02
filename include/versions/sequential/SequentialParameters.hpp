@@ -90,9 +90,9 @@ struct SequentialParameters {
 
     // Grid parameters
     float cellSize;
-    int cellsX;
-    int cellsY;
-    int cellsZ;
+    int numCellsX;
+    int numCellsY;
+    int numCellsZ;
 
     // Constructor / destructor
     SequentialParameters(SimState& s, const Config& c);

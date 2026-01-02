@@ -1,29 +1,33 @@
 #include <cmath>
 #include <cuda_runtime.h>
 
-#include "versions/parallelNaive/ParallelNaiveParameters.hpp"
+#include "versions/parallel/ParallelParameters.hpp"
 
 
 // Forward declarations
-__device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& params, int boidIdx);
-__device__ void resolvePredatorBoidBehavior(ParallelNaiveParameters::GPUParams& params, int boidIdx);
-__device__ void resolveRest(ParallelNaiveParameters::GPUParams& params, int boidIdx);
+__device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, int boidIdx);
+__device__ void resolvePredatorBoidBehavior(ParallelParameters::GPUParams& params, int boidIdx);
+__device__ void resolveRest(ParallelParameters::GPUParams& params, int boidIdx);
 
-__device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& params, int i);
-__device__ void resolveObstacleAndWallAvoidance(ParallelNaiveParameters::GPUParams& params, int i);
-__device__ void resolveDynamics(ParallelNaiveParameters::GPUParams& params, int i);
-__device__ void resolveCollisions(ParallelNaiveParameters::GPUParams& params, int i);
+__device__ void resolveMouseInteraction(ParallelParameters::GPUParams& params, int i);
+__device__ void resolveObstacleAndWallAvoidance(ParallelParameters::GPUParams& params, int i);
+__device__ void resolveDynamics(ParallelParameters::GPUParams& params, int i);
+__device__ void resolveCollisions(ParallelParameters::GPUParams& params, int i);
 
-__device__ void resolveWallCollisions(ParallelNaiveParameters::GPUParams& params, int i);
-__device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& params, int i);
+__device__ void resolveWallCollisions(ParallelParameters::GPUParams& params, int i);
+__device__ void resolveObstacleCollisions(ParallelParameters::GPUParams& params, int i);
+
+__device__ inline int calculateCellHash(int cx, int cy, int cz, const ParallelParameters::GPUParams& params);
 
 __device__ inline float sqrLen(const Vec3& v);
 __device__ inline Vec3 normalize(const Vec3& v, float eps);
 __device__ inline float periodicDelta(float d, float worldSize);
-__device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelNaiveParameters::GPUParams& params);
+__device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelParameters::GPUParams& params);
+__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce);
+__device__ inline void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier);
 
 
-__global__ void simulationStepParallelNaiveKernel(ParallelNaiveParameters::GPUParams params) {
+__global__ void simulationStepParallelKernel(ParallelParameters::GPUParams params) {    
     // Compute current boid index
     int currentBoidIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -51,7 +55,7 @@ __global__ void simulationStepParallelNaiveKernel(ParallelNaiveParameters::GPUPa
     resolveRest(params, currentBoidIdx);
 }
 
-__device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+__device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     // Get boid data
     DeviceBoids& boids = params.dBoids;
 
@@ -61,12 +65,6 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     Vec3 acc = boids.acc[currentBoidIdx];
     Vec3 target = boids.targetPoint[currentBoidIdx];
 
-    // Helper to create weighted force vectors
-    auto makeWeightedForce = [&](const Vec3& d, float w) {
-        float k = params.maxForce * w;
-        return Vec3{ d.x * k, d.y * k, d.z * k };
-    };
-
     // Define accumulators and counters
     Vec3 personalSpace{0,0,0};
     Vec3 posSum{0,0,0};
@@ -75,51 +73,79 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     int neighborCount = 0;
     int distantNeighborCount = 0;
 
+    // Get current boid's cell hash
+    int currentBoidCellHash = params.dHashBasic[currentBoidIdx];
+
+    // Get current boid's cell coordinates
+    int cX = params.dCellX[currentBoidCellHash];
+    int cY = params.dCellY[currentBoidCellHash];
+    int cZ = params.dCellZ[currentBoidCellHash];
+
+    int totalCellInNeighborhood = 3 * 3 * (params.is2D ? 1 : 3);
+    int zMin = params.is2D ? 0 : -1;
+
     // Analyze other basic boids
-    for (int otherIdxBasics = 0; otherIdxBasics < boids.basicBoidCount; ++otherIdxBasics) {
-        size_t otherIdx = boids.basicBoidIndices[otherIdxBasics];
-        
-        if (otherIdx == currentBoidIdx)
+    for (int neigborhoodCellIdx = 0; neigborhoodCellIdx < totalCellInNeighborhood; ++neigborhoodCellIdx) {
+        int dX = (neigborhoodCellIdx % 3) - 1;
+        int dY = ((neigborhoodCellIdx / 3) % 3) - 1;
+        int dZ = (neigborhoodCellIdx / 9) + zMin;
+
+        int cellHash = calculateCellHash(cX + dX, cY + dY, cZ + dZ, params);
+
+        if (cellHash < 0)
             continue;
 
-        if (neighborCount >= params.maxNeighborsBasic)
-            break;
+        int start = params.dCellStartBasic[cellHash];
+        int end = params.dCellEndBasic[cellHash];
 
-        // Get other boid data
-        Vec3 oPos = boids.pos[otherIdx];
-        Vec3 oVel = boids.vel[otherIdx];
-
-        Vec3 distVect = periodicDeltaVec(pos, oPos, params);
-        float dist2 = sqrLen(distVect);
-
-        if (dist2 > params.visionRangeBasic2)
+        if (start == -1)
             continue;
 
-        ++neighborCount;
+        for (int otherIdxBasics = start; otherIdxBasics < end; ++otherIdxBasics) {
+            size_t otherIdx = params.dIndexBasic[otherIdxBasics];
+            
+            if (otherIdx == currentBoidIdx)
+                continue;
 
-        float dist = sqrtf(dist2);
-        if (dist < params.eps)
-            dist = params.eps;
+            if (neighborCount >= params.maxNeighborsBasic)
+                break;
 
-        // Gather data for behavior rules
-        if (dist < params.basicBoidRadius * 2.0f) {
-            // Separation
-            float invd = 1.0f / dist;
-            personalSpace.x -= distVect.x * invd;
-            personalSpace.y -= distVect.y * invd;
-            personalSpace.z -= distVect.z * invd;
-        } else {
-            // Cohesion
-            posSum.x += distVect.x;
-            posSum.y += distVect.y;
-            posSum.z += distVect.z;
-            ++distantNeighborCount;
+            // Get other boid data
+            Vec3 oPos = boids.pos[otherIdx];
+            Vec3 oVel = boids.vel[otherIdx];
+
+            Vec3 distVect = periodicDeltaVec(pos, oPos, params);
+            float dist2 = sqrLen(distVect);
+
+            if (dist2 > params.visionRangeBasic2)
+                continue;
+
+            ++neighborCount;
+
+            float dist = sqrtf(dist2);
+            if (dist < params.eps)
+                dist = params.eps;
+
+            // Gather data for behavior rules
+            if (dist < params.basicBoidRadius * 2.0f) {
+                // Separation
+                float invd = 1.0f / dist;
+                personalSpace.x -= distVect.x * invd;
+                personalSpace.y -= distVect.y * invd;
+                personalSpace.z -= distVect.z * invd;
+            } else {
+                // Cohesion
+                posSum.x += distVect.x;
+                posSum.y += distVect.y;
+                posSum.z += distVect.z;
+                ++distantNeighborCount;
+            }
+
+            // Alignment
+            velSum.x += oVel.x;
+            velSum.y += oVel.y;
+            velSum.z += oVel.z;
         }
-
-        // Alignment
-        velSum.x += oVel.x;
-        velSum.y += oVel.y;
-        velSum.z += oVel.z;
     }
 
     // Calculate cohesion and alignment forces
@@ -183,11 +209,11 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     Vec3 separationDir = normalize(personalSpace, params.eps);
     Vec3 targetDir = normalize(toTarget, params.eps);
 
-    Vec3 cohesionW = makeWeightedForce(cohesionDir, params.cohesionWeightBasic);
-    Vec3 alignmentW = makeWeightedForce(alignmentDir, params.alignmentWeightBasic);
-    Vec3 separationW = makeWeightedForce(separationDir, params.separationWeightBasic);
-    Vec3 targetW = makeWeightedForce(targetDir, adjustedTargetWeight);
-    Vec3 cruisingW = makeWeightedForce(cruisingForce, 0.1f);
+    Vec3 cohesionW = makeWeightedForce(cohesionDir, params.cohesionWeightBasic, params.maxForce);
+    Vec3 alignmentW = makeWeightedForce(alignmentDir, params.alignmentWeightBasic, params.maxForce);
+    Vec3 separationW = makeWeightedForce(separationDir, params.separationWeightBasic, params.maxForce);
+    Vec3 targetW = makeWeightedForce(targetDir, adjustedTargetWeight, params.maxForce);
+    Vec3 cruisingW = makeWeightedForce(cruisingForce, 0.1f, params.maxForce);
 
     // Apply to acceleration accumulator
     acc.x += cohesionW.x + alignmentW.x + separationW.x + targetW.x + cruisingW.x;
@@ -198,47 +224,62 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     Vec3 predAvoid{0,0,0};
     int numPred = 0;
 
-    const size_t* preds = boids.predatorBoidIndices;
-    int predCount = boids.predatorBoidCount;
+    // Analyze predators
+    for (int neigborhoodCellIdx = 0; neigborhoodCellIdx < totalCellInNeighborhood; ++neigborhoodCellIdx) {
+        int dX = (neigborhoodCellIdx % 3) - 1;
+        int dY = ((neigborhoodCellIdx / 3) % 3) - 1;
+        int dZ = (neigborhoodCellIdx / 9) + zMin;
 
-    for (int predIdxPredators = 0; predIdxPredators < predCount; ++predIdxPredators) {
-        size_t predIdx = preds[predIdxPredators];
+        int cellHash = calculateCellHash(cX + dX, cY + dY, cZ + dZ, params);
 
-        Vec3 pPos = boids.pos[predIdx];
-        Vec3 distVec = periodicDeltaVec(pPos, pos, params);
-
-        float dist = sqrtf(sqrLen(distVec));
-        if (dist < params.eps)
-            dist = params.eps;
-
-        // Predator chase targeting
-        if (dist <= params.visionRangePredator) {
-            int& tgtIdx  = boids.targetBoidIdx[predIdx];
-            float& tgtDist = boids.targetBoidDistance[predIdx];
-
-            if (tgtIdx == -1 || dist < tgtDist) {
-                tgtIdx = currentBoidIdx;
-                tgtDist = dist;
-            }
-        }
-
-        if (dist > params.visionRangeBasic)
+        if (cellHash < 0)
             continue;
 
-        ++numPred;
+        int start = params.dCellStartPredator[cellHash];
+        int end = params.dCellEndPredator[cellHash];
 
-        Vec3 away = normalize(distVec, params.eps);
-        float escapeWeight = 5.0f / dist;
+        if (start == -1)
+            continue;
 
-        predAvoid.x += away.x * escapeWeight;
-        predAvoid.y += away.y * escapeWeight;
-        predAvoid.z += away.z * escapeWeight;
+        for (int predIdxPredators = start; predIdxPredators < end; ++predIdxPredators) {
+            size_t predIdx = params.dIndexPredator[predIdxPredators];
+
+            Vec3 pPos = boids.pos[predIdx];
+            Vec3 distVec = periodicDeltaVec(pPos, pos, params);
+
+            float dist = sqrtf(sqrLen(distVec));
+            if (dist < params.eps)
+                dist = params.eps;
+
+            // Predator chase targeting
+            if (dist <= params.visionRangePredator) {
+                int& tgtIdx  = boids.targetBoidIdx[predIdx];
+                float& tgtDist = boids.targetBoidDistance[predIdx];
+
+                if (tgtIdx == -1 || dist < tgtDist) {
+                    tgtIdx = currentBoidIdx;
+                    tgtDist = dist;
+                }
+            }
+
+            if (dist > params.visionRangeBasic)
+                continue;
+
+            ++numPred;
+
+            Vec3 away = normalize(distVec, params.eps);
+            float escapeWeight = 5.0f / dist;
+
+            predAvoid.x += away.x * escapeWeight;
+            predAvoid.y += away.y * escapeWeight;
+            predAvoid.z += away.z * escapeWeight;
+        }
     }
 
     // Panic mode override
     if (numPred > 0) {
         Vec3 escape = normalize(predAvoid, params.eps);
-        Vec3 escapeForceW = makeWeightedForce(escape, 1.0f);
+        Vec3 escapeForceW = makeWeightedForce(escape, 1.0f, params.maxForce);
 
         // If escape force is stronger than current acceleration, override it
         if (sqrLen(escapeForceW) > sqrLen(acc)) {
@@ -256,7 +297,7 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     boids.acc[currentBoidIdx] = acc;
 }
 
-__device__ void resolvePredatorBoidBehavior(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+__device__ void resolvePredatorBoidBehavior(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
     Vec3 pos = boids.pos[currentBoidIdx];
@@ -333,7 +374,7 @@ __device__ void resolvePredatorBoidBehavior(ParallelNaiveParameters::GPUParams& 
     boids.vel[currentBoidIdx] = vel;
 }
 
-__device__ void resolveRest(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+__device__ void resolveRest(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
     resolveMouseInteraction(params, currentBoidIdx);
@@ -351,17 +392,12 @@ __device__ void resolveRest(ParallelNaiveParameters::GPUParams& params, int curr
     }
 }
 
-__device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+__device__ void resolveMouseInteraction(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
     Vec3 pos = boids.pos[currentBoidIdx];
     Vec3 acc = boids.acc[currentBoidIdx];
 
     const DeviceInteraction& interaction = params.dInteraction;
-
-    auto makeWeightedForce = [&](const Vec3& dir, float weight) {
-        float k = params.maxForce * weight * params.mouseInteractionMultiplier;
-        return Vec3{ dir.x * k, dir.y * k, dir.z * k };
-    };
 
     if (interaction.type == static_cast<uint8_t>(InteractionType::Empty))
         return;
@@ -382,7 +418,7 @@ __device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& para
         weight = 0.0f;
 
     Vec3 dir = normalize(diff, params.eps);
-    Vec3 weightedForce = makeWeightedForce(dir, weight);
+    Vec3 weightedForce = makeWeightedForce(dir, weight * params.mouseInteractionMultiplier, params.maxForce);
 
     if (interaction.type == static_cast<uint8_t>(InteractionType::Attract)) {
         acc.x -= weightedForce.x;
@@ -398,7 +434,7 @@ __device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& para
     boids.acc[currentBoidIdx] = acc;
 }
 
-__device__ void resolveObstacleAndWallAvoidance(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+__device__ void resolveObstacleAndWallAvoidance(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
     Vec3 pos = boids.pos[currentBoidIdx];
@@ -421,31 +457,63 @@ __device__ void resolveObstacleAndWallAvoidance(ParallelNaiveParameters::GPUPara
     float obsWeightSum = 0.0f;
     float obsCount = 0;
 
-    for (int obsIdxObstacles = 0; obsIdxObstacles < boids.obstacleBoidCount; ++obsIdxObstacles) {
-        size_t obsIdx = boids.obstacleBoidIndices[obsIdxObstacles];
-        const Vec3& oPos = boids.pos[obsIdx];
+    // Get current boid's cell hash
+    int currentBoidCellHash = (type == BoidType::Basic)
+        ? params.dHashBasic[currentBoidIdx]
+        : params.dHashPredator[currentBoidIdx];
 
-        Vec3 diff = periodicDeltaVec(oPos, pos, params);
-        diff.z = 0.0f;
+    // Get current boid's cell coordinates
+    int cX = params.dCellX[currentBoidCellHash];
+    int cY = params.dCellY[currentBoidCellHash];
+    int cZ = params.dCellZ[currentBoidCellHash];
 
-        float centerDist = sqrtf(sqrLen(diff));
-        float combinedRadius = rBoid + params.obstacleRadius;
-        float surfaceDist = centerDist - combinedRadius;
+    int totalCellInNeighborhood = 3 * 3 * (params.is2D ? 1 : 3);
+    int zMin = params.is2D ? 0 : -1;
 
-        if (surfaceDist > visualRange)
+    // Analyze other basic boids
+    for (int neigborhoodCellIdx = 0; neigborhoodCellIdx < totalCellInNeighborhood; ++neigborhoodCellIdx) {
+        int dX = (neigborhoodCellIdx % 3) - 1;
+        int dY = ((neigborhoodCellIdx / 3) % 3) - 1;
+        int dZ = (neigborhoodCellIdx / 9) + zMin;
+
+        int cellHash = calculateCellHash(cX + dX, cY + dY, cZ + dZ, params);
+
+        if (cellHash < 0)
             continue;
 
-        obsCount += 1.0f;
+        int start = params.dCellStartObstacle[cellHash];
+        int end = params.dCellEndObstacle[cellHash];
 
-        Vec3 dir = normalize(diff, params.eps);
+        if (start == -1)
+            continue;
 
-        float weight = __expf(-0.1f * surfaceDist);
+        for (int obsIdxObstacles = start; obsIdxObstacles < end; ++obsIdxObstacles) {
+            size_t obsIdx = params.dIndexObstacle[obsIdxObstacles];
 
-        obsDirSum.x += dir.x * weight;
-        obsDirSum.y += dir.y * weight;
-        obsDirSum.z += dir.z * weight;
+            const Vec3& oPos = boids.pos[obsIdx];
 
-        obsWeightSum += weight;
+            Vec3 diff = periodicDeltaVec(oPos, pos, params);
+            diff.z = 0.0f;
+
+            float centerDist = sqrtf(sqrLen(diff));
+            float combinedRadius = rBoid + params.obstacleRadius;
+            float surfaceDist = centerDist - combinedRadius;
+
+            if (surfaceDist > visualRange)
+                continue;
+
+            obsCount += 1.0f;
+
+            Vec3 dir = normalize(diff, params.eps);
+
+            float weight = __expf(-0.1f * surfaceDist);
+
+            obsDirSum.x += dir.x * weight;
+            obsDirSum.y += dir.y * weight;
+            obsDirSum.z += dir.z * weight;
+
+            obsWeightSum += weight;
+        }
     }
 
     if (obsCount >= 1.0f) {
@@ -471,32 +539,25 @@ __device__ void resolveObstacleAndWallAvoidance(ParallelNaiveParameters::GPUPara
         return;
     }
 
-    auto repelFromWall = [&] (float d, float axisSign, float& accAxis) {
-        if (d < visualRange) {
-            float weight = __expf(-0.3f * d);
-            accAxis += axisSign * (params.maxForce * weight * params.obstacleAvoidanceMultiplier);
-        }
-    };
-
     // Left / right
-    repelFromWall(pos.x - rBoid, 1.0f,  acc.x);
-    repelFromWall((params.worldX - rBoid) - pos.x, -1.0f, acc.x);
+    repelFromWall(pos.x - rBoid, 1.0f,  acc.x, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
+    repelFromWall((params.worldX - rBoid) - pos.x, -1.0f, acc.x, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
 
     // Bottom / top
-    repelFromWall(pos.y - rBoid, 1.0f,  acc.y);
-    repelFromWall((params.worldY - rBoid) - pos.y, -1.0f, acc.y);
+    repelFromWall(pos.y - rBoid, 1.0f,  acc.y, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
+    repelFromWall((params.worldY - rBoid) - pos.y, -1.0f, acc.y, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
     
     if (!params.is2D) {
         // Front / back
-        repelFromWall(pos.z - rBoid, 1.0f,  acc.z);
-        repelFromWall((params.worldZ - rBoid) - pos.z, -1.0f, acc.z);
+        repelFromWall(pos.z - rBoid, 1.0f,  acc.z, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
+        repelFromWall((params.worldZ - rBoid) - pos.z, -1.0f, acc.z, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
     }
 
     // Write back
     boids.acc[currentBoidIdx] = acc;
 }
 
-__device__ void resolveDynamics(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+__device__ void resolveDynamics(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
     Vec3 pos = boids.pos[currentBoidIdx];
@@ -586,12 +647,12 @@ __device__ void resolveDynamics(ParallelNaiveParameters::GPUParams& params, int 
     boids.acc[currentBoidIdx] = acc;
 }
 
-__device__ void resolveCollisions(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+__device__ void resolveCollisions(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     resolveWallCollisions(params, currentBoidIdx);
     resolveObstacleCollisions(params, currentBoidIdx);
 }
 
-__device__ void resolveWallCollisions(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+__device__ void resolveWallCollisions(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
     Vec3 pos = boids.pos[currentBoidIdx];
@@ -670,7 +731,7 @@ __device__ void resolveWallCollisions(ParallelNaiveParameters::GPUParams& params
     boids.vel[currentBoidIdx] = vel;
 }
 
-__device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
+__device__ void resolveObstacleCollisions(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     DeviceBoids& boids = params.dBoids;
 
     Vec3 pos = boids.pos[currentBoidIdx];
@@ -683,37 +744,66 @@ __device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& pa
             ? params.basicBoidRadius
             : params.predatorRadius;
 
-    const size_t* obsIndices = boids.obstacleBoidIndices;
-    int obsCount = boids.obstacleBoidCount;
+    // Get current boid's cell hash
+    int currentBoidCellHash = (type == BoidType::Basic)
+        ? params.dHashBasic[currentBoidIdx]
+        : params.dHashPredator[currentBoidIdx];
 
-    for (int obsIdxObstacles = 0; obsIdxObstacles < obsCount; ++obsIdxObstacles) {
-        size_t obsIdx = obsIndices[obsIdxObstacles];
-        const Vec3& oPos = boids.pos[obsIdx];
+    // Get current boid's cell coordinates
+    int cX = params.dCellX[currentBoidCellHash];
+    int cY = params.dCellY[currentBoidCellHash];
+    int cZ = params.dCellZ[currentBoidCellHash];
 
-        Vec3 diff = periodicDeltaVec(oPos, pos, params);
-        diff.z = 0.0f;
+    int totalCellInNeighborhood = 3 * 3 * (params.is2D ? 1 : 3);
+    int zMin = params.is2D ? 0 : -1;
 
-        float dist2 = sqrLen(diff);
-        float combinedRadius = rBoid + params.obstacleRadius;
-        float dist = sqrtf(dist2) - combinedRadius;
+    // Analyze other basic boids
+    for (int neigborhoodCellIdx = 0; neigborhoodCellIdx < totalCellInNeighborhood; ++neigborhoodCellIdx) {
+        int dX = (neigborhoodCellIdx % 3) - 1;
+        int dY = ((neigborhoodCellIdx / 3) % 3) - 1;
+        int dZ = (neigborhoodCellIdx / 9) + zMin;
 
-        if (dist < 0.0f) {
-            Vec3 dir = normalize(diff, params.eps);
-            
-            pos.x += dir.x * (-dist + params.eps);
-            pos.y += dir.y * (-dist + params.eps);
-            pos.z += dir.z * (-dist + params.eps);
-            float vDotN = vel.x*dir.x + vel.y*dir.y + vel.z*dir.z;
+        int cellHash = calculateCellHash(cX + dX, cY + dY, cZ + dZ, params);
 
-            Vec3 vReflect = {
-                vel.x - 2.0f * vDotN * dir.x,
-                vel.y - 2.0f * vDotN * dir.y,
-                vel.z - 2.0f * vDotN * dir.z
-            };
+        if (cellHash < 0)
+            continue;
 
-            vel.x = vReflect.x * params.bounceFactor;
-            vel.y = vReflect.y * params.bounceFactor;
-            vel.z = vReflect.z * params.bounceFactor;
+        int start = params.dCellStartObstacle[cellHash];
+        int end = params.dCellEndObstacle[cellHash];
+
+        if (start == -1)
+            continue;
+
+        for (int obsIdxObstacles = start; obsIdxObstacles < end; ++obsIdxObstacles) {
+            size_t obsIdx = params.dIndexObstacle[obsIdxObstacles];
+
+            const Vec3& oPos = boids.pos[obsIdx];
+
+            Vec3 diff = periodicDeltaVec(oPos, pos, params);
+            diff.z = 0.0f;
+
+            float dist2 = sqrLen(diff);
+            float combinedRadius = rBoid + params.obstacleRadius;
+            float dist = sqrtf(dist2) - combinedRadius;
+
+            if (dist < 0.0f) {
+                Vec3 dir = normalize(diff, params.eps);
+                
+                pos.x += dir.x * (-dist + params.eps);
+                pos.y += dir.y * (-dist + params.eps);
+                pos.z += dir.z * (-dist + params.eps);
+                float vDotN = vel.x*dir.x + vel.y*dir.y + vel.z*dir.z;
+
+                Vec3 vReflect = {
+                    vel.x - 2.0f * vDotN * dir.x,
+                    vel.y - 2.0f * vDotN * dir.y,
+                    vel.z - 2.0f * vDotN * dir.z
+                };
+
+                vel.x = vReflect.x * params.bounceFactor;
+                vel.y = vReflect.y * params.bounceFactor;
+                vel.z = vReflect.z * params.bounceFactor;
+            }
         }
     }
 
@@ -742,7 +832,7 @@ __device__ inline float periodicDelta(float d, float worldSize) {
     return d;
 }
 
-__device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelNaiveParameters::GPUParams& params) {
+__device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelParameters::GPUParams& params) {
     Vec3 distVec = {
         to.x - from.x,
         to.y - from.y,
@@ -760,3 +850,39 @@ __device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const 
 
     return distVec;
 }
+
+__device__ inline int calculateCellHash(int cx, int cy, int cz, const ParallelParameters::GPUParams& params) {
+    if (params.bounce) {
+        if (cx < 0 || cx >= params.numCellsX) return -1;
+        if (cy < 0 || cy >= params.numCellsY) return -1;
+        if (!params.is2D && (cz < 0 || cz >= params.numCellsZ)) return -1;
+    } else {
+        if (cx < 0) cx += params.numCellsX;
+        if (cx >= params.numCellsX) cx -= params.numCellsX;
+
+        if (cy < 0) cy += params.numCellsY;
+        if (cy >= params.numCellsY) cy -= params.numCellsY;
+
+        if (!params.is2D) {
+            if (cz < 0) cz += params.numCellsZ;
+            if (cz >= params.numCellsZ) cz -= params.numCellsZ;
+        } else {
+            cz = 0;
+        }
+    }
+
+    // Flatten index
+    return (cz * params.numCellsY + cy) * params.numCellsX + cx;
+}
+
+__device__ Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce) {
+    float k = maxForce * w;
+    return Vec3{ d.x * k, d.y * k, d.z * k };
+};
+
+__device__ void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier) {
+    if (d < visualRange) {
+        float weight = __expf(-0.3f * d);
+        accAxis += axisSign * (maxForce * weight * multiplier);
+    }
+};

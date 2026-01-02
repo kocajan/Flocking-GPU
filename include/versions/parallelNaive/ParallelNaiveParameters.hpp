@@ -87,7 +87,6 @@ struct ParallelNaiveParameters {
     struct CPUParams {
         // Simulation configuration
         int blockSize;
-        int gridSize;
 
         // Boid data — device pointers
         Boids &hBoids;

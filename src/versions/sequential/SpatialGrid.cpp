@@ -7,19 +7,19 @@
 
 SpatialGrid::SpatialGrid(const SequentialParameters& params)
     : cellSize(params.cellSize),
-      cellsX(params.cellsX),
-      cellsY(params.cellsY),
-      cellsZ(params.cellsZ),
+      numCellsX(params.numCellsX),
+      numCellsY(params.numCellsY),
+      numCellsZ(params.numCellsZ),
       is2D(params.is2D),
       bounce(params.bounce),
       isBuilt(false)
 {
-    if (cellsX <= 0 || cellsY <= 0 || cellsZ <= 0) {
+    if (numCellsX <= 0 || numCellsY <= 0 || numCellsZ <= 0) {
         hasZeroCells = true;
-        cellsX = cellsY = cellsZ = 0;
+        numCellsX = numCellsY = numCellsZ = 0;
     } else {
         hasZeroCells = false;
-        size_t total = static_cast<size_t>(cellsX) * cellsY * cellsZ;
+        size_t total = static_cast<size_t>(numCellsX) * numCellsY * numCellsZ;
         basicCells.resize(total);
         predatorCells.resize(total);
         obstacleCells.resize(total);
@@ -30,7 +30,7 @@ SpatialGrid::SpatialGrid(const SequentialParameters& params)
 }
 
 int SpatialGrid::flattenIndex(int cx, int cy, int cz) const {
-    return (cz * cellsY + cy) * cellsX + cx;
+    return (cz * numCellsY + cy) * numCellsX + cx;
 }
 
 int SpatialGrid::worldToCellIndex(float p, float worldSize, int cellCount) const {
@@ -53,9 +53,9 @@ int SpatialGrid::worldToCellIndex(float p, float worldSize, int cellCount) const
 void SpatialGrid::insertPointObject(std::vector<Cell>& grid, const SequentialParameters& params, int idx) {
     const Vec3& p = params.boids.pos[idx];
 
-    int cx = worldToCellIndex(p.x, params.worldX, cellsX);
-    int cy = worldToCellIndex(p.y, params.worldY, cellsY);
-    int cz = is2D ? 0 : worldToCellIndex(p.z, params.worldZ, cellsZ);
+    int cx = worldToCellIndex(p.x, params.worldX, numCellsX);
+    int cy = worldToCellIndex(p.y, params.worldY, numCellsY);
+    int cz = is2D ? 0 : worldToCellIndex(p.z, params.worldZ, numCellsZ);
     grid[flattenIndex(cx,cy,cz)].items.push_back(idx);
 }
 
@@ -68,10 +68,10 @@ void SpatialGrid::insertRadialObject(std::vector<Cell>& grid, const SequentialPa
     float minY = p.y - radius;
     float maxY = p.y + radius;
 
-    int cx0 = worldToCellIndex(minX, params.worldX, cellsX);
-    int cx1 = worldToCellIndex(maxX, params.worldX, cellsX);
-    int cy0 = worldToCellIndex(minY, params.worldY, cellsY);
-    int cy1 = worldToCellIndex(maxY, params.worldY, cellsY);
+    int cx0 = worldToCellIndex(minX, params.worldX, numCellsX);
+    int cx1 = worldToCellIndex(maxX, params.worldX, numCellsX);
+    int cy0 = worldToCellIndex(minY, params.worldY, numCellsY);
+    int cy1 = worldToCellIndex(maxY, params.worldY, numCellsY);
 
     int cz0 = 0, cz1 = 0;
 
@@ -79,8 +79,8 @@ void SpatialGrid::insertRadialObject(std::vector<Cell>& grid, const SequentialPa
         float minZ = p.z - radius;
         float maxZ = p.z + radius;
 
-        cz0 = worldToCellIndex(minZ, params.worldZ, cellsZ);
-        cz1 = worldToCellIndex(maxZ, params.worldZ, cellsZ);
+        cz0 = worldToCellIndex(minZ, params.worldZ, numCellsZ);
+        cz1 = worldToCellIndex(maxZ, params.worldZ, numCellsZ);
     }
 
     for (int cx = cx0; cx <= cx1; ++cx)
@@ -144,9 +144,9 @@ const std::vector<int>& SpatialGrid::getNeighborIndices(const SequentialParamete
 
     const Vec3& p = params.boids.pos[boidIndex];
 
-    int cx = worldToCellIndex(p.x, params.worldX, cellsX);
-    int cy = worldToCellIndex(p.y, params.worldY, cellsY);
-    int cz = is2D ? 0 : worldToCellIndex(p.z, params.worldZ, cellsZ);
+    int cx = worldToCellIndex(p.x, params.worldX, numCellsX);
+    int cy = worldToCellIndex(p.y, params.worldY, numCellsY);
+    int cz = is2D ? 0 : worldToCellIndex(p.z, params.worldZ, numCellsZ);
     int zmin = is2D ? 0 : -1;
     int zmax = is2D ? 0 :  1;
 
@@ -158,26 +158,26 @@ const std::vector<int>& SpatialGrid::getNeighborIndices(const SequentialParamete
         int nz = cz + dz;
 
         if (bounce) {
-            if (nx < 0 || nx >= cellsX ||
-                ny < 0 || ny >= cellsY ||
-                nz < 0 || nz >= cellsZ)
+            if (nx < 0 || nx >= numCellsX ||
+                ny < 0 || ny >= numCellsY ||
+                nz < 0 || nz >= numCellsZ)
                 continue;
         } else {
-            if (nx < 0) nx += cellsX;
-            if (nx >= cellsX) nx -= cellsX;
+            if (nx < 0) nx += numCellsX;
+            if (nx >= numCellsX) nx -= numCellsX;
 
-            if (ny < 0) ny += cellsY;
-            if (ny >= cellsY) ny -= cellsY;
+            if (ny < 0) ny += numCellsY;
+            if (ny >= numCellsY) ny -= numCellsY;
 
             if (!is2D) {
-                if (nz < 0) nz += cellsZ;
-                if (nz >= cellsZ) nz -= cellsZ;
+                if (nz < 0) nz += numCellsZ;
+                if (nz >= numCellsZ) nz -= numCellsZ;
             } else {
                 nz = 0;
             }
         }
 
-        const auto& cell = (*grid)[flattenIndex(nx,ny,nz)].items;
+        const auto& cell = (*grid)[flattenIndex(nx, ny, nz)].items;
 
         if (!cell.empty())
             scratch.insert(scratch.end(), cell.begin(), cell.end());

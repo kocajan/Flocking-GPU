@@ -113,13 +113,14 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     // Cell parameters
     cellSize = std::max(visionRangeBasic, visionRangePredator); 
     if (cellSize > eps) {
-        cellsX = static_cast<int>(std::ceil(worldX / cellSize));
-        cellsY = static_cast<int>(std::ceil(worldY / cellSize));
-        cellsZ = is2D ? 1 : static_cast<int>(std::ceil(worldZ / cellSize));
+        numCellsX = static_cast<int>(std::ceil(worldX / cellSize));
+        numCellsY = static_cast<int>(std::ceil(worldY / cellSize));
+        numCellsZ = is2D ? 1 : static_cast<int>(std::ceil(worldZ / cellSize));
     } else {
-        cellsX = 0;
-        cellsY = 0;
-        cellsZ = 0;
+        cellSize = 0.0f;
+        numCellsX = 0;
+        numCellsY = 0;
+        numCellsZ = 0;
     }
 }
 

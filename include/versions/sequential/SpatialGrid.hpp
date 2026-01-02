@@ -8,9 +8,9 @@
 struct SpatialGrid
 {
     float cellSize;
-    int cellsX;
-    int cellsY;
-    int cellsZ;
+    int numCellsX;
+    int numCellsY;
+    int numCellsZ;
 
     bool is2D;
     bool bounce;

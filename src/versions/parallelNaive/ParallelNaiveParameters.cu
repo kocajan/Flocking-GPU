@@ -33,7 +33,6 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     // CPU parameters
     // ################################################################
     cpu.blockSize = 256;
-    cpu.gridSize = (static_cast<int>(cpu.hBoids.count) + cpu.blockSize - 1) / cpu.blockSize;
 
     // ################################################################
     // GPU parameters - basic
@@ -165,10 +164,6 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
 }
 
 ParallelNaiveParameters::~ParallelNaiveParameters() {
-    // Check for any CUDA errors
-    CHECK_ERROR(cudaPeekAtLastError());
-    CHECK_ERROR(cudaDeviceSynchronize());
-
     // Port from GPU to CPU
     const size_t N = cpu.hBoids.count;
     const size_t vec3ArraySize = sizeof(Vec3) * N;
