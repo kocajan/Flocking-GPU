@@ -30,7 +30,7 @@ __global__ void simulationStepParallelNaiveKernel(ParallelNaiveParameters::GPUPa
     int currentBoidIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Out of bounds check
-    if (currentBoidIdx >= params.boidCount)
+    if (currentBoidIdx >= params.dBoids.allBoidCount)
         return;
     
     // Fetch boid type
@@ -73,7 +73,7 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
 
     // Analyze other basic boids
     for (int otherIdxBasics = 0; otherIdxBasics < boids.basicBoidCount; ++otherIdxBasics) {
-        size_t otherIdx = boids.basicBoidIndices[otherIdxBasics];
+        int otherIdx = boids.basicBoidIndices[otherIdxBasics];
         
         if (otherIdx == currentBoidIdx)
             continue;
@@ -194,11 +194,11 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     Vec3 predAvoid{0,0,0};
     int numPred = 0;
 
-    const size_t* preds = boids.predatorBoidIndices;
+    const int* preds = boids.predatorBoidIndices;
     int predCount = boids.predatorBoidCount;
 
     for (int predIdxPredators = 0; predIdxPredators < predCount; ++predIdxPredators) {
-        size_t predIdx = preds[predIdxPredators];
+        int predIdx = preds[predIdxPredators];
 
         Vec3 pPos = boids.pos[predIdx];
         Vec3 distVec = periodicDeltaVec(pPos, pos, params);
@@ -667,11 +667,11 @@ __device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& pa
             ? params.basicBoidRadius
             : params.predatorRadius;
 
-    const size_t* obsIndices = boids.obstacleBoidIndices;
+    const int* obsIndices = boids.obstacleBoidIndices;
     int obsCount = boids.obstacleBoidCount;
 
     for (int obsIdxObstacles = 0; obsIdxObstacles < obsCount; ++obsIdxObstacles) {
-        size_t obsIdx = obsIndices[obsIdxObstacles];
+        int obsIdx = obsIndices[obsIdxObstacles];
         const Vec3& oPos = boids.pos[obsIdx];
 
         Vec3 diff = periodicDeltaVec(oPos, pos, params);

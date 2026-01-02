@@ -24,8 +24,8 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
     //-------------------------------------------------------------------------
     // Simulation control
     //-------------------------------------------------------------------------
-    dt         = config.get("dt");
-    paused     = config.get("paused");
+    dt = config.get("dt");
+    paused = config.get("paused");
     dimensions = config.get("dimensions");
 
     tick = 0;
@@ -33,25 +33,25 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
     //-------------------------------------------------------------------------
     // Population targets
     //-------------------------------------------------------------------------
-    basicBoidCountTarget   = config.get("basicBoidCount");
+    basicBoidCountTarget = config.get("basicBoidCount");
     predatorBoidCountTarget = config.get("predatorBoidCount");
 
     //-------------------------------------------------------------------------
     // Interaction / input behavior
     //-------------------------------------------------------------------------
-    leftMouseEffect  = config.get("leftMouseEffect");
+    leftMouseEffect = config.get("leftMouseEffect");
     rightMouseEffect = config.get("rightMouseEffect");
 
     //-------------------------------------------------------------------------
     // Reset / control actions (UI buttons)
     //-------------------------------------------------------------------------
     resetVersionSettings = config.get("resetVersionSettings");
-    resetSimulation      = config.get("resetSimulation");
-    deleteObstacles      = config.get("deleteObstacles");
+    resetSimulation = config.get("resetSimulation");
+    deleteObstacles = config.get("deleteObstacles");
 
     resetVersionSettings.render = ParamRender::Button;
-    resetSimulation.render      = ParamRender::Button;
-    deleteObstacles.render      = ParamRender::Button;
+    resetSimulation.render = ParamRender::Button;
+    deleteObstacles.render = ParamRender::Button;
 
     //-------------------------------------------------------------------------
     // World geometry
@@ -63,7 +63,7 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
     //-------------------------------------------------------------------------
     // Rendering colors
     //-------------------------------------------------------------------------
-    basicBoidColor    = config.get("basicBoidColor");
+    basicBoidColor = config.get("basicBoidColor");
     predatorBoidColor = config.get("predatorBoidColor");
     obstacleBoidColor = config.get("obstacleColor");
 

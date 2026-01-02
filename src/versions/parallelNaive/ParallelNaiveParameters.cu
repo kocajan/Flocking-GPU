@@ -37,9 +37,6 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     // ################################################################
     // GPU parameters - basic
     // ################################################################
-    // Boid count
-    gpu.boidCount = static_cast<int>(cpu.hBoids.count);
-    
     // Flags
     gpu.is2D = (s.dimensions.string() == "2D");
     gpu.bounce = c.binary("bounce");
@@ -122,13 +119,13 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     // GPU parameters - Boids
     // ################################################################
     // Port boid counts
-    gpu.dBoids.count = gpu.boidCount;
-    gpu.dBoids.basicBoidCount = static_cast<int>(cpu.hBoids.basicBoidCount);
-    gpu.dBoids.predatorBoidCount = static_cast<int>(cpu.hBoids.predatorBoidCount);
-    gpu.dBoids.obstacleBoidCount = static_cast<int>(cpu.hBoids.obstacleBoidCount);
+    gpu.dBoids.allBoidCount = cpu.hBoids.allBoidCount;
+    gpu.dBoids.basicBoidCount = cpu.hBoids.basicBoidCount;
+    gpu.dBoids.predatorBoidCount = cpu.hBoids.predatorBoidCount;
+    gpu.dBoids.obstacleBoidCount = cpu.hBoids.obstacleBoidCount;
     
     // Allocate device memory for boid data
-    const size_t N = gpu.boidCount;
+    const int N = gpu.dBoids.allBoidCount;
     const size_t vec3ArraySize = sizeof(Vec3) * N;
     CHECK_ERROR(cudaMalloc(&gpu.dBoids.pos, vec3ArraySize));
     CHECK_ERROR(cudaMalloc(&gpu.dBoids.vel, vec3ArraySize));
@@ -141,9 +138,9 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetBoidIdx, sizeof(int) * N));
     CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetBoidDistance, sizeof(float) * N));
 
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.basicBoidIndices, sizeof(size_t) * cpu.hBoids.basicBoidCount));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.predatorBoidIndices, sizeof(size_t) * cpu.hBoids.predatorBoidCount));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.obstacleBoidIndices, sizeof(size_t) * cpu.hBoids.obstacleBoidCount));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.basicBoidIndices, sizeof(int) * cpu.hBoids.basicBoidCount));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.predatorBoidIndices, sizeof(int) * cpu.hBoids.predatorBoidCount));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.obstacleBoidIndices, sizeof(int) * cpu.hBoids.obstacleBoidCount));
 
     // Copy boid data to device
     CHECK_ERROR(cudaMemcpy(gpu.dBoids.pos, cpu.hBoids.pos.data(), vec3ArraySize, cudaMemcpyHostToDevice));
@@ -158,15 +155,15 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     CHECK_ERROR(cudaMemcpy(gpu.dBoids.targetBoidIdx, cpu.hBoids.targetBoidIdx.data(), sizeof(int) * N, cudaMemcpyHostToDevice));
     CHECK_ERROR(cudaMemcpy(gpu.dBoids.targetBoidDistance, cpu.hBoids.targetBoidDistance.data(), sizeof(float) * N, cudaMemcpyHostToDevice));
 
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.basicBoidIndices, cpu.hBoids.basicBoidIndices.data(), sizeof(size_t) * cpu.hBoids.basicBoidCount, cudaMemcpyHostToDevice));
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.predatorBoidIndices, cpu.hBoids.predatorBoidIndices.data(), sizeof(size_t) * cpu.hBoids.predatorBoidCount, cudaMemcpyHostToDevice));
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.obstacleBoidIndices, cpu.hBoids.obstacleBoidIndices.data(), sizeof(size_t) * cpu.hBoids.obstacleBoidCount, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.basicBoidIndices, cpu.hBoids.basicBoidIndices.data(), sizeof(int) * cpu.hBoids.basicBoidCount, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.predatorBoidIndices, cpu.hBoids.predatorBoidIndices.data(), sizeof(int) * cpu.hBoids.predatorBoidCount, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.obstacleBoidIndices, cpu.hBoids.obstacleBoidIndices.data(), sizeof(int) * cpu.hBoids.obstacleBoidCount, cudaMemcpyHostToDevice));
 }
 
 ParallelNaiveParameters::~ParallelNaiveParameters() {
     // Port from GPU to CPU
-    const size_t N = cpu.hBoids.count;
-    const size_t vec3ArraySize = sizeof(Vec3) * N;
+    const int N = gpu.dBoids.allBoidCount;
+    const size_t vec3ArraySize = static_cast<size_t>(sizeof(Vec3) * N);
     CHECK_ERROR(cudaMemcpy(cpu.hBoids.pos.data(), gpu.dBoids.pos, vec3ArraySize, cudaMemcpyDeviceToHost));
     CHECK_ERROR(cudaMemcpy(cpu.hBoids.vel.data(), gpu.dBoids.vel, vec3ArraySize, cudaMemcpyDeviceToHost));
     CHECK_ERROR(cudaMemcpy(cpu.hBoids.acc.data(), gpu.dBoids.acc, vec3ArraySize, cudaMemcpyDeviceToHost));

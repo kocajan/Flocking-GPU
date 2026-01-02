@@ -17,8 +17,7 @@ void Config::setConfigId(std::string id) {
 }
 
 // Parameter management
-void Config::add(ConfigParameter param, const std::string& groupName)
-{
+void Config::add(ConfigParameter param, const std::string& groupName) {
     assert(indexByName.find(param.name) == indexByName.end());
 
     std::size_t idx = params.size();

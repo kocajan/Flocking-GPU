@@ -248,9 +248,8 @@ void GUI::renderWorld(SimState& simState) {
     //
     // Helper: draw single boid instance
     //
-    auto drawBoidByIndex = [&](size_t idx)
-    {
-        if (idx >= boids.count)
+    auto drawBoidByIndex = [&](int idx) {
+        if (idx >= boids.allBoidCount)
             return;
 
         const Vec3& p3 = boids.pos[idx];
@@ -266,9 +265,6 @@ void GUI::renderWorld(SimState& simState) {
 
         const ImVec2 p2 = worldToScreen(p3);
 
-        //
-        // Radius now depends on boid type instead of "b.radius"
-        //
         float radiusWorld = 0.0f;
 
         switch (static_cast<BoidType>(boids.type[idx]))
@@ -289,8 +285,7 @@ void GUI::renderWorld(SimState& simState) {
                 return;
         }
 
-        const float r =
-            radiusWorld * worldView.pixelsPerWorldUnit * (0.3f + 0.7f * zScale);
+        const float r = radiusWorld * worldView.pixelsPerWorldUnit * (0.3f + 0.7f * zScale);
 
         //
         // Color selection also moves to SimState parameters
@@ -315,24 +310,19 @@ void GUI::renderWorld(SimState& simState) {
                 break;
         }
 
-        draw->AddCircleFilled(
-            p2,
-            r,
-            IM_COL32(color.r, color.g, color.b, color.a),
-            12
-        );
+        draw->AddCircleFilled(p2, r, IM_COL32(color.r, color.g, color.b, color.a), 12);
     };
 
     //
     // Draw each boid group via index lists
     //
-    for (size_t idx : boids.basicBoidIndices)
+    for (int idx : boids.basicBoidIndices)
         drawBoidByIndex(idx);
 
-    for (size_t idx : boids.predatorBoidIndices)
+    for (int idx : boids.predatorBoidIndices)
         drawBoidByIndex(idx);
 
-    for (size_t idx : boids.obstacleBoidIndices)
+    for (int idx : boids.obstacleBoidIndices)
         drawBoidByIndex(idx);
 }
 

@@ -35,31 +35,25 @@ namespace simulator{
     }
 
     // Free and allocate boid slots
-    size_t allocateBoidSlot(Boids& b) {
+    int allocateBoidSlot(Boids& b) {
         if (!b.freeBoidIndices.empty()) {
-            size_t idx = b.freeBoidIndices.back();
+            int idx = b.freeBoidIndices.back();
             b.freeBoidIndices.pop_back();
             return idx;
         }
 
-        size_t idx = b.count;
-        b.resize(b.count + 1);
+        int idx = b.allBoidCount;
+        b.resize(b.allBoidCount + 1);
         return idx;
     }
 
-    void freeBoidSlot(Boids& b, size_t idx) {
-        assert(idx < b.count);
+    void freeBoidSlot(Boids& b, int idx) {
+        assert(idx < b.allBoidCount);
         b.type[idx] = static_cast<uint8_t>(BoidType::Empty);
         b.freeBoidIndices.push_back(idx);
     }
 
-    void writeSpawnData(
-        SimState& s,
-        size_t idx,
-        BoidType type,
-        const Vec3& pos,
-        const Vec3& vel
-    ) {
+    void writeSpawnData(SimState& s, int idx, BoidType type, const Vec3& pos, const Vec3& vel) {
         Boids& b = s.boids;
 
         b.type[idx] = static_cast<uint8_t>(type);
@@ -74,20 +68,14 @@ namespace simulator{
             s.worldZ.number() * 0.5f
         };
 
-        b.targetBoidIdx[idx]      = -1;
+        b.targetBoidIdx[idx] = -1;
         b.targetBoidDistance[idx] = -1.0f;
 
         b.stamina[idx] = 100.0f;
         b.resting[idx] = 0;
     }
 
-    void spawnBoids(
-        SimState& s,
-        BoidType type,
-        std::vector<size_t>& indices,
-        uint64_t& count,
-        int howMany
-    ) {
+    void spawnBoids(SimState& s, BoidType type, std::vector<int>& indices, int& count, int howMany) {
         Boids& b = s.boids;
 
         const float wx = s.worldX.number();
@@ -96,7 +84,7 @@ namespace simulator{
         const float speed = s.initialAxialSpeedRange.number();
 
         for (int i = 0; i < howMany; ++i) {
-            size_t idx = allocateBoidSlot(b);
+            int idx = allocateBoidSlot(b);
 
             Vec3 pos {
                 randRange(0, wx),
@@ -110,8 +98,9 @@ namespace simulator{
                 randRange(-speed, speed)
             };
 
-            if (s.dimensions.string() == "2D")
+            if (s.dimensions.string() == "2D") {
                 vel.z = pos.z = 0.0f;
+            }
 
             writeSpawnData(s, idx, type, pos, vel);
 
@@ -120,14 +109,9 @@ namespace simulator{
         }
     }
 
-    void removeBoids(
-        Boids& b,
-        std::vector<size_t>& indices,
-        uint64_t& count,
-        int howMany
-    ) {
+    void removeBoids(Boids& b, std::vector<int>& indices, int& count, int howMany) {
         while (howMany-- > 0 && !indices.empty()) {
-            size_t idx = indices.back();
+            int idx = indices.back();
             indices.pop_back();
 
             freeBoidSlot(b, idx);
@@ -135,21 +119,14 @@ namespace simulator{
         }
     }
 
-    int deleteAllInRadius(
-        SimState& s,
-        std::vector<size_t>& indices,
-        uint64_t& count,
-        float x, float y,
-        float radius
-    ) {
+    int deleteAllInRadius(SimState& s, std::vector<int>& indices, int& count, float x, float y, float radius) {
         int removed = 0;
         Boids& b = s.boids;
 
         const float r2 = radius * radius;
 
-        for (size_t i = 0; i < indices.size(); )
-        {
-            size_t idx = indices[i];
+        for (int i = 0; i < (int)indices.size(); ++i) { 
+            int idx = indices[i];
             const Vec3& p = b.pos[idx];
 
             const float dx = p.x - x;
@@ -178,7 +155,7 @@ namespace simulator{
 
         Boids& b = s.boids;
 
-        size_t idx = allocateBoidSlot(b);
+        int idx = allocateBoidSlot(b);
 
         float speed = s.initialAxialSpeedRange.number();
         float worldZ = s.worldZ.number();
@@ -205,7 +182,7 @@ namespace simulator{
     void spawnObstacle(SimState& s, float x, float y) {
         Boids& b = s.boids;
 
-        size_t idx = allocateBoidSlot(b);
+        int idx = allocateBoidSlot(b);
 
         Vec3 pos { x, y, 0.0f };
         Vec3 vel { 0.0f, 0.0f, 0.0f };
@@ -220,15 +197,9 @@ namespace simulator{
     }
 
     // Regulation for a specific boid type
-    void regulateType(
-        SimState& s,
-        BoidType type,
-        std::vector<size_t>& indices,
-        uint64_t& count,
-        ConfigParameter& target
-    ) {
+    void regulateType(SimState& s, BoidType type, std::vector<int>& indices, int& count, ConfigParameter& target) {
         const int tgt = (int)target.number();
-        const int cur = (int)count;
+        const int cur = count;
 
         const int delta = tgt - cur;
         const int maxDelta = (int)s.maxBoidPopulationChangeRate.number();

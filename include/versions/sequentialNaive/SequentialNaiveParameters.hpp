@@ -14,15 +14,12 @@ struct SequentialNaiveParameters {
     Boids& boids;
 
     // References to boid index arrays
-    std::vector<size_t>& obstacleBoidIndices;
-    std::vector<size_t>& basicBoidIndices;
-    std::vector<size_t>& predatorBoidIndices;
+    std::vector<int>& obstacleBoidIndices;
+    std::vector<int>& basicBoidIndices;
+    std::vector<int>& predatorBoidIndices;
 
     // Interaction
     Interaction interaction;
-
-    // Boid count
-    int boidCount;
 
     // Simulation modes
     bool is2D;

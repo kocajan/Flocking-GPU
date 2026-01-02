@@ -16,9 +16,6 @@ struct ParallelNaiveParameters {
         // Interaction
         DeviceInteraction dInteraction;
 
-        // Boid counts
-        int boidCount;
-
         // Simulation flags
         bool is2D;
         bool bounce;

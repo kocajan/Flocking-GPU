@@ -37,8 +37,6 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
     // ################################################################
     // GPU parameters - basic
     // ################################################################
-    // Boid count
-    gpu.boidCount = static_cast<int>(cpu.hBoids.count);
     
     // Flags
     gpu.is2D = (s.dimensions.string() == "2D");
@@ -122,12 +120,12 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
     // GPU parameters - Boids
     // ################################################################
     // Port boid counts
-    gpu.dBoids.count = gpu.boidCount;
-    gpu.dBoids.basicBoidCount = static_cast<int>(cpu.hBoids.basicBoidCount);
-    gpu.dBoids.predatorBoidCount = static_cast<int>(cpu.hBoids.predatorBoidCount);
-    gpu.dBoids.obstacleBoidCount = static_cast<int>(cpu.hBoids.obstacleBoidCount);
+    gpu.dBoids.allBoidCount = cpu.hBoids.allBoidCount;
+    gpu.dBoids.basicBoidCount = cpu.hBoids.basicBoidCount;
+    gpu.dBoids.predatorBoidCount = cpu.hBoids.predatorBoidCount;
+    gpu.dBoids.obstacleBoidCount = cpu.hBoids.obstacleBoidCount;
     printf("Boid counts: total=%d, basic=%d, predator=%d, obstacle=%d\n",
-        gpu.dBoids.count,
+        gpu.dBoids.allBoidCount,
         gpu.dBoids.basicBoidCount,
         gpu.dBoids.predatorBoidCount,
         gpu.dBoids.obstacleBoidCount
@@ -149,7 +147,7 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
     }
     
     // Allocate device memory for boid data
-    size_t B = gpu.boidCount;
+    int B = gpu.dBoids.allBoidCount;
     size_t capacityBasic = 1;
     while (capacityBasic < gpu.dBoids.basicBoidCount) capacityBasic <<= 1;
     size_t capacityPredator = 1;
@@ -172,9 +170,9 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
         CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetBoidIdx, sizeof(int) * B));
         CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetBoidDistance, sizeof(float) * B));
 
-        CHECK_ERROR(cudaMalloc(&gpu.dBoids.basicBoidIndices, sizeof(size_t) * cpu.hBoids.basicBoidCount));
-        CHECK_ERROR(cudaMalloc(&gpu.dBoids.predatorBoidIndices, sizeof(size_t) * cpu.hBoids.predatorBoidCount));
-        CHECK_ERROR(cudaMalloc(&gpu.dBoids.obstacleBoidIndices, sizeof(size_t) * cpu.hBoids.obstacleBoidCount));
+        CHECK_ERROR(cudaMalloc(&gpu.dBoids.basicBoidIndices, sizeof(int) * cpu.hBoids.basicBoidCount));
+        CHECK_ERROR(cudaMalloc(&gpu.dBoids.predatorBoidIndices, sizeof(int) * cpu.hBoids.predatorBoidCount));
+        CHECK_ERROR(cudaMalloc(&gpu.dBoids.obstacleBoidIndices, sizeof(int) * cpu.hBoids.obstacleBoidCount));
     }
 
     if (capacityBasic > 0) {
@@ -219,16 +217,16 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
         CHECK_ERROR(cudaMemcpy(gpu.dBoids.targetBoidIdx, cpu.hBoids.targetBoidIdx.data(), sizeof(int) * B, cudaMemcpyHostToDevice));
         CHECK_ERROR(cudaMemcpy(gpu.dBoids.targetBoidDistance, cpu.hBoids.targetBoidDistance.data(), sizeof(float) * B, cudaMemcpyHostToDevice));
 
-        CHECK_ERROR(cudaMemcpy(gpu.dBoids.basicBoidIndices, cpu.hBoids.basicBoidIndices.data(), sizeof(size_t) * cpu.hBoids.basicBoidCount, cudaMemcpyHostToDevice));
-        CHECK_ERROR(cudaMemcpy(gpu.dBoids.predatorBoidIndices, cpu.hBoids.predatorBoidIndices.data(), sizeof(size_t) * cpu.hBoids.predatorBoidCount, cudaMemcpyHostToDevice));
-        CHECK_ERROR(cudaMemcpy(gpu.dBoids.obstacleBoidIndices, cpu.hBoids.obstacleBoidIndices.data(), sizeof(size_t) * cpu.hBoids.obstacleBoidCount, cudaMemcpyHostToDevice));
+        CHECK_ERROR(cudaMemcpy(gpu.dBoids.basicBoidIndices, cpu.hBoids.basicBoidIndices.data(), sizeof(int) * cpu.hBoids.basicBoidCount, cudaMemcpyHostToDevice));
+        CHECK_ERROR(cudaMemcpy(gpu.dBoids.predatorBoidIndices, cpu.hBoids.predatorBoidIndices.data(), sizeof(int) * cpu.hBoids.predatorBoidCount, cudaMemcpyHostToDevice));
+        CHECK_ERROR(cudaMemcpy(gpu.dBoids.obstacleBoidIndices, cpu.hBoids.obstacleBoidIndices.data(), sizeof(int) * cpu.hBoids.obstacleBoidCount, cudaMemcpyHostToDevice));
     }
 }
 
 ParallelParameters::~ParallelParameters() {
     // Port from GPU to CPU
-    const size_t B = cpu.hBoids.count;
-    const size_t vec3ArraySize = sizeof(Vec3) * B;
+    const int B = gpu.dBoids.allBoidCount;
+    const size_t vec3ArraySize = static_cast<size_t>(sizeof(Vec3) * B);
 
     if (B > 0) {
         CHECK_ERROR(cudaMemcpy(cpu.hBoids.pos.data(), gpu.dBoids.pos, vec3ArraySize, cudaMemcpyDeviceToHost));

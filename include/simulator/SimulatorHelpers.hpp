@@ -13,16 +13,16 @@ namespace simulator {
     void regulateType(
         SimState& s,
         BoidType type,
-        std::vector<size_t>& indices,
-        uint64_t& count,
+        std::vector<int>& indices,
+        int& count,
         ConfigParameter& target
     );
 
     // Remove boids from a type group using its index list
     void removeBoids(
         Boids& boids,
-        std::vector<size_t>& indices,
-        uint64_t& count,
+        std::vector<int>& indices,
+        int& count,
         int howMany
     );
 
@@ -33,8 +33,8 @@ namespace simulator {
     // Remove boids in radius (used for click delete)
     int deleteAllInRadius(
         SimState& s,
-        std::vector<size_t>& indices,
-        uint64_t& count,
+        std::vector<int>& indices,
+        int& count,
         float x,
         float y,
         float radius

@@ -20,7 +20,7 @@ namespace {
 } // anonymous namespace
 
 
-__global__ void kernelComputeHashes(ParallelParameters::GPUParams params, int boidCount, int* dHash, int* dIndex, size_t* boidIndices);
+__global__ void kernelComputeHashes(ParallelParameters::GPUParams params, int boidCount, int* dHash, int* dIndex, int* boidIndices);
 __global__ void kernelResetCells(ParallelParameters::GPUParams params);
 __global__ void kernelBuildCellRanges(int boidCount, int* dHash, int* dCellStart, int* dCellEnd);
 __global__ void simulationStepParallelKernel(ParallelParameters::GPUParams params);
@@ -29,7 +29,7 @@ __global__ void bitonicSortStepKernel(int* dHash, int* dIndex, int j, int k, int
 
 void simulationStepParallel(ParallelParameters& params) {
     // Check for zero boids / zero grid size
-    if (params.gpu.boidCount == 0 || params.cpu.blockSize == 0 || params.gpu.cellSize <= 0.0f || params.gpu.totalCells == 0)
+    if (params.gpu.dBoids.allBoidCount == 0 || params.cpu.blockSize == 0 || params.gpu.cellSize <= 0.0f || params.gpu.totalCells == 0)
         return;
 
     // Reset cell ranges
@@ -114,7 +114,7 @@ void simulationStepParallel(ParallelParameters& params) {
     }
 
     // Launch the simulation step kernel
-    int boidCount = params.gpu.boidCount;
+    int boidCount = params.gpu.dBoids.allBoidCount;
     if (boidCount > 0) {
         int numBoidBlocks = (boidCount + params.cpu.blockSize - 1) / params.cpu.blockSize;
         simulationStepParallelKernel<<<numBoidBlocks, params.cpu.blockSize>>>(params.gpu);

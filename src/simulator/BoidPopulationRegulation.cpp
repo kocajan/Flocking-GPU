@@ -26,13 +26,12 @@ void regulateBoidPopulation(SimState& s) {
         s.predatorBoidCountTarget
     );
 
-    if (s.deleteObstacles.binary())
-    {
+    if (s.deleteObstacles.binary()) {
         simulator::removeBoids(
             s.boids,
             s.boids.obstacleBoidIndices,
             s.boids.obstacleBoidCount,
-            (int)s.boids.obstacleBoidCount
+            s.boids.obstacleBoidCount
         );
     }
 }

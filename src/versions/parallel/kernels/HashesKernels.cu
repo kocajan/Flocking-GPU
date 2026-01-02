@@ -44,7 +44,7 @@ __device__ inline int flattenIndexDevice(int cX, int cY, int cZ, int numCellsX, 
     return (cZ * numCellsY + cY) * numCellsX + cX;
 }
 
-__global__ void kernelComputeHashes(ParallelParameters::GPUParams params, int boidCount, int* dHash, int* dIndex, size_t* boidIndices) {
+__global__ void kernelComputeHashes(ParallelParameters::GPUParams params, int boidCount, int* dHash, int* dIndex, int* boidIndices) {
     // Compute global boid index
     int currentTypeBoidIdx = blockIdx.x * blockDim.x + threadIdx.x;
     if (currentTypeBoidIdx >= boidCount) {

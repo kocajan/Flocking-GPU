@@ -103,7 +103,7 @@ void SpatialGrid::build(const SequentialParameters& params) {
         for (auto& c : obstacleCells) c.items.clear();
     }
 
-    for (int i = 0; i < params.boidCount; ++i) {
+    for (int i = 0; i < params.boids.allBoidCount; ++i) {
         const BoidType type = static_cast<BoidType>(params.boids.type[i]);
 
         switch (type) {

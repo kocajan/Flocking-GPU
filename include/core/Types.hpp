@@ -75,11 +75,7 @@ enum class BoidType : uint8_t {
 //   - Free-list supports reuse without immediate compaction.
 //
 struct Boids {
-
-    //
     // Core SoA fields
-    //
-
     std::vector<Vec3> pos;          // position
     std::vector<Vec3> vel;          // velocity
     std::vector<Vec3> acc;          // accumulated acceleration
@@ -89,37 +85,23 @@ struct Boids {
     std::vector<float> stamina;
     std::vector<uint8_t> resting;
 
-    std::vector<int>   targetBoidIdx;
+    std::vector<int> targetBoidIdx;
     std::vector<float> targetBoidDistance;
 
-    size_t count = 0;               // total occupied entries
-
-
-    //
     // Bookkeeping by boid type
-    //
+    int allBoidCount = 0;               // total occupied entries
+    int basicBoidCount = 0;
+    int predatorBoidCount = 0;
+    int obstacleBoidCount = 0;
 
-    uint64_t basicBoidCount    = 0;
-    uint64_t predatorBoidCount = 0;
-    uint64_t obstacleBoidCount = 0;
+    std::vector<int> basicBoidIndices;
+    std::vector<int> predatorBoidIndices;
+    std::vector<int> obstacleBoidIndices;
+    std::vector<int> freeBoidIndices;   // Slots that have been freed (for reuse)
 
-    std::vector<size_t> basicBoidIndices;
-    std::vector<size_t> predatorBoidIndices;
-    std::vector<size_t> obstacleBoidIndices;
-
-
-    //
-    // Free-list for index reuse / deferred compaction
-    //
-
-    std::vector<size_t> freeBoidIndices;
-
-    //==========================================================================
     // Lifecycle helpers
-    //==========================================================================
-
-    void resize(size_t n) {
-        count = n;
+    void resize(int n) {
+        allBoidCount = n;
 
         pos.resize(n);
         vel.resize(n);
@@ -135,8 +117,6 @@ struct Boids {
     }
 
     void clear() {
-        count = 0;
-
         pos.clear();
         vel.clear();
         acc.clear();
@@ -149,7 +129,8 @@ struct Boids {
         targetBoidIdx.clear();
         targetBoidDistance.clear();
 
-        basicBoidCount    = 0;
+        allBoidCount = 0;
+        basicBoidCount = 0;
         predatorBoidCount = 0;
         obstacleBoidCount = 0;
 
@@ -161,7 +142,7 @@ struct Boids {
     }
 
     void assertConsistent() const {
-        const size_t n = count;
+        const size_t n = static_cast<size_t>(allBoidCount);
 
         assert(pos.size() == n);
         assert(vel.size() == n);
@@ -192,16 +173,15 @@ struct DeviceBoids {
     int* targetBoidIdx = nullptr;
     float* targetBoidDistance = nullptr;
 
-    size_t count = 0;
-
     // Type index lists
-    size_t* basicBoidIndices = nullptr;
-    size_t* predatorBoidIndices = nullptr;
-    size_t* obstacleBoidIndices = nullptr;
+    int* basicBoidIndices = nullptr;
+    int* predatorBoidIndices = nullptr;
+    int* obstacleBoidIndices = nullptr;
 
-    uint64_t basicBoidCount = 0;
-    uint64_t predatorBoidCount = 0;
-    uint64_t obstacleBoidCount = 0;
+    int allBoidCount = 0;
+    int basicBoidCount = 0;
+    int predatorBoidCount = 0;
+    int obstacleBoidCount = 0;
 };
 
 //

@@ -5,8 +5,7 @@
 #include "versions/sequential/SequentialParameters.hpp"
 
 
-struct SpatialGrid
-{
+struct SpatialGrid {
     float cellSize;
     int numCellsX;
     int numCellsY;
@@ -38,7 +37,6 @@ struct SpatialGrid
                                                int boidIndex, BoidType neighborType) const;
 
 private:
-
     int flattenIndex(int cx, int cy, int cz) const;
 
     int worldToCellIndex(float p, float worldSize, int cellCount) const;

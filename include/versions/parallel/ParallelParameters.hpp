@@ -46,9 +46,6 @@ struct ParallelParameters {
         int numCellsZ;
         int totalCells;
         
-        // Boid counts
-        int boidCount;
-
         // Simulation flags
         bool is2D;
         bool bounce;

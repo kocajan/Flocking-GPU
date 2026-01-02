@@ -45,7 +45,7 @@ static void applyEffect(SimState& s, const std::string& effect, float x, float y
     }
 }
 
-// Returns true if `timestamp` is within `window` from `now`
+// Returns true if timestamp is within window from now
 inline bool recent(const std::chrono::high_resolution_clock::time_point& timestamp1, 
                    const std::chrono::high_resolution_clock::time_point& timestamp2,
                 std::chrono::milliseconds window = std::chrono::milliseconds(100)) {
@@ -75,7 +75,6 @@ void applyInteraction(SimState& simState, MouseInteractionEvent& interaction) {
     // Determine effect based on interaction type        
     const std::string& effect = (interaction.type == MouseInteractionType::LeftClickOnWorld) ? simState.leftMouseEffect.string() : simState.rightMouseEffect.string();
 
-    
     // For the spawning effects, avoid multiple spawns at the same location
     if (effect == "Spawn Predator" || effect == "Draw Obstacle") {
         if (recent(interaction.lastTimestamp, interaction.timestamp)) {

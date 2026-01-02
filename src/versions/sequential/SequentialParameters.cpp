@@ -15,9 +15,6 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
         return std::clamp(percent / 100.0f, 0.0f, 1.0f);
     };
 
-    // Get boid count from length of boid array
-    boidCount = (static_cast<int>(s.boids.count));
-
     // Interaction
     interaction = s.interaction;
 
@@ -103,7 +100,7 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     maxForce = maxSpeed * maxForcePercentage;
 
     // Dynamics
-    drag  = percentToWeight(c.number("drag"));
+    drag = percentToWeight(c.number("drag"));
     noise = percentToWeight(c.number("noise"));
     numStepsToStopDueToMaxDrag = 100.0f;
 

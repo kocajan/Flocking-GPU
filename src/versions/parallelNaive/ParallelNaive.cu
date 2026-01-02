@@ -24,11 +24,11 @@ __global__ void simulationStepParallelNaiveKernel(ParallelNaiveParameters::GPUPa
 
 void simulationStepParallelNaive(ParallelNaiveParameters& params) {
     // Check for zero boids / zero grid size
-    if (params.gpu.boidCount == 0 || params.cpu.blockSize == 0)
+    if (params.gpu.dBoids.allBoidCount == 0 || params.cpu.blockSize == 0)
         return;
 
     // Launch kernel
-    int numBlocks = (params.gpu.boidCount + params.cpu.blockSize - 1) / params.cpu.blockSize;
+    int numBlocks = (params.gpu.dBoids.allBoidCount + params.cpu.blockSize - 1) / params.cpu.blockSize;
     simulationStepParallelNaiveKernel<<<numBlocks, params.cpu.blockSize>>>(params.gpu);
 
     // Check for any CUDA errors

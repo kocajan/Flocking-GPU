@@ -33,7 +33,7 @@ void simulationStepSequential(SequentialParameters& params) {
     SpatialGrid grid(params);
     grid.build(params);
 
-    for (int currentBoidIdx = 0; currentBoidIdx < params.boidCount; ++currentBoidIdx) {
+    for (int currentBoidIdx = 0; currentBoidIdx < params.boids.allBoidCount; ++currentBoidIdx) {
         // Get current boid type
         uint8_t tRaw = boids.type[currentBoidIdx];
         BoidType type = static_cast<BoidType>(tRaw);

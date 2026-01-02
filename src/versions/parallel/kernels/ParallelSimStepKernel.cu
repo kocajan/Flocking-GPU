@@ -32,7 +32,7 @@ __global__ void simulationStepParallelKernel(ParallelParameters::GPUParams param
     int currentBoidIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Out of bounds check
-    if (currentBoidIdx >= params.boidCount)
+    if (currentBoidIdx >= params.dBoids.allBoidCount)
         return;
     
     // Fetch boid type

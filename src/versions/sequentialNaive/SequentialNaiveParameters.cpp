@@ -16,9 +16,6 @@ SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c
         return std::clamp(percent / 100.0f, 0.0f, 1.0f);
     };
     
-    // Get boid count from length of boid array
-    boidCount = (static_cast<int>(s.boids.count));
-
     // Interaction
     interaction = s.interaction;
 
