@@ -34,16 +34,17 @@ struct SpatialGrid {
 
     // Get neighbor boid indices of specified type for given boid
     const std::vector<int>& getNeighborIndices(const SequentialParameters& params, 
-                                               int boidIndex, BoidType neighborType) const;
+                                               int boidIndex, BoidType boidType,
+                                               BoidType neighborType) const;
 
 private:
     int flattenIndex(int cx, int cy, int cz) const;
-
     int worldToCellIndex(float p, float worldSize, int cellCount) const;
 
-    void insertPointObject(std::vector<Cell>& grid, 
-                           const SequentialParameters& params, int boidIndex);
+    void insertBasicBoids(const SequentialParameters& params);
+    void insertPredatorBoids(const SequentialParameters& params);
+    void insertObstacleBoids(const SequentialParameters& params);
 
-    void insertRadialObject(std::vector<Cell>& grid, 
-                            const SequentialParameters& params, int boidIndex, float radius);
+    void insertPointObject(std::vector<Cell>& grid, const SequentialParameters& params, int boidIndex, Vec3& pos);
+    void insertRadialObject(std::vector<Cell>& grid, const SequentialParameters& params, int boidIndex, Vec3& pos, float radius);
 };

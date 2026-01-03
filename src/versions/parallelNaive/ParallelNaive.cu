@@ -19,20 +19,35 @@ namespace {
 } // anonymous namespace
 
 
-__global__ void simulationStepParallelNaiveKernel(ParallelNaiveParameters::GPUParams params);
+__global__ void simulationStepParallelNaiveBasicBoidsKernel(ParallelNaiveParameters::GPUParams params);
+__global__ void simulationStepParallelNaivePredatorBoidsKernel(ParallelNaiveParameters::GPUParams params);
 
 
 void simulationStepParallelNaive(ParallelNaiveParameters& params) {
-    // Check for zero boids / zero grid size
-    if (params.gpu.dBoids.allBoidCount == 0 || params.cpu.blockSize == 0)
+    // Check valid block size
+    if (params.cpu.blockSize <= 0) {
+        std::cout << "Warning: Invalid block size for Parallel Naive simulation step: " << params.cpu.blockSize << std::endl;
         return;
+    }
 
-    // Launch kernel
-    int numBlocks = (params.gpu.dBoids.allBoidCount + params.cpu.blockSize - 1) / params.cpu.blockSize;
-    simulationStepParallelNaiveKernel<<<numBlocks, params.cpu.blockSize>>>(params.gpu);
+    // Process basic boids
+    if (params.gpu.dBoids.basicBoidCount > 0) {
+        int numBlocksBasic = (params.gpu.dBoids.basicBoidCount + params.cpu.blockSize - 1) / params.cpu.blockSize;
+        simulationStepParallelNaiveBasicBoidsKernel<<<numBlocksBasic, params.cpu.blockSize>>>(params.gpu);
 
-    // Check for any CUDA errors
-    CHECK_ERROR(cudaPeekAtLastError());
-    CHECK_ERROR(cudaDeviceSynchronize());
+        // Check for any CUDA errors
+        CHECK_ERROR(cudaPeekAtLastError());
+        CHECK_ERROR(cudaDeviceSynchronize());
+    }
+
+    // Process predator boids
+    if (params.gpu.dBoids.predatorBoidCount > 0) {
+        int numBlocksPredator = (params.gpu.dBoids.predatorBoidCount + params.cpu.blockSize - 1) / params.cpu.blockSize;
+        simulationStepParallelNaivePredatorBoidsKernel<<<numBlocksPredator, params.cpu.blockSize>>>(params.gpu);
+
+        // Check for any CUDA errors
+        CHECK_ERROR(cudaPeekAtLastError());
+        CHECK_ERROR(cudaDeviceSynchronize());
+    }
 
 }

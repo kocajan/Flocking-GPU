@@ -5,17 +5,20 @@
 #include "versions/sequentialNaive/SequentialNaiveParameters.hpp" 
 
 
+void simulationStepSequentialNaiveBasicBoids(SequentialNaiveParameters& params);
+void simulationStepSequentialNaivePredatorBoids(SequentialNaiveParameters& params);
+
 void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx);
 void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx);
-void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx);
+void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type);
 
-void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx);
-void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int currentBoidIdx);
-void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx);
+void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type);
+void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type);
+void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type);
 
-void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
-void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
-void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoidIdx);
+void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type);
+void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type);
+void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type);
 
 inline float periodicDelta(float d, float worldSize);
 inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const SequentialNaiveParameters& params);
@@ -25,31 +28,42 @@ static inline float sqrLen(const Vec3& v);
 
 
 void simulationStepSequentialNaive(SequentialNaiveParameters& params) {
+    // Process basic boids
+    simulationStepSequentialNaiveBasicBoids(params);
+
+    // Process predator boids
+    simulationStepSequentialNaivePredatorBoids(params);
+}
+
+void simulationStepSequentialNaiveBasicBoids(SequentialNaiveParameters& params) {
     // Get boids
     Boids& boids = params.boids;
 
-    for (int currentBoidIdx = 0; currentBoidIdx < params.boids.allBoidCount; ++currentBoidIdx) {
-        // Get current boid type
-        uint8_t tRaw = boids.type[currentBoidIdx];
-        BoidType type = static_cast<BoidType>(tRaw);
-
-        // Skip obstacles
-        if (type == BoidType::Obstacle || type == BoidType::Empty)
-            continue;
-
+    for (int currentBoidIdx = 0; currentBoidIdx < params.boids.basicBoidCount; ++currentBoidIdx) {
         // Zero acceleration
-        boids.acc[currentBoidIdx] = {0,0,0};
+        boids.accBasic[currentBoidIdx] = {0,0,0};
 
-        if (type == BoidType::Basic) {
-            resolveBasicBoidBehavior(params, currentBoidIdx);
-        } else if (type == BoidType::Predator) {
-            resolvePredatorBoidBehavior(params, currentBoidIdx);
-        } else {
-            // Unknown boid type
-            printf("Warning: Unknown boid type encountered in simulation step. (type=%d)\n", static_cast<int>(type));
-            continue;
-        }
-        resolveRest(params, currentBoidIdx);
+        // Resolve behavior
+        resolveBasicBoidBehavior(params, currentBoidIdx);
+
+        // Resolve rest of dynamics
+        resolveRest(params, currentBoidIdx, BoidType::Basic);
+    }
+}
+
+void simulationStepSequentialNaivePredatorBoids(SequentialNaiveParameters& params) {
+    // Get boids
+    Boids& boids = params.boids;
+
+    for (int currentBoidIdx = 0; currentBoidIdx < params.boids.predatorBoidCount; ++currentBoidIdx) {
+        // Zero acceleration
+        boids.accPredator[currentBoidIdx] = {0,0,0};
+
+        // Resolve behavior
+        resolvePredatorBoidBehavior(params, currentBoidIdx);
+
+        // Resolve rest of dynamics
+        resolveRest(params, currentBoidIdx, BoidType::Predator);
     }
 }
 
@@ -58,10 +72,10 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
     Boids& boids = params.boids;
 
     // Current boid fields
-    Vec3& pos = boids.pos[currentBoidIdx];
-    Vec3& vel = boids.vel[currentBoidIdx];
-    Vec3& acc = boids.acc[currentBoidIdx];
-    Vec3& target = boids.targetPoint[currentBoidIdx];
+    Vec3& pos = boids.posBasic[currentBoidIdx];
+    Vec3& vel = boids.velBasic[currentBoidIdx];
+    Vec3& acc = boids.accBasic[currentBoidIdx];
+    Vec3& target = boids.targetPointBasic[currentBoidIdx];
 
     // Define helper to make weighted forces
     auto makeWeightedForce = [&](const Vec3& dir, float weight) {
@@ -77,17 +91,16 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
     uint64_t distantNeighborCount = 0;
 
     // Analyze other boids
-    for (int otherIdx : params.basicBoidIndices) {
+    for (int otherIdx = 0; otherIdx < boids.basicBoidCount; ++otherIdx) {
         // Break if reached max neighbors
-        if (neighborCount >= params.maxNeighborsBasic)
-            break;
+        if (neighborCount >= params.maxNeighborsBasic) break;
             
         // Skip self
         if (otherIdx == currentBoidIdx) continue;
 
         // Get reference to other boid
-        const Vec3& oPos = boids.pos[otherIdx];
-        const Vec3& oVel = boids.vel[otherIdx];
+        const Vec3& oPos = boids.posBasic[otherIdx];
+        const Vec3& oVel = boids.velBasic[otherIdx];
 
         // Compute distance vector
         Vec3 distVec = periodicDeltaVec(pos, oPos, params);
@@ -200,9 +213,9 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
     // Predator avoidance — simple random flee away from predators
     Vec3 predAvoidanceDir{0,0,0};
     int numPredators = 0;
-    for (size_t predIdx : params.predatorBoidIndices) {
+    for (int predIdx = 0; predIdx < params.boids.predatorBoidCount; ++predIdx) {
         // Get reference to predator boid
-        Vec3& pPos = boids.pos[predIdx];
+        Vec3& pPos = boids.posPredator[predIdx];
 
         // Compute distance vector
         Vec3 distVect = periodicDeltaVec(pPos, pos, params);
@@ -213,12 +226,13 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
 
         // Save info for predator chasing
         if (dist <= params.visionRangePredator) {
-            int& tgtIdx  = boids.targetBoidIdx[predIdx];
-            float& tgtDist = boids.targetBoidDistance[predIdx];
+            int& tgtIdx = boids.targetBoidIdxPredator[predIdx];
+            float& tgtDist = boids.targetBoidDistancePredator[predIdx];
 
             if (tgtIdx == -1 || dist < tgtDist) {
                 tgtIdx = currentBoidIdx;
                 tgtDist = dist;
+                boids.targetBoidTypePredator[predIdx] = BoidType::Basic;
             }
         }
 
@@ -243,7 +257,7 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
     if (numPredators > 0) {
         // Get escape direction
         Vec3 escape = normalize(predAvoidanceDir, params.eps);
-        Vec3 escapeForceW = makeWeightedForce(escape, 1.0f);
+        Vec3 escapeForceW = makeWeightedForce(escape, 2.0f);
 
         // If escape force is stronger than current acceleration, override it
         if (sqrLen(escapeForceW) > sqrLen(acc)) {
@@ -264,15 +278,16 @@ void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentB
     Boids& boids = params.boids;
 
     // Current predator fields
-    Vec3& pos = boids.pos[currentBoidIdx];
-    Vec3& vel = boids.vel[currentBoidIdx];
-    Vec3& acc = boids.acc[currentBoidIdx];
+    Vec3& pos = boids.posPredator[currentBoidIdx];
+    Vec3& vel = boids.velPredator[currentBoidIdx];
+    Vec3& acc = boids.accPredator[currentBoidIdx];
 
-    int& targetIdx  = boids.targetBoidIdx[currentBoidIdx];
-    float& targetDist = boids.targetBoidDistance[currentBoidIdx];
+    int& targetIdx = boids.targetBoidIdxPredator[currentBoidIdx];
+    float& targetDist = boids.targetBoidDistancePredator[currentBoidIdx];
+    BoidType& targetType = boids.targetBoidTypePredator[currentBoidIdx];
 
-    float& stamina = boids.stamina[currentBoidIdx];
-    uint8_t& resting = boids.resting[currentBoidIdx];
+    float& stamina = boids.staminaPredator[currentBoidIdx];
+    uint8_t& resting = boids.restingPredator[currentBoidIdx];
 
     // Maintain cruising speed
     Vec3 velDir = normalize(vel, params.eps);
@@ -297,9 +312,9 @@ void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentB
     acc.z += cruisingForceW.z;
 
     // Chase the target boid if any
-    if (targetIdx != -1 && resting == false && stamina > 0.0f) {
+    if (targetIdx != -1 && resting == false && stamina > 0.0f && targetType == BoidType::Basic) {
         //Chasing
-        const Vec3& tPos = boids.pos[targetIdx];
+        const Vec3& tPos = boids.posBasic[targetIdx];
 
         Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params);
         Vec3 toTargetDir = normalize(toTargetVec, params.eps);
@@ -314,13 +329,13 @@ void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentB
         stamina -= params.staminaDrainRatePredator * params.dt;
     } else if (stamina <= 0.0f && resting == false) {
         // Exhausted -> enter rest mode
-        resting = true;
+        resting = 1;
         stamina = 0.0f;
-    } else if (resting == true && stamina > params.maxStaminaPredator) {
+    } else if (resting == 1 && stamina > params.maxStaminaPredator) {
         // Fully recovered -> exit rest mode
-        resting = false;
+        resting = 0;
         stamina = params.maxStaminaPredator;
-    } else if (resting == true) {
+    } else if (resting == 1) {
         // Recovering stamina during rest
         stamina += params.staminaRecoveryRatePredator * params.dt;
     }
@@ -330,32 +345,47 @@ void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentB
     targetDist = -1.0f;
 }
 
-void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx) {
+void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
     // Resolve mouse interactions
-    resolveMouseInteraction(params, currentBoidIdx);
+    resolveMouseInteraction(params, currentBoidIdx, type);
 
     // Resolve obstacle avoidance
-    resolveObstacleAndWallAvoidance(params, currentBoidIdx);
+    resolveObstacleAndWallAvoidance(params, currentBoidIdx, type);
 
     // Resolve dynamics
-    resolveDynamics(params, currentBoidIdx);
+    resolveDynamics(params, currentBoidIdx, type);
 
     // Resolve wall interactions
-    resolveCollisions(params, currentBoidIdx);
+    resolveCollisions(params, currentBoidIdx, type);
 
     if (params.is2D) {
-        params.boids.pos[currentBoidIdx].z = 0.0f;
-        params.boids.vel[currentBoidIdx].z = 0.0f;
+        if (type == BoidType::Basic) {
+            params.boids.posBasic[currentBoidIdx].z = 0.0f;
+            params.boids.velBasic[currentBoidIdx].z = 0.0f;
+        } else if (type == BoidType::Predator) {
+            params.boids.posPredator[currentBoidIdx].z = 0.0f;
+            params.boids.velPredator[currentBoidIdx].z = 0.0f;
+        }
     }
 }
 
-void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx) {
+void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
+    // Check if right type
+    if (type != BoidType::Basic && type != BoidType::Predator) {
+        printf("Warning: Mouse interaction called for unsupported boid type. (%d)\n", static_cast<int>(type));
+        return;
+    }
+    
     // Get boids 
     Boids& boids = params.boids;
 
     // Current boid fields
-    Vec3& pos = boids.pos[currentBoidIdx];
-    Vec3& acc = boids.acc[currentBoidIdx];
+    Vec3& pos = (type == BoidType::Basic) 
+            ? boids.posBasic[currentBoidIdx] 
+            : boids.posPredator[currentBoidIdx];
+    Vec3& acc = (type == BoidType::Basic) 
+            ? boids.accBasic[currentBoidIdx] 
+            : boids.accPredator[currentBoidIdx];
 
     // Get interaction
     const Interaction& interaction = params.interaction;
@@ -404,21 +434,28 @@ void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidI
     }
 }
 
-void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int currentBoidIdx) {
+void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
+    // Check if right type
+    if (type != BoidType::Basic && type != BoidType::Predator) {
+        printf("Warning: Obstacle avoidance called for unsupported boid type. (%d)\n", static_cast<int>(type));
+        return;
+    }
+
     // Get boids
     Boids& boids = params.boids;
 
     // Current boid fields
-    Vec3& pos = boids.pos[currentBoidIdx];
-    Vec3& acc = boids.acc[currentBoidIdx];
-
-    // Type-dependent parameters
-    const BoidType type = static_cast<BoidType>(boids.type[currentBoidIdx]);
+    Vec3& pos = (type == BoidType::Basic) 
+            ? boids.posBasic[currentBoidIdx] 
+            : boids.posPredator[currentBoidIdx];
+    Vec3& acc = (type == BoidType::Basic) 
+            ? boids.accBasic[currentBoidIdx] 
+            : boids.accPredator[currentBoidIdx];
 
     const float rBoid =
         (type == BoidType::Basic)
             ? params.basicBoidRadius
-            : params.predatorRadius;
+            : params.predatorBoidRadius;
 
     const float visualRange =
         (type == BoidType::Basic)
@@ -429,14 +466,14 @@ void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int curr
     Vec3 obsDirSum{0,0,0};
     float obsWeightSum = 0.0f;
     float obsCount = 0;
-    for (size_t obsIdx : params.obstacleBoidIndices) {
-        const Vec3& oPos = boids.pos[obsIdx];
+    for (int obsIdx = 0; obsIdx < boids.obstacleBoidCount; ++obsIdx) {
+        const Vec3& oPos = boids.posObstacle[obsIdx];
 
         Vec3 diff = periodicDeltaVec(oPos, pos, params);
         diff.z = 0.0f; // Ignore vertical component for obstacle avoidance
 
         float centerDist = std::sqrt(sqrLen(diff));
-        float combinedRadius = rBoid + params.obstacleRadius;
+        float combinedRadius = rBoid + params.obstacleBoidRadius;
         float surfaceDist = centerDist - combinedRadius;
 
         if (surfaceDist > visualRange)
@@ -509,18 +546,26 @@ void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int curr
     }
 }
 
-void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx) {
+void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
+    // Check if right type
+    if (type != BoidType::Basic && type != BoidType::Predator) {
+        printf("Warning: Dynamics resolution called for unsupported boid type. (%d)\n", static_cast<int>(type));
+        return;
+    }
+
     // Get boids
     Boids& boids = params.boids;
 
     // Current boid references
-    Vec3& pos = boids.pos[currentBoidIdx];
-    Vec3& vel = boids.vel[currentBoidIdx];
-    Vec3& acc = boids.acc[currentBoidIdx];
-
-    // Type-dependent speed limits
-    const BoidType type =
-        static_cast<BoidType>(boids.type[currentBoidIdx]);
+    Vec3& pos = (type == BoidType::Basic) 
+            ? boids.posBasic[currentBoidIdx] 
+            : boids.posPredator[currentBoidIdx];
+    Vec3& vel = (type == BoidType::Basic) 
+            ? boids.velBasic[currentBoidIdx] 
+            : boids.velPredator[currentBoidIdx];
+    Vec3& acc = (type == BoidType::Basic) 
+            ? boids.accBasic[currentBoidIdx] 
+            : boids.accPredator[currentBoidIdx];
 
     const float maxSpeed =
         (type == BoidType::Basic)
@@ -596,26 +641,39 @@ void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx) {
     pos.z += vel.z * params.dt;
 }
 
-void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx) {
-    resolveWallCollisions(params, currentBoidIdx);
-    resolveObstacleCollisions(params, currentBoidIdx);
+void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
+    // Check if right type
+    if (type != BoidType::Basic && type != BoidType::Predator) {
+        printf("Warning: Collision resolution called for unsupported boid type. (%d)\n", static_cast<int>(type));
+        return;
+    }
+
+    resolveWallCollisions(params, currentBoidIdx, type);
+    resolveObstacleCollisions(params, currentBoidIdx, type);
 }
 
-void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx) {
+void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
+    // Check if right type
+    if (type != BoidType::Basic && type != BoidType::Predator) {
+        printf("Warning: Wall collision called for unsupported boid type. (%d)\n", static_cast<int>(type));
+        return;
+    }
+
     // Get boids
     Boids& boids = params.boids;
 
     // Current boid references
-    Vec3& pos = boids.pos[currentBoidIdx];
-    Vec3& vel = boids.vel[currentBoidIdx];
-
-    // Radius depends on boid type
-    const BoidType type = static_cast<BoidType>(boids.type[currentBoidIdx]);
+    Vec3& pos = (type == BoidType::Basic) 
+            ? boids.posBasic[currentBoidIdx] 
+            : boids.posPredator[currentBoidIdx];
+    Vec3& vel = (type == BoidType::Basic) 
+            ? boids.velBasic[currentBoidIdx] 
+            : boids.velPredator[currentBoidIdx];
 
     const float rBoid =
         (type == BoidType::Basic)
             ? params.basicBoidRadius
-            : params.predatorRadius;
+            : params.predatorBoidRadius;
 
     if (params.bounce) {
         if (pos.x < rBoid) { 
@@ -678,29 +736,36 @@ void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx
     }
 }
 
-void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoidIdx) {
+void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
+    // Check if right type
+    if (type != BoidType::Basic && type != BoidType::Predator) {
+        printf("Warning: Obstacle collision called for unsupported boid type. (%d)\n", static_cast<int>(type));
+        return;
+    }
+    
     // Get boids
     Boids& boids = params.boids;
 
     // Current boid fields
-    Vec3& pos = boids.pos[currentBoidIdx];
-    Vec3& vel = boids.vel[currentBoidIdx];
-
-    // Boid type → pick radius
-    const BoidType type = static_cast<BoidType>(boids.type[currentBoidIdx]);
+    Vec3& pos = (type == BoidType::Basic) 
+            ? boids.posBasic[currentBoidIdx] 
+            : boids.posPredator[currentBoidIdx];
+    Vec3& vel = (type == BoidType::Basic) 
+            ? boids.velBasic[currentBoidIdx] 
+            : boids.velPredator[currentBoidIdx];
 
     const float rBoid = (type == BoidType::Basic) ? 
-        params.basicBoidRadius : params.predatorRadius;
+        params.basicBoidRadius : params.predatorBoidRadius;
 
     // Check collisions with obstacles
-    for (size_t obsIdx : params.obstacleBoidIndices) {
-        const Vec3& oPos = boids.pos[obsIdx];
+    for (int obsIdx = 0; obsIdx < boids.obstacleBoidCount; ++obsIdx) {
+        const Vec3& oPos = boids.posObstacle[obsIdx];
 
         Vec3 diff = periodicDeltaVec(oPos, pos, params);
         diff.z = 0.0f; // Ignore vertical component for obstacle collisions
 
         float dist2 = sqrLen(diff);
-        float combinedRadius = rBoid + params.obstacleRadius;
+        float combinedRadius = rBoid + params.obstacleBoidRadius;
         float dist = std::sqrt(dist2) - combinedRadius;
 
         if (dist < 0.0f) {

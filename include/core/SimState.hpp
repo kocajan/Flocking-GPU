@@ -72,8 +72,8 @@ public:
     //-------------------------------------------------------------------------
     // Radii / physical footprint
     //-------------------------------------------------------------------------
-    ConfigParameter obstacleRadius;
-    ConfigParameter predatorRadius;
+    ConfigParameter obstacleBoidRadius;
+    ConfigParameter predatorBoidRadius;
     ConfigParameter basicBoidRadius;
 
     //-------------------------------------------------------------------------

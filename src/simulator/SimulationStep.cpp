@@ -29,11 +29,11 @@ void simulationStep(SimState& simState, Config& simConfig) {
         ParallelNaiveParameters parameters(simState, simConfig);
         simulationStepParallelNaive(parameters);
     }
-    else if (version == "parallel") {
-        ParallelParameters parameters(simState, simConfig);
-        simulationStepParallel(parameters);
-    }
-    else {
-        throw std::runtime_error("Unknown simulation version: " + version);
-    }
+    // else if (version == "parallel") {
+    //     ParallelParameters parameters(simState, simConfig);
+    //     simulationStepParallel(parameters);
+    // }
+    // else {
+    //     throw std::runtime_error("Unknown simulation version: " + version);
+    // }
 }

@@ -175,8 +175,8 @@
     "Boid and obstacle geometry": [
       {
         "type": "number",
-        "name": "obstacleRadius",
-        "label": "Obstacle Radius",
+        "name": "obstacleBoidRadius",
+        "label": "Obstacle Boid Radius",
         "description": "Radius of obstacles drawn with mouse",
         "default": 15,
         "min": 1,

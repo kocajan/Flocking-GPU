@@ -62,123 +62,117 @@ enum class BoidType : uint8_t {
     Empty
 };
 
-
-//
-// ============================================================================
-//  Boid population container (Structure of Arrays)
-// ============================================================================
-//
-//  Notes:
-//   - Each field is stored in its own contiguous array for cache efficiency.
-//   - This layout is designed for parallel CPU and CUDA execution.
-//   - Index lists allow fast per-type iteration.
-//   - Free-list supports reuse without immediate compaction.
-//
 struct Boids {
     // Core SoA fields
-    std::vector<Vec3> pos;          // position
-    std::vector<Vec3> vel;          // velocity
-    std::vector<Vec3> acc;          // accumulated acceleration
-    std::vector<Vec3> targetPoint;  // local target
+    // - Basic boids
+    std::vector<Vec3> posBasic;
+    std::vector<Vec3> velBasic;
+    std::vector<Vec3> accBasic;
+    std::vector<Vec3> targetPointBasic;
 
-    std::vector<uint8_t> type;      // BoidType (stored compactly)
-    std::vector<float> stamina;
-    std::vector<uint8_t> resting;
+    // - Predator boids
+    std::vector<Vec3> posPredator;
+    std::vector<Vec3> velPredator;
+    std::vector<Vec3> accPredator;
+    std::vector<Vec3> targetPointPredator;
 
-    std::vector<int> targetBoidIdx;
-    std::vector<float> targetBoidDistance;
+    std::vector<float> staminaPredator;
+    std::vector<uint8_t> restingPredator;
+
+    std::vector<int> targetBoidIdxPredator;
+    std::vector<float> targetBoidDistancePredator;
+    std::vector<BoidType> targetBoidTypePredator;
+
+    // - Obstacle boids
+    std::vector<Vec3> posObstacle;
 
     // Bookkeeping by boid type
-    int allBoidCount = 0;               // total occupied entries
     int basicBoidCount = 0;
     int predatorBoidCount = 0;
     int obstacleBoidCount = 0;
 
-    std::vector<int> basicBoidIndices;
-    std::vector<int> predatorBoidIndices;
-    std::vector<int> obstacleBoidIndices;
-    std::vector<int> freeBoidIndices;   // Slots that have been freed (for reuse)
-
     // Lifecycle helpers
-    void resize(int n) {
-        allBoidCount = n;
+    void resizeBasic(int n) {
+        basicBoidCount = n;
 
-        pos.resize(n);
-        vel.resize(n);
-        acc.resize(n);
-        targetPoint.resize(n);
+        posBasic.resize(n);
+        velBasic.resize(n);
+        accBasic.resize(n);
+        targetPointBasic.resize(n);
+    }
 
-        type.resize(n);
-        stamina.resize(n);
-        resting.resize(n);
+    void resizePredator(int n) {
+        predatorBoidCount = n;
 
-        targetBoidIdx.resize(n);
-        targetBoidDistance.resize(n);
+        posPredator.resize(n);
+        velPredator.resize(n);
+        accPredator.resize(n);
+        targetPointPredator.resize(n);
+
+        staminaPredator.resize(n);
+        restingPredator.resize(n);
+
+        targetBoidIdxPredator.resize(n);
+        targetBoidDistancePredator.resize(n);
+        targetBoidTypePredator.resize(n);
+    }
+
+    void resizeObstacle(int n) {
+        obstacleBoidCount = n;
+
+        posObstacle.resize(n);
     }
 
     void clear() {
-        pos.clear();
-        vel.clear();
-        acc.clear();
-        targetPoint.clear();
+        posBasic.clear();
+        velBasic.clear();
+        accBasic.clear();
+        targetPointBasic.clear();
 
-        type.clear();
-        stamina.clear();
-        resting.clear();
+        posPredator.clear();
+        velPredator.clear();
+        accPredator.clear();
+        targetPointPredator.clear();    
+        staminaPredator.clear();
+        restingPredator.clear();
+        targetBoidIdxPredator.clear();
+        targetBoidDistancePredator.clear();
+        targetBoidTypePredator.clear();
 
-        targetBoidIdx.clear();
-        targetBoidDistance.clear();
+        posObstacle.clear();
 
-        allBoidCount = 0;
         basicBoidCount = 0;
         predatorBoidCount = 0;
         obstacleBoidCount = 0;
-
-        basicBoidIndices.clear();
-        predatorBoidIndices.clear();
-        obstacleBoidIndices.clear();
-
-        freeBoidIndices.clear();
-    }
-
-    void assertConsistent() const {
-        const size_t n = static_cast<size_t>(allBoidCount);
-
-        assert(pos.size() == n);
-        assert(vel.size() == n);
-        assert(acc.size() == n);
-        assert(targetPoint.size() == n);
-
-        assert(type.size() == n);
-        assert(stamina.size() == n);
-        assert(resting.size() == n);
-
-        assert(targetBoidIdx.size() == n);
-        assert(targetBoidDistance.size() == n);
     }
 };
 
 // GPU-side mirror of Boids struct
 struct DeviceBoids {
     // Core SoA fields
-    Vec3* pos = nullptr;
-    Vec3* vel = nullptr;
-    Vec3* acc = nullptr;
-    Vec3* targetPoint = nullptr;
+    // - Basic boids
+    Vec3* posBasic = nullptr;
+    Vec3* velBasic = nullptr;
+    Vec3* accBasic = nullptr;
+    Vec3* targetPointBasic = nullptr;
 
-    uint8_t* type = nullptr;
-    float* stamina = nullptr;
-    uint8_t* resting = nullptr;
+    // - Predator boids
+    Vec3* posPredator = nullptr;
+    Vec3* velPredator = nullptr;
+    Vec3* accPredator = nullptr;
+    Vec3* targetPointPredator = nullptr;
 
-    int* targetBoidIdx = nullptr;
-    float* targetBoidDistance = nullptr;
+    float* staminaPredator = nullptr;
+    uint8_t* restingPredator = nullptr;
 
-    // Type index lists
-    int* basicBoidIndices = nullptr;
-    int* predatorBoidIndices = nullptr;
-    int* obstacleBoidIndices = nullptr;
+    int* targetBoidIdxPredator = nullptr;
+    float* targetBoidDistancePredator = nullptr;
+    uint8_t* targetBoidTypePredator = nullptr;
 
-    int allBoidCount = 0;
+    // - Obstacle boids
+    Vec3* posObstacle = nullptr;
+
+    // Bookkeeping by boid type
     int basicBoidCount = 0;
     int predatorBoidCount = 0;
     int obstacleBoidCount = 0;

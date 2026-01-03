@@ -6,11 +6,7 @@
 
 
 SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c) 
-    : boids(s.boids), 
-      obstacleBoidIndices(s.boids.obstacleBoidIndices), 
-      basicBoidIndices(s.boids.basicBoidIndices), 
-      predatorBoidIndices(s.boids.predatorBoidIndices) {
-        
+    : boids(s.boids) {
     // Define helper function for converting percentage weights
     auto percentToWeight = [](float percent) {
         return std::clamp(percent / 100.0f, 0.0f, 1.0f);
@@ -24,8 +20,8 @@ SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c
 
     // Radii
     basicBoidRadius = s.basicBoidRadius.number();
-    predatorRadius = s.predatorRadius.number();
-    obstacleRadius = s.obstacleRadius.number();
+    predatorBoidRadius = s.predatorBoidRadius.number();
+    obstacleBoidRadius = s.obstacleBoidRadius.number();
 
     // Boundary mode
     bounce = c.binary("bounce");
@@ -100,7 +96,7 @@ SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c
     maxForce = maxSpeed * maxForcePercentage;
 
     // Dynamics
-    drag  = percentToWeight(c.number("drag"));
+    drag = percentToWeight(c.number("drag"));
     noise = percentToWeight(c.number("noise"));
     numStepsToStopDueToMaxDrag = 100.0f;
 

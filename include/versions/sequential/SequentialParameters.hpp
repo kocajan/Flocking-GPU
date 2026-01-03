@@ -13,11 +13,6 @@ struct SequentialParameters {
     // Reference to boid array
     Boids& boids;
 
-    // References to boid index arrays
-    std::vector<int>& obstacleBoidIndices;
-    std::vector<int>& basicBoidIndices;
-    std::vector<int>& predatorBoidIndices;
-
     // Interaction
     Interaction interaction;
 
@@ -27,8 +22,8 @@ struct SequentialParameters {
 
     // Boid radii
     float basicBoidRadius;
-    float predatorRadius;
-    float obstacleRadius;
+    float predatorBoidRadius;
+    float obstacleBoidRadius;
 
     // World bounds
     float worldX;

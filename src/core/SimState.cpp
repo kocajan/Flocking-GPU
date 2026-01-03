@@ -70,8 +70,8 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
     //-------------------------------------------------------------------------
     // Radii / collision footprint
     //-------------------------------------------------------------------------
-    obstacleRadius = config.get("obstacleRadius");
-    predatorRadius = config.get("predatorBoidRadius");
+    obstacleBoidRadius = config.get("obstacleBoidRadius");
+    predatorBoidRadius = config.get("predatorBoidRadius");
     basicBoidRadius = config.get("basicBoidRadius");
 
     //-------------------------------------------------------------------------

@@ -235,7 +235,6 @@ void GUI::renderWorld(SimState& simState) {
     const float worldZ = simState.worldZ.number();
 
     const Boids& boids = simState.boids;
-    boids.assertConsistent();
 
     // Draw world boundary
     draw->AddRect(
@@ -245,16 +244,8 @@ void GUI::renderWorld(SimState& simState) {
         IM_COL32(120, 120, 120, 255)
     );
 
-    //
-    // Helper: draw single boid instance
-    //
-    auto drawBoidByIndex = [&](int idx) {
-        if (idx >= boids.allBoidCount)
-            return;
-
-        const Vec3& p3 = boids.pos[idx];
-
-        // World clipping
+    // Helper for drawing boids
+    auto drawBoid = [&](const Vec3& p3, const float& radiusWorld, const std::string& color) {
         if (p3.x < 0 || p3.x > worldW) return;
         if (p3.y < 0 || p3.y > worldH) return;
         if (p3.z < 0 || p3.z > worldZ) return;
@@ -265,65 +256,27 @@ void GUI::renderWorld(SimState& simState) {
 
         const ImVec2 p2 = worldToScreen(p3);
 
-        float radiusWorld = 0.0f;
-
-        switch (static_cast<BoidType>(boids.type[idx]))
-        {
-            case BoidType::Basic:
-                radiusWorld = simState.basicBoidRadius.number();
-                break;
-
-            case BoidType::Predator:
-                radiusWorld = simState.predatorRadius.number();
-                break;
-
-            case BoidType::Obstacle:
-                radiusWorld = simState.obstacleRadius.number();
-                break;
-
-            default:
-                return;
-        }
-
         const float r = radiusWorld * worldView.pixelsPerWorldUnit * (0.3f + 0.7f * zScale);
 
-        //
-        // Color selection also moves to SimState parameters
-        //
-        Color color{255,255,255,255};
+        Color colorParsed = parseColorString(color);
 
-        switch (static_cast<BoidType>(boids.type[idx]))
-        {
-            case BoidType::Basic:
-                color = parseColorString(simState.basicBoidColor.string());
-                break;
-
-            case BoidType::Predator:
-                color = parseColorString(simState.predatorBoidColor.string());
-                break;
-
-            case BoidType::Obstacle:
-                color = parseColorString(simState.obstacleBoidColor.string());
-                break;
-
-            default:
-                break;
-        }
-
-        draw->AddCircleFilled(p2, r, IM_COL32(color.r, color.g, color.b, color.a), 12);
+        draw->AddCircleFilled(p2, r, IM_COL32(colorParsed.r, colorParsed.g, colorParsed.b, colorParsed.a), 12);
     };
 
     //
     // Draw each boid group via index lists
     //
-    for (int idx : boids.basicBoidIndices)
-        drawBoidByIndex(idx);
+    for (int idxBasic = 0; idxBasic < boids.basicBoidCount; ++idxBasic) {
+        drawBoid(boids.posBasic[idxBasic], simState.basicBoidRadius.number(), simState.basicBoidColor.string());
+    }
 
-    for (int idx : boids.predatorBoidIndices)
-        drawBoidByIndex(idx);
+    for (int idxPredator = 0; idxPredator < boids.predatorBoidCount; ++idxPredator) {
+        drawBoid(boids.posPredator[idxPredator], simState.predatorBoidRadius.number(), simState.predatorBoidColor.string());
+    }
 
-    for (int idx : boids.obstacleBoidIndices)
-        drawBoidByIndex(idx);
+    for (int idxObstacle = 0; idxObstacle < boids.obstacleBoidCount; ++idxObstacle) {
+        drawBoid(boids.posObstacle[idxObstacle], simState.obstacleBoidRadius.number(), simState.obstacleBoidColor.string());
+    }
 }
 
 // ============================================================

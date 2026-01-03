@@ -28,68 +28,121 @@ namespace simulator{
         return dx * dx + dy * dy;
     }
 
-    // Max-limit helper
-    static bool canIncreaseTarget(const ConfigParameter& p) {
-        const auto& r = std::get<NumberRange>(p.range);
-        return p.number() < r.max;
-    }
+    // Boid management helpers
+    void spawnBoid(SimState& s, BoidType type, const Vec3& pos, const Vec3& vel) {
+        Boids& b = s.boids;
 
-    // Free and allocate boid slots
-    int allocateBoidSlot(Boids& b) {
-        if (!b.freeBoidIndices.empty()) {
-            int idx = b.freeBoidIndices.back();
-            b.freeBoidIndices.pop_back();
-            return idx;
+        if (type == BoidType::Basic) {
+            b.posBasic.push_back(pos);
+            b.velBasic.push_back(vel);
+            b.accBasic.push_back({0,0,0});
+
+            b.targetPointBasic.push_back({
+                s.worldX.number() * 0.5f,
+                s.worldY.number() * 0.5f,
+                s.worldZ.number() * 0.5f
+            });
+        } else if (type == BoidType::Predator) {
+            b.posPredator.push_back(pos);
+            b.velPredator.push_back(vel);
+            b.accPredator.push_back({0,0,0});
+
+            b.targetPointPredator.push_back({
+                s.worldX.number() * 0.5f,
+                s.worldY.number() * 0.5f,
+                s.worldZ.number() * 0.5f
+            });
+
+            b.targetBoidIdxPredator.push_back(-1);
+            b.targetBoidDistancePredator.push_back(-1.0f);
+            b.targetBoidTypePredator.push_back(BoidType::Empty);
+
+            b.staminaPredator.push_back(100.0f);
+            b.restingPredator.push_back(0);
+        } else if (type == BoidType::Obstacle) {
+            b.posObstacle.push_back(pos);
+        } else {
+            printf("Warning: Unknown boid type in writeSpawnData(). (type=%d)\n", static_cast<int>(type));
         }
-
-        int idx = b.allBoidCount;
-        b.resize(b.allBoidCount + 1);
-        return idx;
     }
 
-    void freeBoidSlot(Boids& b, int idx) {
-        assert(idx < b.allBoidCount);
-        b.type[idx] = static_cast<uint8_t>(BoidType::Empty);
-        b.freeBoidIndices.push_back(idx);
+    void removeLastBoid(Boids& b, BoidType type) {
+        if (type == BoidType::Basic) {
+            b.posBasic.pop_back();
+            b.velBasic.pop_back();
+            b.accBasic.pop_back();
+            b.targetPointBasic.pop_back();
+        } else if (type == BoidType::Predator) {
+            b.posPredator.pop_back();
+            b.velPredator.pop_back();
+            b.accPredator.pop_back();
+            b.targetPointPredator.pop_back();
+
+            b.staminaPredator.pop_back();
+            b.restingPredator.pop_back();
+
+            b.targetBoidIdxPredator.pop_back();
+            b.targetBoidDistancePredator.pop_back();
+            b.targetBoidTypePredator.pop_back();
+        } else if (type == BoidType::Obstacle) {
+            b.posObstacle.pop_back();
+        } else {
+            printf("Warning: Unknown boid type in removeBoid(). (type=%d)\n", static_cast<int>(type));
+        }
     }
 
-    void writeSpawnData(SimState& s, int idx, BoidType type, const Vec3& pos, const Vec3& vel) {
+    // Move last boid into specified slot (for deletions)
+    void moveLastBoidIntoSlot(SimState& s, BoidType type, int slotIdx) {
         Boids& b = s.boids;
+        
+        if (type == BoidType::Basic) {
+            const int lastIdx = b.basicBoidCount - 1;
 
-        b.type[idx] = static_cast<uint8_t>(type);
+            if (slotIdx != lastIdx) {
+                b.posBasic[slotIdx] = b.posBasic[lastIdx];
+                b.velBasic[slotIdx] = b.velBasic[lastIdx];
+                b.accBasic[slotIdx] = b.accBasic[lastIdx];
+                b.targetPointBasic[slotIdx] = b.targetPointBasic[lastIdx];
+            }
+        } else if (type == BoidType::Predator) {
+            const int lastIdx = b.predatorBoidCount - 1;
 
-        b.pos[idx] = pos;
-        b.vel[idx] = vel;
-        b.acc[idx] = {0,0,0};
+            if (slotIdx != lastIdx) {
+                b.posPredator[slotIdx] = b.posPredator[lastIdx];
+                b.velPredator[slotIdx] = b.velPredator[lastIdx];
+                b.accPredator[slotIdx] = b.accPredator[lastIdx];
+                b.targetPointPredator[slotIdx] = b.targetPointPredator[lastIdx];
 
-        b.targetPoint[idx] = {
-            s.worldX.number() * 0.5f,
-            s.worldY.number() * 0.5f,
-            s.worldZ.number() * 0.5f
-        };
+                b.staminaPredator[slotIdx] = b.staminaPredator[lastIdx];
+                b.restingPredator[slotIdx] = b.restingPredator[lastIdx];
 
-        b.targetBoidIdx[idx] = -1;
-        b.targetBoidDistance[idx] = -1.0f;
+                b.targetBoidIdxPredator[slotIdx] = b.targetBoidIdxPredator[lastIdx];
+                b.targetBoidDistancePredator[slotIdx] = b.targetBoidDistancePredator[lastIdx];
+                b.targetBoidTypePredator[slotIdx] = b.targetBoidTypePredator[lastIdx];
+            }
+        } else if (type == BoidType::Obstacle) {
+            const int lastIdx =  b.obstacleBoidCount - 1;
 
-        b.stamina[idx] = 100.0f;
-        b.resting[idx] = 0;
+            if (slotIdx != lastIdx) {
+                b.posObstacle[slotIdx] = b.posObstacle[lastIdx];
+            }
+
+        } else {
+            printf("Warning: Unknown boid type in moveLastBoidIntoSlot(). (type=%d)\n", static_cast<int>(type));
+        }
     }
 
-    void spawnBoids(SimState& s, BoidType type, std::vector<int>& indices, int& count, int howMany) {
-        Boids& b = s.boids;
-
+    void spawnBoids(SimState& s, BoidType type, int& count, int howMany, float x, float y, float z) {
         const float wx = s.worldX.number();
         const float wy = s.worldY.number();
         const float wz = s.worldZ.number();
         const float speed = s.initialAxialSpeedRange.number();
 
         for (int i = 0; i < howMany; ++i) {
-            int idx = allocateBoidSlot(b);
-
             Vec3 pos {
-                randRange(0, wx),
-                randRange(0, wy),
-                randRange(0, wz)
+                (x < 0) ? randRange(0, wx) : x,
+                (y < 0) ? randRange(0, wy) : y,
+                (z < 0) ? randRange(0, wz) : z,
             };
 
             Vec3 vel {
@@ -102,41 +155,49 @@ namespace simulator{
                 vel.z = pos.z = 0.0f;
             }
 
-            writeSpawnData(s, idx, type, pos, vel);
+            spawnBoid(s, type, pos, vel);
 
-            indices.push_back(idx);
             ++count;
         }
     }
 
-    void removeBoids(Boids& b, std::vector<int>& indices, int& count, int howMany) {
-        while (howMany-- > 0 && !indices.empty()) {
-            int idx = indices.back();
-            indices.pop_back();
-
-            freeBoidSlot(b, idx);
+    void removeBoids(Boids& b, BoidType type, int& count, int howMany) {
+        while (howMany-- > 0 && count > 0) {
+            removeLastBoid(b, type);
             --count;
         }
     }
 
-    int deleteAllInRadius(SimState& s, std::vector<int>& indices, int& count, float x, float y, float radius) {
-        int removed = 0;
+    int deleteAllBoidsOfTypeInRadius(SimState& s, BoidType type, int& count, float x, float y, float radius) {
         Boids& b = s.boids;
 
+        std::vector<Vec3>* positions = nullptr;
+        if (type == BoidType::Basic) {
+            positions = &b.posBasic;
+        } else if (type == BoidType::Predator) {
+            positions = &b.posPredator;
+        } else if (type == BoidType::Obstacle) {
+            positions = &b.posObstacle;
+        } else {
+            printf("Warning: Unknown boid type in deleteAllBoidsOfTypeInRadius(). (type=%d)\n", static_cast<int>(type));
+            return 0;
+        }
+
+        int removed = 0;
         const float r2 = radius * radius;
 
-        for (int i = 0; i < (int)indices.size(); ++i) { 
-            int idx = indices[i];
-            const Vec3& p = b.pos[idx];
+        for (int i = 0; i < count; ) { 
+            const Vec3& p = (*positions)[i];
 
             const float dx = p.x - x;
             const float dy = p.y - y;
 
             if (dx*dx + dy*dy <= r2) {
-                freeBoidSlot(b, idx);
+                // Move last boid into this slot
+                moveLastBoidIntoSlot(s, type, i);
 
-                indices[i] = indices.back();
-                indices.pop_back();
+                // Remove last boid
+                removeLastBoid(b, type);
 
                 --count;
                 ++removed;
@@ -148,65 +209,14 @@ namespace simulator{
         return removed;
     }
 
-    // Spawn helpers (for interactive spawning)
-    void spawnPredator(SimState& s, float x, float y) {
-        if (!canIncreaseTarget(s.predatorBoidCountTarget))
-            return;
-
-        Boids& b = s.boids;
-
-        int idx = allocateBoidSlot(b);
-
-        float speed = s.initialAxialSpeedRange.number();
-        float worldZ = s.worldZ.number();
-
-        Vec3 pos { x, y, randRange(0, worldZ) };
-        Vec3 vel {
-            randRange(-speed, speed),
-            randRange(-speed, speed),
-            randRange(-speed, speed)
-        };
-
-        if (s.dimensions.string() == "2D")
-            pos.z = 0.0f;
-
-        writeSpawnData(s, idx, BoidType::Predator, pos, vel);
-
-        b.predatorBoidIndices.push_back(idx);
-        ++b.predatorBoidCount;
-
-        // keep UI target in sync with manual spawn
-        s.predatorBoidCountTarget.number() += 1.0f;
-    }
-
-    void spawnObstacle(SimState& s, float x, float y) {
-        Boids& b = s.boids;
-
-        int idx = allocateBoidSlot(b);
-
-        Vec3 pos { x, y, 0.0f };
-        Vec3 vel { 0.0f, 0.0f, 0.0f };
-
-        if (s.dimensions.string() == "2D")
-            pos.z = 0.0f;
-
-        writeSpawnData(s, idx, BoidType::Obstacle, pos, vel);
-
-        b.obstacleBoidIndices.push_back(idx);
-        ++b.obstacleBoidCount;
-    }
-
     // Regulation for a specific boid type
-    void regulateType(SimState& s, BoidType type, std::vector<int>& indices, int& count, ConfigParameter& target) {
-        const int tgt = (int)target.number();
-        const int cur = count;
-
-        const int delta = tgt - cur;
+    void regulateType(SimState& s, BoidType type, int& count, int target) {
+        const int delta = target - count;
         const int maxDelta = (int)s.maxBoidPopulationChangeRate.number();
 
         if (delta > 0)
-            spawnBoids(s, type, indices, count, std::min(delta, maxDelta));
+            spawnBoids(s, type, count, std::min(delta, maxDelta));
         else if (delta < 0)
-            removeBoids(s.boids, indices, count, std::min(-delta, maxDelta));
+            removeBoids(s.boids, type, count, std::min(-delta, maxDelta));
     }
 }

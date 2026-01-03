@@ -44,8 +44,8 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
 
     // Radii
     gpu.basicBoidRadius = s.basicBoidRadius.number();
-    gpu.predatorRadius  = s.predatorRadius.number();
-    gpu.obstacleRadius  = s.obstacleRadius.number();
+    gpu.predatorBoidRadius = s.predatorBoidRadius.number();
+    gpu.obstacleBoidRadius = s.obstacleBoidRadius.number();
 
     // World bounds
     gpu.worldX = s.worldX.number();
@@ -119,75 +119,101 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     // GPU parameters - Boids
     // ################################################################
     // Port boid counts
-    gpu.dBoids.allBoidCount = cpu.hBoids.allBoidCount;
     gpu.dBoids.basicBoidCount = cpu.hBoids.basicBoidCount;
     gpu.dBoids.predatorBoidCount = cpu.hBoids.predatorBoidCount;
     gpu.dBoids.obstacleBoidCount = cpu.hBoids.obstacleBoidCount;
     
     // Allocate device memory for boid data
-    const int N = gpu.dBoids.allBoidCount;
-    const size_t vec3ArraySize = sizeof(Vec3) * N;
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.pos, vec3ArraySize));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.vel, vec3ArraySize));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.acc, vec3ArraySize));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetPoint, vec3ArraySize));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.type, sizeof(uint8_t) * N));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.stamina, sizeof(float) * N));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.resting, sizeof(uint8_t) * N));
+    // - BASIC BOIDS
+    const int numBasic = gpu.dBoids.basicBoidCount;
+    const size_t basicArraysSize = static_cast<size_t>(sizeof(Vec3) * numBasic);
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.posBasic, basicArraysSize));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.velBasic, basicArraysSize));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.accBasic, basicArraysSize));
 
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetBoidIdx, sizeof(int) * N));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetBoidDistance, sizeof(float) * N));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetPointBasic, basicArraysSize));
 
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.basicBoidIndices, sizeof(int) * cpu.hBoids.basicBoidCount));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.predatorBoidIndices, sizeof(int) * cpu.hBoids.predatorBoidCount));
-    CHECK_ERROR(cudaMalloc(&gpu.dBoids.obstacleBoidIndices, sizeof(int) * cpu.hBoids.obstacleBoidCount));
+    // - PREDATOR BOIDS
+    const int numPredator = gpu.dBoids.predatorBoidCount;
+    const size_t predatorArraysSize = static_cast<size_t>(sizeof(Vec3) * numPredator);
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.posPredator, predatorArraysSize));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.velPredator, predatorArraysSize));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.accPredator, predatorArraysSize));
+
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.staminaPredator, sizeof(float) * numPredator));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.restingPredator, sizeof(uint8_t) * numPredator));
+
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetBoidIdxPredator, sizeof(int) * numPredator));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetBoidDistancePredator, sizeof(float) * numPredator));
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.targetBoidTypePredator, sizeof(uint8_t) * numPredator));
+
+    // - OBSTACLE BOIDS
+    const int numObstacle = gpu.dBoids.obstacleBoidCount;
+    const size_t obstacleArraysSize = static_cast<size_t>(sizeof(Vec3) * numObstacle);
+    CHECK_ERROR(cudaMalloc(&gpu.dBoids.posObstacle, obstacleArraysSize));
 
     // Copy boid data to device
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.pos, cpu.hBoids.pos.data(), vec3ArraySize, cudaMemcpyHostToDevice));
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.vel, cpu.hBoids.vel.data(), vec3ArraySize, cudaMemcpyHostToDevice));
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.acc, cpu.hBoids.acc.data(), vec3ArraySize, cudaMemcpyHostToDevice));
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.targetPoint, cpu.hBoids.targetPoint.data(), vec3ArraySize, cudaMemcpyHostToDevice));
+    // - BASIC BOIDS
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.posBasic, cpu.hBoids.posBasic.data(), basicArraysSize, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.velBasic, cpu.hBoids.velBasic.data(), basicArraysSize, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.accBasic, cpu.hBoids.accBasic.data(), basicArraysSize, cudaMemcpyHostToDevice));
 
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.type, cpu.hBoids.type.data(), sizeof(uint8_t) * N, cudaMemcpyHostToDevice));
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.stamina, cpu.hBoids.stamina.data(), sizeof(float) * N, cudaMemcpyHostToDevice));
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.resting, cpu.hBoids.resting.data(), sizeof(uint8_t) * N, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.targetPointBasic, cpu.hBoids.targetPointBasic.data(), basicArraysSize, cudaMemcpyHostToDevice));
 
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.targetBoidIdx, cpu.hBoids.targetBoidIdx.data(), sizeof(int) * N, cudaMemcpyHostToDevice));
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.targetBoidDistance, cpu.hBoids.targetBoidDistance.data(), sizeof(float) * N, cudaMemcpyHostToDevice));
+    // - PREDATOR BOIDS
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.posPredator, cpu.hBoids.posPredator.data(), predatorArraysSize, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.velPredator, cpu.hBoids.velPredator.data(), predatorArraysSize, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.accPredator, cpu.hBoids.accPredator.data(), predatorArraysSize, cudaMemcpyHostToDevice));
 
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.basicBoidIndices, cpu.hBoids.basicBoidIndices.data(), sizeof(int) * cpu.hBoids.basicBoidCount, cudaMemcpyHostToDevice));
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.predatorBoidIndices, cpu.hBoids.predatorBoidIndices.data(), sizeof(int) * cpu.hBoids.predatorBoidCount, cudaMemcpyHostToDevice));
-    CHECK_ERROR(cudaMemcpy(gpu.dBoids.obstacleBoidIndices, cpu.hBoids.obstacleBoidIndices.data(), sizeof(int) * cpu.hBoids.obstacleBoidCount, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.staminaPredator, cpu.hBoids.staminaPredator.data(), sizeof(float) * numPredator, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.restingPredator, cpu.hBoids.restingPredator.data(), sizeof(uint8_t) * numPredator, cudaMemcpyHostToDevice));
+
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.targetBoidIdxPredator, cpu.hBoids.targetBoidIdxPredator.data(), sizeof(int) * numPredator, cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.targetBoidDistancePredator, cpu.hBoids.targetBoidDistancePredator.data(), sizeof(float) * numPredator, cudaMemcpyHostToDevice));
+    
+    // - OBSTACLE BOIDS
+    CHECK_ERROR(cudaMemcpy(gpu.dBoids.posObstacle, cpu.hBoids.posObstacle.data(), obstacleArraysSize, cudaMemcpyHostToDevice));
 }
 
 ParallelNaiveParameters::~ParallelNaiveParameters() {
     // Port from GPU to CPU
-    const int N = gpu.dBoids.allBoidCount;
-    const size_t vec3ArraySize = static_cast<size_t>(sizeof(Vec3) * N);
-    CHECK_ERROR(cudaMemcpy(cpu.hBoids.pos.data(), gpu.dBoids.pos, vec3ArraySize, cudaMemcpyDeviceToHost));
-    CHECK_ERROR(cudaMemcpy(cpu.hBoids.vel.data(), gpu.dBoids.vel, vec3ArraySize, cudaMemcpyDeviceToHost));
-    CHECK_ERROR(cudaMemcpy(cpu.hBoids.acc.data(), gpu.dBoids.acc, vec3ArraySize, cudaMemcpyDeviceToHost));
-    CHECK_ERROR(cudaMemcpy(cpu.hBoids.targetPoint.data(), gpu.dBoids.targetPoint, vec3ArraySize, cudaMemcpyDeviceToHost));
+    // - BASIC BOIDS
+    const size_t basicArraysSize = static_cast<size_t>(sizeof(Vec3) * gpu.dBoids.basicBoidCount);
 
-    CHECK_ERROR(cudaMemcpy(cpu.hBoids.targetBoidIdx.data(), gpu.dBoids.targetBoidIdx, sizeof(int) * N, cudaMemcpyDeviceToHost));
-    CHECK_ERROR(cudaMemcpy(cpu.hBoids.targetBoidDistance.data(), gpu.dBoids.targetBoidDistance, sizeof(float) * N, cudaMemcpyDeviceToHost));
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.posBasic.data(), gpu.dBoids.posBasic, basicArraysSize, cudaMemcpyDeviceToHost));
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.velBasic.data(), gpu.dBoids.velBasic, basicArraysSize, cudaMemcpyDeviceToHost));
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.accBasic.data(), gpu.dBoids.accBasic, basicArraysSize, cudaMemcpyDeviceToHost));
 
-    CHECK_ERROR(cudaMemcpy(cpu.hBoids.stamina.data(), gpu.dBoids.stamina, sizeof(float) * N, cudaMemcpyDeviceToHost));
-    CHECK_ERROR(cudaMemcpy(cpu.hBoids.resting.data(), gpu.dBoids.resting, sizeof(uint8_t) * N, cudaMemcpyDeviceToHost));
+    // - PREDATOR BOIDS
+    const size_t predatorArraysSize = static_cast<size_t>(sizeof(Vec3) * gpu.dBoids.predatorBoidCount);
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.posPredator.data(), gpu.dBoids.posPredator, predatorArraysSize, cudaMemcpyDeviceToHost));
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.velPredator.data(), gpu.dBoids.velPredator, predatorArraysSize, cudaMemcpyDeviceToHost));
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.accPredator.data(), gpu.dBoids.accPredator, predatorArraysSize, cudaMemcpyDeviceToHost));
+
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.staminaPredator.data(), gpu.dBoids.staminaPredator, sizeof(float) * gpu.dBoids.predatorBoidCount, cudaMemcpyDeviceToHost));
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.restingPredator.data(), gpu.dBoids.restingPredator, sizeof(uint8_t) * gpu.dBoids.predatorBoidCount, cudaMemcpyDeviceToHost));
+
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.targetBoidIdxPredator.data(), gpu.dBoids.targetBoidIdxPredator, sizeof(int) * gpu.dBoids.predatorBoidCount, cudaMemcpyDeviceToHost));
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.targetBoidDistancePredator.data(), gpu.dBoids.targetBoidDistancePredator, sizeof(float) * gpu.dBoids.predatorBoidCount, cudaMemcpyDeviceToHost));
+    CHECK_ERROR(cudaMemcpy(cpu.hBoids.targetBoidTypePredator.data(), gpu.dBoids.targetBoidTypePredator, sizeof(uint8_t) * gpu.dBoids.predatorBoidCount, cudaMemcpyDeviceToHost));
 
     // Free device memory
-    CHECK_ERROR(cudaFree(gpu.dBoids.pos));
-    CHECK_ERROR(cudaFree(gpu.dBoids.vel));
-    CHECK_ERROR(cudaFree(gpu.dBoids.acc));
-    CHECK_ERROR(cudaFree(gpu.dBoids.targetPoint));
-    CHECK_ERROR(cudaFree(gpu.dBoids.type));
-    CHECK_ERROR(cudaFree(gpu.dBoids.stamina));
-    CHECK_ERROR(cudaFree(gpu.dBoids.resting));
+    // - BASIC BOIDS
+    CHECK_ERROR(cudaFree(gpu.dBoids.posBasic));
+    CHECK_ERROR(cudaFree(gpu.dBoids.velBasic));
+    CHECK_ERROR(cudaFree(gpu.dBoids.accBasic));
+    CHECK_ERROR(cudaFree(gpu.dBoids.targetPointBasic));
+    
+    // - PREDATOR BOIDS
+    CHECK_ERROR(cudaFree(gpu.dBoids.posPredator));
+    CHECK_ERROR(cudaFree(gpu.dBoids.velPredator));
+    CHECK_ERROR(cudaFree(gpu.dBoids.accPredator));
+    CHECK_ERROR(cudaFree(gpu.dBoids.staminaPredator));
+    CHECK_ERROR(cudaFree(gpu.dBoids.restingPredator));
+    CHECK_ERROR(cudaFree(gpu.dBoids.targetBoidIdxPredator));
+    CHECK_ERROR(cudaFree(gpu.dBoids.targetBoidDistancePredator));
+    CHECK_ERROR(cudaFree(gpu.dBoids.targetBoidTypePredator));
 
-    CHECK_ERROR(cudaFree(gpu.dBoids.targetBoidIdx));
-    CHECK_ERROR(cudaFree(gpu.dBoids.targetBoidDistance));
-
-    CHECK_ERROR(cudaFree(gpu.dBoids.basicBoidIndices));
-    CHECK_ERROR(cudaFree(gpu.dBoids.predatorBoidIndices));
-    CHECK_ERROR(cudaFree(gpu.dBoids.obstacleBoidIndices));
+    // - OBSTACLE BOIDS
+    CHECK_ERROR(cudaFree(gpu.dBoids.posObstacle));
 }

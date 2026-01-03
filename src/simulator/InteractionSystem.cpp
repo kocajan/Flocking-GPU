@@ -19,26 +19,29 @@ static void applyEffect(SimState& s, const std::string& effect, float x, float y
 
     // Dispatch effect
     if (effect == "Spawn Predator") {
-        simulator::spawnPredator(s, x, y);
+        const auto& targetRange = std::get<NumberRange>(s.predatorBoidCountTarget.range);
+        if (s.predatorBoidCountTarget.number() < targetRange.max) {
+            simulator::spawnBoids(s, BoidType::Predator, b.predatorBoidCount, 1, x, y);
+            s.predatorBoidCountTarget.number() += 1.0f;
+        }
     } else if (effect == "Delete Predator") {
-        int removed = simulator::deleteAllInRadius(
+        int removed = simulator::deleteAllBoidsOfTypeInRadius(
             s,
-            b.predatorBoidIndices,
+            BoidType::Predator,
             b.predatorBoidCount,
             x, y,
-            s.predatorRadius.number()
+            s.predatorBoidRadius.number() * 2.0f
         );
-
-        s.predatorBoidCountTarget.number() = std::max(0.f, s.predatorBoidCountTarget.number() - float(removed));
+        s.predatorBoidCountTarget.number() = std::max(0.0f, s.predatorBoidCountTarget.number() - float(removed));
     } else if (effect == "Draw Obstacle") {
-        simulator::spawnObstacle(s, x, y);
+        simulator::spawnBoids(s, BoidType::Obstacle, b.obstacleBoidCount, 1, x, y);
     } else if (effect == "Erase Obstacle") {
-        simulator::deleteAllInRadius(
+        simulator::deleteAllBoidsOfTypeInRadius(
             s,
-            b.obstacleBoidIndices,
+            BoidType::Obstacle,
             b.obstacleBoidCount,
             x, y,
-            s.obstacleRadius.number()
+            s.obstacleBoidRadius.number() * 2.0f
         );
     } else if (effect == "Attract" || effect == "Repel") {
         s.interaction.type = (effect == "Attract") ? InteractionType::Attract : InteractionType::Repel;

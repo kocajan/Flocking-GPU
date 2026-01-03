@@ -9,31 +9,37 @@
 
 namespace simulator {
 
-    // Regulate population for a single boid type
+    //  Spawn or remove boids to regulate population towards target
     void regulateType(
         SimState& s,
         BoidType type,
-        std::vector<int>& indices,
         int& count,
-        ConfigParameter& target
+        int target
     );
 
-    // Remove boids from a type group using its index list
+    // Spawn multiple boids of given type at random positions
+    void spawnBoids(
+        SimState& s,
+        BoidType type,
+        int& count,
+        int howMany,
+        float x = -1,
+        float y = -1,
+        float z = -1
+    );
+
+    // Spawn multiple boids of given type at random positions
     void removeBoids(
-        Boids& boids,
-        std::vector<int>& indices,
+        Boids& b,
+        BoidType type,
         int& count,
         int howMany
     );
 
-    // Manual spawn actions (UI / user input)
-    void spawnPredator(SimState& s, float x, float y);
-    void spawnObstacle(SimState& s, float x, float y);
-
-    // Remove boids in radius (used for click delete)
-    int deleteAllInRadius(
+    // Delete all boids of given type within radius of (x,y) 
+    int deleteAllBoidsOfTypeInRadius(
         SimState& s,
-        std::vector<int>& indices,
+        BoidType type,
         int& count,
         float x,
         float y,

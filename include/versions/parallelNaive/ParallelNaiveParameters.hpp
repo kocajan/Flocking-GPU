@@ -10,7 +10,7 @@
 
 struct ParallelNaiveParameters {
     struct GPUParams {
-        // Boid data — device pointers
+        // Boid data - device pointers
         DeviceBoids dBoids;
 
         // Interaction
@@ -22,8 +22,8 @@ struct ParallelNaiveParameters {
 
         // Radii
         float basicBoidRadius;
-        float predatorRadius;
-        float obstacleRadius;
+        float predatorBoidRadius;
+        float obstacleBoidRadius;
 
         // World bounds
         float worldX;
@@ -85,7 +85,7 @@ struct ParallelNaiveParameters {
         // Simulation configuration
         int blockSize;
 
-        // Boid data — device pointers
+        // Boid data - host pointers
         Boids &hBoids;
     };
 
