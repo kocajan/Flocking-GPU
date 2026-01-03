@@ -4,7 +4,7 @@
 #include "json/ConfigJsonParser.hpp"
 
 
-std::vector<Config> loadVersionConfigs(const std::string& jsonPath) {
+std::vector<Config> loadConfigs(const std::string& jsonPath) {
     const auto filePaths = listJsonFilesInDirectory(jsonPath);
 
     std::vector<Config> versionConfigs;

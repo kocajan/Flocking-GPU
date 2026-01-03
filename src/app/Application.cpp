@@ -1,44 +1,47 @@
 #include <iostream>
-#include <filesystem>
+#include <stdexcept>
 
 #include "app/Application.hpp"
 
-#include "gui/GUI.hpp"
-#include "config/Config.hpp"
-#include "config/ConfigParameter.hpp"
-#include "core/VersionManager.hpp"
-#include "config/VersionConfigLoader.hpp"
 #include "config/ConfigLoader.hpp"
-#include "core/SimState.hpp"
+#include "config/VersionConfigLoader.hpp"
 #include "simulator/SimulationUpdate.hpp"
 
 
-void Application::run(const std::string& configPath) {
-    GUI gui;
+Application::Application(const std::string& configDirPath)
+    : versionManager(loadConfigs(configDirPath + "/versions")),
+      simState(loadConfig(configDirPath + "/initialSimulationState.json"), versionManager.versions) {
+
+    // Initialize platform / window
     if (!gui.initializePlatform("Flocking")) {
+        std::cerr << "Failed to initialize GUI platform\n";
+        initialized = false;
         return;
     }
 
-    const std::filesystem::path configDir = std::filesystem::path(configPath);
+    // Load initial simulation config for the current version
+    currentVersion = simState.version.string();
+    simConfig = versionManager.getSimConfig(currentVersion);
 
-    const std::vector<Config> versionConfigs = loadVersionConfigs(configDir.string() + "/versions");
-    VersionManager versionManager(versionConfigs);
-
-    const Config simStateConfig = loadConfig(configDir.string() + "/initialSimulationState.json");
-    SimState simState(simStateConfig, versionManager.versions);
-
-    std::string currentVersion = simState.version.string();
-    Config simConfig = versionManager.getSimConfig(currentVersion);
-
+    // GUI setup
     gui.initializeImGui();
 
-    float worldX = simState.worldX.number();
-    float worldY = simState.worldY.number();
+    // Mark as initialized
+    initialized = true;
+}
+
+bool Application::isInitialized() {
+    return initialized;
+}
+
+void Application::run() {
+    if (!initialized)
+        return;
 
     while (gui.isRunning()) {
-        gui.beginFrame(worldX, worldY);
+        gui.beginFrame(simState.worldX.number(), simState.worldY.number());
 
-        // Check whether version has changed
+        // Detect version change
         if (simState.version.string() != currentVersion) {
             currentVersion = simState.version.string();
             simConfig = versionManager.getSimConfig(currentVersion);
@@ -46,12 +49,9 @@ void Application::run(const std::string& configPath) {
 
         simulationUpdate(simState, simConfig, gui.getInteraction());
 
-        // Check whether to reset to default settings
-        if (simState.resetVersionSettings.binary()) {
+        if (simState.resetVersionSettings.binary())
             simConfig.resetAll();
-        }
 
-        // Check whether to reset simulation
         if (simState.resetSimulation.binary()) {
             simState.resetToDefaults();
             simConfig.resetAll();

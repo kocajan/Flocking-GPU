@@ -12,7 +12,6 @@ SimState::SimState(const Config& config, ConfigParameter versionParam) {
     resetToNewConfig(config, versionParam);
 }
 
-
 //------------------------------------------------------------------------------
 // Reset from new configuration (runtime reconfiguration)
 //------------------------------------------------------------------------------
@@ -96,10 +95,24 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
     boids.clear();        // clears arrays, indices, counters, free list
 }
 
-
 //------------------------------------------------------------------------------
 // Reset to original startup configuration
 //------------------------------------------------------------------------------
 void SimState::resetToDefaults() {
     resetToNewConfig(initialConfig, initialVersionParam);
+}
+
+//------------------------------------------------------------------------------
+// Has and get parameter helpers
+//------------------------------------------------------------------------------
+bool SimState::has(const std::string& name) const {
+    return initialConfig.has(name);
+}
+
+ConfigParameter& SimState::get(const std::string& name) {
+    return initialConfig.get(name);
+}
+
+const ConfigParameter& SimState::get(const std::string& name) const {
+    return initialConfig.get(name);
 }

@@ -50,7 +50,7 @@
         "name": "visionBasic",
         "label": "Vision Radius of Basic Boids",
         "description": "Perception radius for basic boids. 0 - no perception, 100 - global perception",
-        "default": 50.0,
+        "default": 5.0,
         "min": 0.0,
         "max": 100.0,
         "step": 1.0
@@ -60,7 +60,7 @@
         "name": "visionPredator",
         "label": "Vision Radius of Predator Boids",
         "description": "Perception radius for predator boids. 0 - no perception, 100 - global perception",
-        "default": 60.0,
+        "default": 7.0,
         "min": 0.0,
         "max": 100.0,
         "step": 1.0
@@ -70,7 +70,7 @@
         "name": "neighbourAccuracy",
         "label": "Neighbor Accuracy",
         "description": "Maximum percentage of neighbors considered when calculating boid behavior. 100 - all boids, 0 - no boids",
-        "default": 50.0,
+        "default": 100.0,
         "min": 0.0,
         "max": 100.0,
         "step": 1.0

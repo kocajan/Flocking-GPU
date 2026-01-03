@@ -12,7 +12,7 @@ void renderParameter(ConfigParameter& p) {
     switch (p.type) {
 
     case ParamType::Number: {
-        auto& r = std::get<NumberRange>(p.range);
+        auto& r = p.numberRange();
         float& v = p.number();
 
         switch (p.render) {
@@ -83,20 +83,20 @@ void renderParameter(ConfigParameter& p) {
     }
 
     case ParamType::Enum: {
-        auto& r = std::get<EnumRange>(p.range);
+        auto& options = p.enumOptions();
         std::string& cur = p.string();
 
         assert(p.render == ParamRender::Input &&
                "Enum currently supports only Combo-style input");
 
         int idx = 0;
-        for (int i = 0; i < (int)r.options.size(); ++i)
-            if (r.options[i] == cur)
+        for (int i = 0; i < (int)options.size(); ++i)
+            if (options[i] == cur)
                 idx = i;
 
         std::vector<const char*> labels;
-        labels.reserve(r.options.size());
-        for (auto& s : r.options)
+        labels.reserve(options.size());
+        for (auto& s : options)
             labels.push_back(s.c_str());
 
         if (ImGui::Combo(
@@ -105,7 +105,7 @@ void renderParameter(ConfigParameter& p) {
                 labels.data(),
                 (int)labels.size()
             )) {
-            cur = r.options[idx];
+            cur = options[idx];
         }
         break;
     }

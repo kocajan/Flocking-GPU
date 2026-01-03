@@ -212,7 +212,7 @@ struct DeviceGrid {
     int numCellsX;
     int numCellsY;
     int numCellsZ;
-    
+
     int totalCells;
 };
 

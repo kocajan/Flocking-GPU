@@ -56,6 +56,19 @@ $(BIN): $(OBJ)
 	$(NVCC) $^ -o $@ $(LIBS) -lcudart
 
 # =========================
+# Run options
+# =========================
+CFG ?= cfg
+
+run: all
+	./$(BIN) run $(CFG)
+
+app: run
+
+lab: all
+	./$(BIN) experiment $(CFG)
+
+# =========================
 # Compile rules
 # =========================
 $(BUILD_DIR)/%.o: %.cpp
@@ -81,7 +94,4 @@ fclean: clean
 
 re: fclean all
 
-run: all
-	./$(BIN)
-
-.PHONY: all clean fclean re run
+.PHONY: all clean fclean re run app lab

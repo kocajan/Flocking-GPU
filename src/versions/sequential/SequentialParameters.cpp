@@ -105,7 +105,7 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     maxNeighborsBasic = static_cast<float>(s.boids.basicBoidCount) * percentToWeight(c.number("neighbourAccuracy"));
     
     // Cell parameters
-    cellSize = std::max(visionRangeBasic, visionRangePredator); 
+    cellSize = std::max(std::max(visionRangeBasic, visionRangePredator), obstacleBoidRadius * 1.1f);
     if (cellSize > eps) {
         numCellsX = static_cast<int>(std::ceil(worldX / cellSize));
         numCellsY = static_cast<int>(std::ceil(worldY / cellSize));

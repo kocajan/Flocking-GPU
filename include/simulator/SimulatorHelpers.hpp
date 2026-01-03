@@ -28,6 +28,9 @@ namespace simulator {
         float z = -1
     );
 
+    // Spawn a single boid of given type at specified position and velocity
+    void spawnBoid(SimState& s, BoidType type, const Vec3& pos, const Vec3& vel);
+
     // Spawn multiple boids of given type at random positions
     void removeBoids(
         Boids& b,

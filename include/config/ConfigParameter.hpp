@@ -145,6 +145,68 @@ public:
         return std::get<std::string>(value);
     }
 
+    // ----- Range accessors -----
+
+    NumberRange& numberRange() {
+        assert(type == ParamType::Number);
+        return std::get<NumberRange>(range);
+    }
+
+    const NumberRange& numberRange() const {
+        assert(type == ParamType::Number);
+        return std::get<NumberRange>(range);
+    }
+
+    BinaryRange& binaryRange() {
+        assert(type == ParamType::Binary);
+        return std::get<BinaryRange>(range);
+    }
+
+    const BinaryRange& binaryRange() const {
+        assert(type == ParamType::Binary);
+        return std::get<BinaryRange>(range);
+    }
+
+    StringRange& stringRange() {
+        assert(type == ParamType::String);
+        return std::get<StringRange>(range);
+    }
+
+    const StringRange& stringRange() const {
+        assert(type == ParamType::String);
+        return std::get<StringRange>(range);
+    }
+
+    EnumRange& enumRange() {
+        assert(type == ParamType::Enum);
+        return std::get<EnumRange>(range);
+    }
+
+    const EnumRange& enumRange() const {
+        assert(type == ParamType::Enum);
+        return std::get<EnumRange>(range);
+    }
+
+    // ----- Convenience helpers -----
+
+    // Enum option list
+    std::vector<std::string>& enumOptions() {
+        return enumRange().options;
+    }
+
+    const std::vector<std::string>& enumOptions() const {
+        return enumRange().options;
+    }
+
+    // String allowed options (if not free-text)
+    std::vector<std::string>& stringOptions() {
+        return stringRange().options;
+    }
+
+    const std::vector<std::string>& stringOptions() const {
+        return stringRange().options;
+    }
+
     // Reset to default value
     void reset() {
         value = defaultValue;

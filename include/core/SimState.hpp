@@ -17,8 +17,6 @@
 //------------------------------------------------------------------------------
 class SimState {
 public:
-    explicit SimState(const Config& config, ConfigParameter versionParam);
-
     //-------------------------------------------------------------------------
     // Persistent initial configuration (used for reset-to-defaults)
     //-------------------------------------------------------------------------
@@ -106,4 +104,12 @@ public:
 
     // Reset to initial startup configuration
     void resetToDefaults();
+
+    // Has and get parameter helpers
+    bool has(const std::string& name) const;
+    ConfigParameter& get(const std::string& name);
+    const ConfigParameter& get(const std::string& name) const;
+
+    // Constructor from configuration
+    SimState(const Config& config, ConfigParameter versionParam);
 };

@@ -179,7 +179,7 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
     // GPU parameters - Grid
     // ################################################################
     // Define spatial partitioning parameters
-    gpu.dGrid.cellSize = std::max(gpu.visionRangeBasic, gpu.visionRangePredator);
+    gpu.dGrid.cellSize = std::max(std::max(gpu.visionRangeBasic, gpu.visionRangePredator), gpu.obstacleBoidRadius * 1.1f);
     if (gpu.dGrid.cellSize > gpu.eps) {
         gpu.dGrid.numCellsX = static_cast<int>(std::ceil(gpu.worldX / gpu.dGrid.cellSize));
         gpu.dGrid.numCellsY = static_cast<int>(std::ceil(gpu.worldY / gpu.dGrid.cellSize));

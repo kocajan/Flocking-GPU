@@ -19,7 +19,7 @@ static void applyEffect(SimState& s, const std::string& effect, float x, float y
 
     // Dispatch effect
     if (effect == "Spawn Predator") {
-        const auto& targetRange = std::get<NumberRange>(s.predatorBoidCountTarget.range);
+        const auto& targetRange = s.predatorBoidCountTarget.numberRange();
         if (s.predatorBoidCountTarget.number() < targetRange.max) {
             simulator::spawnBoids(s, BoidType::Predator, b.predatorBoidCount, 1, x, y);
             s.predatorBoidCountTarget.number() += 1.0f;
