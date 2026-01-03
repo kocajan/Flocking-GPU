@@ -1,6 +1,6 @@
-// #pragma once
+#pragma once
 
-// #include "versions/parallel/ParallelParameters.hpp"
+#include "versions/parallel/ParallelParameters.hpp"
 
 
-// void simulationStepParallel(ParallelParameters& params);
+void simulationStepParallel(ParallelParameters& params);

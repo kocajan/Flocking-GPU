@@ -21,8 +21,8 @@ __device__ inline float sqrLen(const Vec3& v);
 __device__ inline Vec3 normalize(const Vec3& v, float eps);
 __device__ inline float periodicDelta(float d, float worldSize);
 __device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelNaiveParameters::GPUParams& params);
-__device__ Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce);
-__device__ void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier);
+__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce);
+__device__ inline void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier);
 
 
 __global__ void simulationStepParallelNaiveBasicBoidsKernel(ParallelNaiveParameters::GPUParams params) {
@@ -71,18 +71,12 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     Vec3 acc = boids.accBasic[currentBoidIdx];
     Vec3 target = boids.targetPointBasic[currentBoidIdx];
 
-    // Define helper to make weighted forces
-    auto makeWeightedForce = [&](const Vec3& dir, float weight) {
-        float k = params.maxForce * weight;
-        return Vec3{ dir.x * k, dir.y * k, dir.z * k };
-    };
-
     // Initialize accumulators
     Vec3 personalSpace{0,0,0};
     Vec3 posSum{0,0,0};
     Vec3 velSum{0,0,0};
-    uint64_t neighborCount = 0;
-    uint64_t distantNeighborCount = 0;
+    int neighborCount = 0;
+    int distantNeighborCount = 0;
 
     // Analyze other boids
     for (int otherIdx = 0; otherIdx < boids.basicBoidCount; ++otherIdx) {
@@ -93,8 +87,8 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
         if (otherIdx == currentBoidIdx) continue;
 
         // Get reference to other boid
-        const Vec3& oPos = boids.posBasic[otherIdx];
-        const Vec3& oVel = boids.velBasic[otherIdx];
+        const Vec3 oPos = boids.posBasic[otherIdx];
+        const Vec3 oVel = boids.velBasic[otherIdx];
 
         // Compute distance vector
         Vec3 distVec = periodicDeltaVec(pos, oPos, params);
@@ -193,11 +187,11 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     Vec3 targetDir = normalize(toTarget, params.eps);
 
     // Get weighted forces
-    Vec3 cohesionForceW = makeWeightedForce(cohesionDir, params.cohesionWeightBasic);
-    Vec3 alignmentForceW = makeWeightedForce(alignmentDir, params.alignmentWeightBasic);
-    Vec3 separationForceW = makeWeightedForce(separationDir, params.separationWeightBasic);
-    Vec3 targetForceW = makeWeightedForce(targetDir, adjustedTargetWeight);
-    Vec3 cruisingForceW = makeWeightedForce(cruisingForce, 0.1f);
+    Vec3 cohesionForceW = makeWeightedForce(cohesionDir, params.cohesionWeightBasic, params.maxForce);
+    Vec3 alignmentForceW = makeWeightedForce(alignmentDir, params.alignmentWeightBasic, params.maxForce);
+    Vec3 separationForceW = makeWeightedForce(separationDir, params.separationWeightBasic, params.maxForce);
+    Vec3 targetForceW = makeWeightedForce(targetDir, adjustedTargetWeight, params.maxForce);
+    Vec3 cruisingForceW = makeWeightedForce(cruisingForce, 0.1f, params.maxForce);
 
     // Apply the average force to acceleration
     acc.x += cohesionForceW.x + alignmentForceW.x + separationForceW.x + targetForceW.x + cruisingForceW.x;
@@ -251,7 +245,7 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     if (numPredators > 0) {
         // Get escape direction
         Vec3 escape = normalize(predAvoidanceDir, params.eps);
-        Vec3 escapeForceW = makeWeightedForce(escape, 2.0f);
+        Vec3 escapeForceW = makeWeightedForce(escape, 2.0f, params.maxForce);
 
         // If escape force is stronger than current acceleration, override it
         if (sqrLen(escapeForceW) > sqrLen(acc)) {
@@ -310,7 +304,7 @@ __device__ void resolvePredatorBoidBehavior(ParallelNaiveParameters::GPUParams& 
 
     // Chase the target boid if any
     if (targetIdx != -1 && resting == false && stamina > 0.0f && targetType == static_cast<uint8_t>(BoidType::Basic)) {
-        //Chasing
+        // Chasing
         const Vec3& tPos = boids.posBasic[targetIdx];
 
         Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params);
@@ -323,6 +317,7 @@ __device__ void resolvePredatorBoidBehavior(ParallelNaiveParameters::GPUParams& 
         acc.x = toTargetDir.x * dist2;
         acc.y = toTargetDir.y * dist2;
         acc.z = toTargetDir.z * dist2;
+
         stamina -= params.staminaDrainRatePredator * params.dt;
     } else if (stamina <= 0.0f && resting == false) {
         // Exhausted -> enter rest mode
@@ -853,12 +848,12 @@ __device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const 
     return distVec;
 }
 
-__device__ Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce) {
+__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce) {
     float k = maxForce * w;
     return Vec3{ d.x * k, d.y * k, d.z * k };
 };
 
-__device__ void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier) {
+__device__ inline void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier) {
     if (d < visualRange) {
         float weight = __expf(-0.3f * d);
         accAxis += axisSign * (maxForce * weight * multiplier);

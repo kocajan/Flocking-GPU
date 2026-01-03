@@ -51,7 +51,7 @@ struct DeviceInteraction {
 
 //
 // ============================================================================
-//  Boid classification
+//  Boids
 // ============================================================================
 //
 
@@ -176,6 +176,44 @@ struct DeviceBoids {
     int basicBoidCount = 0;
     int predatorBoidCount = 0;
     int obstacleBoidCount = 0;
+};
+
+// Grid
+struct DeviceGrid {
+    // Basic boid grid
+    int* hashBasic;
+    int* indexBasic;
+
+    int* cellStartBasic;
+    int* cellEndBasic;
+
+    // Predator boid grid
+    int* hashPredator;
+    int* indexPredator;
+
+    int* cellStartPredator;
+    int* cellEndPredator;
+
+    // Obstacle boid grid
+    int* hashObstacle;
+    int* indexObstacle;
+
+    int* cellStartObstacle;
+    int* cellEndObstacle;
+
+    // Spatial partitioning
+    // - Cell grid coordinates
+    int* cellX;
+    int* cellY;
+    int* cellZ;
+
+    float cellSize;
+    
+    int numCellsX;
+    int numCellsY;
+    int numCellsZ;
+    
+    int totalCells;
 };
 
 //
