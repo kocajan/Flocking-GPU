@@ -17,3 +17,5 @@ imgui.ini
 *~
 .DS_Store
 
+# Data
+data/

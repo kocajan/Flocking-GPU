@@ -26,7 +26,6 @@ void RecordBoidFramesExperiment::onBoidConfigStart(int boidCount)
 void RecordBoidFramesExperiment::onTick(int tick, double)
 {
     const auto& boids = simState.boids;
-
     char path[256];
     std::snprintf(
         path, sizeof(path),
@@ -62,18 +61,31 @@ void RecordBoidFramesExperiment::onTick(int tick, double)
         for (int i = 0; i < count; ++i)
         {
             const Vec3& p = pos[i];
-            const Vec3& v = vel[i];
 
-            out << "boid "
-                << type
-                << " x " << p.x
-                << " y " << p.y
-                << " z " << p.z
-                << " vx " << v.x
-                << " vy " << v.y
-                << " vz " << v.z
-                << " r " << radiusWorld
-                << "\n";
+            if (vel != nullptr) {
+                const Vec3& v = vel[i];
+                out << "boid "
+                    << type
+                    << " x " << p.x
+                    << " y " << p.y
+                    << " z " << p.z
+                    << " vx " << v.x
+                    << " vy " << v.y
+                    << " vz " << v.z
+                    << " r " << radiusWorld
+                    << "\n";
+            } else {
+                out << "boid "
+                    << type
+                    << " x " << p.x
+                    << " y " << p.y
+                    << " z " << p.z
+                    << " vx " << 0.0f
+                    << " vy " << 0.0f
+                    << " vz " << 0.0f
+                    << " r " << radiusWorld
+                    << "\n";
+            }
         }
     };
 

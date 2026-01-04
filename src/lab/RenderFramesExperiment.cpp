@@ -203,7 +203,7 @@ void RenderFramesExperiment::writeGif() {
     std::string gifPath = frameDir + "/animation.gif";
 
     GifWriter writer{};
-    GifBegin(&writer, gifPath.c_str(), imgW, imgH, 5);
+    GifBegin(&writer, gifPath.c_str(), imgW, imgH, 2);
 
     for (int i = 0; i < frameIndex; ++i) {
         char name[256];
@@ -218,7 +218,7 @@ void RenderFramesExperiment::writeGif() {
         if (!img)
             continue;
 
-        GifWriteFrame(&writer, img, w, h, 5);
+        GifWriteFrame(&writer, img, w, h, 2);
         stbi_image_free(img);
     }
 
