@@ -5,7 +5,7 @@
 #include "config/Config.hpp"
 
 
-SequentialNaiveParameters::SequentialNaiveParameters(SimState& s,const Config& c) 
+SequentialNaiveParameters::SequentialNaiveParameters(SimState& s, const Config& c) 
     : boids(s.boids) {
     // Define helper function for converting percentage weights
     auto percentToWeight = [](float percent) {

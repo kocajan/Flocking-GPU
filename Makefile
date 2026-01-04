@@ -8,7 +8,8 @@ NVCC := nvcc
 CXXFLAGS := -std=c++20 -O2 -Wall -Wextra \
             -Iinclude \
             -Ithird_party \
-            -Ithird_party/glad/include
+            -Ithird_party/glad/include \
+			-Ithird_party/giflib
 
 CFLAGS := -O2 -Wall -Wextra \
           -Ithird_party/glad/include
@@ -16,7 +17,8 @@ CFLAGS := -O2 -Wall -Wextra \
 NVCCFLAGS := -std=c++20 -O2 \
              -Iinclude \
              -Ithird_party \
-             -Ithird_party/glad/include
+             -Ithird_party/glad/include \
+			 -Ithird_party/giflib
 
 # =========================
 # Libraries

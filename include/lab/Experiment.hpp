@@ -1,44 +1,24 @@
+#pragma once
 
-
-struct ExperimentContext {
-    const Config& experimentConfig;
-    SimState& simState;
-    Config& simConfig;
-    int totalTicks;
-    int warmupTicks;
-};
+#include <string>
+#include "config/Config.hpp"
+#include "core/SimState.hpp"
 
 class Experiment {
 public:
+    SimState& simState;
+    Config& simConfig;
+    const Config& experimentConfig;
+
+    Experiment(SimState& simState_, Config& simConfig_, const Config& experimentConfig_);
+
     virtual ~Experiment() = default;
 
-    // Called before any runs begin
-    virtual void onExperimentStart(const ExperimentContext&) {}
-
-    // Called when switching to a new version
-    virtual void onVersionStart(const std::string& version,
-                                const ExperimentContext&) {}
-
-    // Called before running a boid-count batch
-    virtual void onBoidConfigStart(int boidCount,
-                                   const ExperimentContext&) {}
-
-    // Called after each simulated step (may be ignored)
-    virtual void onTick(int tick,
-                        double stepMs,
-                        const ExperimentContext&) {}
-
-    // Called after finishing a boid-count batch
-    virtual void onBoidConfigEnd(int boidCount,
-                                 const ExperimentContext&) {}
-
-    // Called after finishing a version
-    virtual void onVersionEnd(const std::string& version,
-                              const ExperimentContext&) {}
-
-    // Called at the very end
-    virtual void onExperimentEnd(const ExperimentContext&) {}
-
-    // Provide access to collected results in any structure
-    virtual void finalizeResults(const Config& experimentConfig) = 0;
+    virtual void onExperimentStart();
+    virtual void onVersionStart(const std::string& version);
+    virtual void onBoidConfigStart(int boidCount);
+    virtual void onTick(int tick, double stepMs);
+    virtual void onBoidConfigEnd(int boidCount);
+    virtual void onVersionEnd(const std::string& version);
+    virtual void onExperimentEnd();
 };

@@ -1,14 +1,68 @@
 {
-  "id": "defaultSettings3DExperiment",
+  "id": "plainWithObstaclesExperiment",
   "parameters": {
+    "Experiment": [
+      {
+        "type": "binary",
+        "name": "description",
+        "label": "Experiment Description",
+        "description": "No forces (just cruising). Max neighbor accuracy. With obstacles.",
+        "default": true
+      },
+      {
+        "type": "string",
+        "name": "outputDirPath",
+        "label": "Output Directory Path",
+        "description": "Directory path where experiment results will be saved.",
+        "default": "/home/kocajan/magistr/3_semester/GPU/project/data/results/plainWithObstacles"
+      },
+      {
+        "type": "enum",
+        "name": "versionsToRun",
+        "label": "Versions to Run",
+        "description": "Select which versions of the simulation to run. Has to be defined under the same name in the versions configs.",
+        "default": "sequentialNaive",
+        "options": ["sequentialNaive", "sequential", "parallelNaive", "parallel"]
+      },
+{
+        "type": "number",
+        "name": "numBoids",
+        "label": "Number of Boids",
+        "description": "Total number of boids in the simulation.",
+        "default": 100,
+        "min": 100,
+        "max": 3000,
+        "step": 100
+      },
+      {
+        "type": "number",
+        "name": "totalTicks",
+        "label": "Total Ticks",
+        "description": "Total number of simulation ticks for the experiment.",
+        "default": 400,
+        "min": 400,
+        "max": 400,
+        "step": 0
+      },
+      {
+        "type": "number",
+        "name": "warmupTicks",
+        "label": "Warmup Ticks",
+        "description": "Number of warmup ticks before data collection starts.",
+        "default": 100,
+        "min": 100,
+        "max": 100,
+        "step": 0
+      }
+    ],
     "SimState": [
       {
         "type": "enum",
         "name": "dimensions",
         "label": "Dimensions",
         "description": "Simulation dimensionality",
-        "default": "3D",
-        "options": ["3D"]
+        "default": "2D",
+        "options": ["2D"]
       },
       {
         "type": "number",
@@ -37,9 +91,9 @@
         "name": "alignmentBasic",
         "label": "Alignment Weight for Basic Boids",
         "description": "Velocity matching with neighbors. 0 - no alignment, 100 - full alignment",
-        "default": 20.0,
-        "min": 20.0,
-        "max": 20.0,
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
         "step": 0.0
       },
       {
@@ -47,9 +101,9 @@
         "name": "cohesionBasic",
         "label": "Cohesion Weight for Basic Boids",
         "description": "Attraction to neighbors' center of mass. 0 - no cohesion, 100 - full cohesion",
-        "default": 20.0,
-        "min": 20.0,
-        "max": 20.0,
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
         "step": 0.0
       },
       {
@@ -57,9 +111,9 @@
         "name": "separationBasic",
         "label": "Separation Weight for Basic Boids",
         "description": "Repulsion from neighbors. 0 - no separation, 100 - full separation",
-        "default": 100.0,
-        "min": 100.0,
-        "max": 100.0,
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
         "step": 0.0
       },
       {
@@ -67,9 +121,9 @@
         "name": "targetAttractionBasic",
         "label": "Target Attraction Weight for Basic Boids",
         "description": "Attraction weight to the local target for basic boids. 0 - no attraction, 100 - full attraction",
-        "default": 15.0,
-        "min": 15.0,
-        "max": 15.0,
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
         "step": 0.0
       },
       {
@@ -177,9 +231,9 @@
         "name": "drag",
         "label": "Drag",
         "description": "Velocity damping factor. 0 - no drag, 100 - no movement",
-        "default": 10.0,
-        "min": 10.0,
-        "max": 10.0,
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
         "step": 0.0
       },
       {
@@ -207,9 +261,9 @@
         "name": "predatorStaminaRecoveryRate",
         "label": "Predator Stamina Recovery Rate",
         "description": "Stamina recovery rate for predator boids.",
-        "default": 10.0,
-        "min": 10.0,
-        "max": 10.0,
+        "default": 100.0,
+        "min": 100.0,
+        "max": 100.0,
         "step": 0.0
       },
       {
@@ -217,9 +271,9 @@
         "name": "predatorStaminaDrainRate",
         "label": "Predator Stamina Drain Rate",
         "description": "Stamina drain rate for predator boids.",
-        "default": 20.0,
-        "min": 20.0,
-        "max": 20.0,
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
         "step": 0.0
       },
       {
@@ -247,9 +301,9 @@
         "name": "bounceFactor",
         "label": "Obstacle Bounce Factor",
         "description": "Velocity reduction factor upon obstacle collision. 0 - full stop, 100 - no reduction",
-        "default": 80.0,
-        "min": 80.0,
-        "max": 80.0,
+        "default": 100.0,
+        "min": 100.0,
+        "max": 100.0,
         "step": 0.0
       },
       {

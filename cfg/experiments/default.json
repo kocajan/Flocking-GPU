@@ -1,6 +1,60 @@
 {
   "id": "defaultSettingsExperiment",
   "parameters": {
+    "Experiment": [
+      {
+        "type": "binary",
+        "name": "description",
+        "label": "Experiment Description",
+        "description": "Experiment with default settings.",
+        "default": true
+      },
+      {
+        "type": "string",
+        "name": "outputDirPath",
+        "label": "Output Directory Path",
+        "description": "Directory path where experiment results will be saved.",
+        "default": "/home/kocajan/magistr/3_semester/GPU/project/data/results/default"
+      },
+      {
+        "type": "enum",
+        "name": "versionsToRun",
+        "label": "Versions to Run",
+        "description": "Select which versions of the simulation to run. Has to be defined under the same name in the versions configs.",
+        "default": "sequentialNaive",
+        "options": ["sequentialNaive", "sequential", "parallelNaive", "parallel"]
+      },
+      {
+        "type": "number",
+        "name": "numBoids",
+        "label": "Number of Boids",
+        "description": "Total number of boids in the simulation.",
+        "default": 100,
+        "min": 100,
+        "max": 3000,
+        "step": 100
+      },
+      {
+        "type": "number",
+        "name": "totalTicks",
+        "label": "Total Ticks",
+        "description": "Total number of simulation ticks for the experiment.",
+        "default": 400,
+        "min": 400,
+        "max": 400,
+        "step": 0
+      },
+      {
+        "type": "number",
+        "name": "warmupTicks",
+        "label": "Warmup Ticks",
+        "description": "Number of warmup ticks before data collection starts.",
+        "default": 100,
+        "min": 100,
+        "max": 100,
+        "step": 0
+      }
+    ],
     "SimState": [
       {
         "type": "enum",

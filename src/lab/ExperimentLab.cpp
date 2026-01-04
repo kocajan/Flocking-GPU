@@ -7,6 +7,10 @@
 #include "config/VersionConfigLoader.hpp"
 #include "simulator/SimulationStep.hpp"
 #include "simulator/SimulatorHelpers.hpp"
+#include "lab/Experiment.hpp"
+#include "lab/TimedExecutionExperiment.hpp"
+#include "lab/RenderFramesExperiment.hpp"
+#include "lab/RecordBoidFramesExperiment.hpp"
 
 
 ExperimentLab::ExperimentLab(const std::string& configDirPath)
@@ -37,8 +41,18 @@ void ExperimentLab::runExperiments(const std::string& experimentConfigsDirPath) 
         SimState adjustedSimState = adjustDefaultSimStateForExperiment(experimentConfig);
         Config adjustedSimConfig = adjustDefaultSimConfigForExperiment(experimentConfig);
 
-        // Run the experiment
-        runExperimentScenario(experimentConfig, adjustedSimState, adjustedSimConfig);
+        // Create timed execution and render frames experiment instances
+        TimedExecutionExperiment experimentTimed(adjustedSimState, adjustedSimConfig, experimentConfig);
+        RenderFramesExperiment experimentRender(adjustedSimState, adjustedSimConfig, experimentConfig);
+        RecordBoidFramesExperiment experimentRecord(adjustedSimState, adjustedSimConfig, experimentConfig);
+
+        // Run both experiments
+        printf("\n - Running Timed Execution Experiment...\n");
+        runExperimentScenario(experimentTimed);
+        // printf("\n - Running Render Frames Experiment...\n");
+        // runExperimentScenario(experimentRender);
+        printf("\n - Running Record Boid Frames Experiment...\n");
+        runExperimentScenario(experimentRecord);
 
         std::cout << "\nCompleted experiment: " << experimentConfig.getConfigId() << "\n\n";
     }
@@ -70,68 +84,51 @@ Config ExperimentLab::adjustDefaultSimConfigForExperiment(const Config& experime
     return adjustedSimConfig;
 }
 
-void ExperimentLab::runExperimentScenario(const Config& experimentConfig, SimState& simState, Config& simConfig) {
-    // Get version to run
-    std::vector<std::string> versionsToRun = getVersionsToExperimentWith(experimentConfig);
+void ExperimentLab::runExperimentScenario(Experiment& experiment) {
+    // Get experiment parameters from the experiment config
+    const int totalTicks  = static_cast<int>(experiment.experimentConfig.number("totalTicks"));
+    const int warmupTicks = static_cast<int>(experiment.experimentConfig.number("warmupTicks"));
 
-    // Unpack experiment parameters
-    const int totalTicks = static_cast<int>(experimentConfig.number("totalTicks"));
-    const int warmupTicks = static_cast<int>(experimentConfig.number("warmupTicks"));
+    std::vector<std::string> versions = getVersionsToExperimentWith(experiment.experimentConfig);
+    NumberRange boidRange = experiment.experimentConfig.get("numBoids").numberRange();
 
-    // Get boid count range
-    NumberRange numBoidsRange = experimentConfig.get("numBoids").numberRange();
+    // Run experiment pipeline
+    experiment.onExperimentStart();
+    for (const std::string& version : versions) {
+        printf("  - Starting version: %s\n", version.c_str());
+        experiment.simState.version.string() = version;
+        experiment.onVersionStart(version);
 
-    int numBoidsStep = static_cast<int>(numBoidsRange.step);
-    int numBoidsMin = static_cast<int>(numBoidsRange.min);
-    int numBoidsMax = static_cast<int>(numBoidsRange.max);
-
-    std::vector<ExperimentResult> results;
-    for (const std::string& version : versionsToRun) {
-        printf("  - Running version: %s\n", version.c_str());
-        // Set version in simulation state
-        simState.version.string() = version;
-
-        // Create result entry (intialize initial and final states)
-        ExperimentResult result(version, simState);
-
-        for (int boidCount = numBoidsMin; boidCount <= numBoidsMax; boidCount += numBoidsStep) {
-            printf("    - Testing with %d boids...\n", boidCount);
-            // Reset / initialize data for experiment
-            initializeDataForExperiment(experimentConfig, simState, boidCount);
-
-            // Reset simulation state
-            double accumulatedStepMs = 0.0;
-
+        for (int numBoids = boidRange.min; numBoids <= boidRange.max; numBoids += boidRange.step) {
+            printf("    - Running with %d boids...\n", numBoids);
+            // Initialize data for this experiment run
+            initializeDataForExperiment(experiment.experimentConfig,experiment.simState,numBoids);
+            
+            experiment.onBoidConfigStart(numBoids);
+            // Run simulation steps
             for (int tick = 0; tick < totalTicks; ++tick) {
-                // Measure step time
+
                 auto t0 = std::chrono::steady_clock::now();
-                simulationStep(simState, simConfig);
+                simulationStep(experiment.simState, experiment.simConfig);
                 auto t1 = std::chrono::steady_clock::now();
 
-                // Skip warmup ticks
-                if (tick < warmupTicks) {
+                if (tick < warmupTicks)
                     continue;
-                }
 
-                // Save measurement
-                std::chrono::duration<double, std::milli> stepMs = t1 - t0;
-                accumulatedStepMs += stepMs.count();
+                std::chrono::duration<double,std::milli> dt = t1 - t0;
+
+                experiment.onTick(tick, dt.count());
             }
 
-            // Compute average step time
-            double avgStepMs = accumulatedStepMs / (totalTicks - warmupTicks);
-
-            // Save result
-            result.boidCounts.push_back(boidCount);
-            result.avgStepTimesMs.push_back(avgStepMs);
+            experiment.onBoidConfigEnd(numBoids);
         }
-        // Save final sim state and store result
-        result.finalSimState = simState;
-        results.push_back(result);
+
+        experiment.onVersionEnd(version);
     }
-    // Finalize experiment results (e.g., output to console or file)
-    finalizeExperimentResults(experimentConfig, results);
+
+    experiment.onExperimentEnd();
 }
+
 
 void ExperimentLab::initializeDataForExperiment(const Config& experimentConfig, SimState& simState, int basicBoidCount) {
     // Get current experiment ID
@@ -211,6 +208,7 @@ void ExperimentLab::initializeDataForExperimentDefault(SimState& simState, int r
     Vec3 obstaclePos = { simState.worldX.number() / 2.0f, simState.worldY.number() / 2.0f, 0.0f };
     Vec3 obstacleVel = { 0.0f, 0.0f, 0.0f };
     simulator::spawnBoid(simState, BoidType::Obstacle, obstaclePos, obstacleVel);
+    simState.boids.obstacleBoidCount++;
 
     // Spawn predator boids
     const int predatorCount = 1;
@@ -231,24 +229,14 @@ void ExperimentLab::initializeDataForExperimentDefault3D(SimState& simState, int
     Vec3 obstaclePos = { simState.worldX.number() / 2.0f, simState.worldY.number() / 2.0f, 0.0f };
     Vec3 obstacleVel = { 0.0f, 0.0f, 0.0f };
     simulator::spawnBoid(simState, BoidType::Obstacle, obstaclePos, obstacleVel);
-
+    simState.boids.obstacleBoidCount++;
+    
     // Spawn predator boids
     const int predatorCount = 1;
     simulator::spawnBoids(simState, BoidType::Predator, simState.boids.predatorBoidCount, predatorCount);
-}
 
-void ExperimentLab::finalizeExperimentResults(const Config& experimentConfig, std::vector<ExperimentResult>& results) {
-    // Example: Output results to console
-    for (const ExperimentResult& result : results) {
-        std::cout << "Results for version: " << result.version << '\n';
-        std::cout << "Boid Count, Average Step Time (ms)\n";
-        for (size_t i = 0; i < result.boidCounts.size(); ++i) {
-            std::cout << result.boidCounts[i] << ", " << result.avgStepTimesMs[i] << '\n';
-        }
-        std::cout << '\n';
-    }
-
-    // Additional finalization logic (e.g., saving to file) can be added here
+    // Set SimState to 3D mode
+    simState.dimensions.string() = "3D";
 }
 
 std::vector<std::string> ExperimentLab::getVersionsToExperimentWith(const Config& experimentConfig) {

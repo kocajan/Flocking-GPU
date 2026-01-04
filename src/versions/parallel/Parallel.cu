@@ -116,39 +116,39 @@ void simulationStepParallel(ParallelParameters& params) {
         CHECK_ERROR(cudaPeekAtLastError());
         CHECK_ERROR(cudaDeviceSynchronize());
 
-        // JUST FOR DEBUGGING
-        // First, copy dGrid.hashObstacle, dGrid.cellStartObstacle, dGrid.cellEndObstacle to host and print them
-        int* hHashObstacle = new int[obstacleBoidCount];
-        int* hCellStartObstacle = new int[dGrid.totalCells];
-        int* hCellEndObstacle = new int[dGrid.totalCells];
+    //     // JUST FOR DEBUGGING
+    //     // First, copy dGrid.hashObstacle, dGrid.cellStartObstacle, dGrid.cellEndObstacle to host and print them
+    //     int* hHashObstacle = new int[obstacleBoidCount];
+    //     int* hCellStartObstacle = new int[dGrid.totalCells];
+    //     int* hCellEndObstacle = new int[dGrid.totalCells];
 
-        CHECK_ERROR(cudaMemcpy(hHashObstacle, dGrid.hashObstacle, obstacleBoidCount * sizeof(int), cudaMemcpyDeviceToHost));
-        CHECK_ERROR(cudaMemcpy(hCellStartObstacle, dGrid.cellStartObstacle, dGrid.totalCells * sizeof(int), cudaMemcpyDeviceToHost));
-        CHECK_ERROR(cudaMemcpy(hCellEndObstacle, dGrid.cellEndObstacle, dGrid.totalCells * sizeof(int), cudaMemcpyDeviceToHost));
+    //     CHECK_ERROR(cudaMemcpy(hHashObstacle, dGrid.hashObstacle, obstacleBoidCount * sizeof(int), cudaMemcpyDeviceToHost));
+    //     CHECK_ERROR(cudaMemcpy(hCellStartObstacle, dGrid.cellStartObstacle, dGrid.totalCells * sizeof(int), cudaMemcpyDeviceToHost));
+    //     CHECK_ERROR(cudaMemcpy(hCellEndObstacle, dGrid.cellEndObstacle, dGrid.totalCells * sizeof(int), cudaMemcpyDeviceToHost));
         
-        // Port hashes to grid cell coordinates
-        auto unflattenCellCoord = [&](int hash) {
-            int z = hash / (dGrid.numCellsX * dGrid.numCellsY);
-            int y = (hash - z * dGrid.numCellsX * dGrid.numCellsY) / dGrid.numCellsX;
-            int x = hash % dGrid.numCellsX;
-            return std::make_tuple(x, y, z);
-        };
-        std::cout << "Obstacle Boid Hashes and Cell Ranges:" << std::endl;
-        for (int i = 0; i < obstacleBoidCount; ++i) {
-            auto [x, y, z] = unflattenCellCoord(hHashObstacle[i]);
-            std::cout << "Boid " << i << ": Hash = " << hHashObstacle[i] 
-                      << " (Cell: " << x << ", " << y << ", " << z << ")" << std::endl;
-        }
-        for (int i = 0; i < dGrid.totalCells; ++i) {
-            if (hCellStartObstacle[i] != -1 || hCellEndObstacle[i] != -1) {
-                auto [x, y, z] = unflattenCellCoord(i);
-                std::cout << "Cell (" << x << ", " << y << ", " << z << "): Start = " 
-                          << hCellStartObstacle[i] << ", End = " << hCellEndObstacle[i] << std::endl;
-            }
-        }
-        delete[] hHashObstacle;
-        delete[] hCellStartObstacle;
-        delete[] hCellEndObstacle;
+    //     // Port hashes to grid cell coordinates
+    //     auto unflattenCellCoord = [&](int hash) {
+    //         int z = hash / (dGrid.numCellsX * dGrid.numCellsY);
+    //         int y = (hash - z * dGrid.numCellsX * dGrid.numCellsY) / dGrid.numCellsX;
+    //         int x = hash % dGrid.numCellsX;
+    //         return std::make_tuple(x, y, z);
+    //     };
+    //     std::cout << "Obstacle Boid Hashes and Cell Ranges:" << std::endl;
+    //     for (int i = 0; i < obstacleBoidCount; ++i) {
+    //         auto [x, y, z] = unflattenCellCoord(hHashObstacle[i]);
+    //         std::cout << "Boid " << i << ": Hash = " << hHashObstacle[i] 
+    //                   << " (Cell: " << x << ", " << y << ", " << z << ")" << std::endl;
+    //     }
+    //     for (int i = 0; i < dGrid.totalCells; ++i) {
+    //         if (hCellStartObstacle[i] != -1 || hCellEndObstacle[i] != -1) {
+    //             auto [x, y, z] = unflattenCellCoord(i);
+    //             std::cout << "Cell (" << x << ", " << y << ", " << z << "): Start = " 
+    //                       << hCellStartObstacle[i] << ", End = " << hCellEndObstacle[i] << std::endl;
+    //         }
+    //     }
+    //     delete[] hHashObstacle;
+    //     delete[] hCellStartObstacle;
+    //     delete[] hCellEndObstacle;
     }
 
     // Launch the simulation step kernel for basic and predator boids
