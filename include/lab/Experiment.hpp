@@ -1,16 +1,39 @@
+/**
+ * \file Experiment.hpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Base interface for experiment scenario callbacks.
+ */
+
 #pragma once
 
 #include <string>
+
 #include "config/Config.hpp"
 #include "core/SimState.hpp"
 
+/**
+ * \class Experiment
+ * \brief Base interface for experiment scenario callbacks.
+ *
+ * Provides lifecycle hooks called by ExperimentLab during:
+ * - experiment execution
+ * - boid count sweeps
+ * - version iterations
+ * - per-tick simulation steps
+ *
+ * Derived classes override whichever callbacks they need.
+ */
 class Experiment {
 public:
     SimState& simState;
     Config& simConfig;
     const Config& experimentConfig;
 
-    Experiment(SimState& simState_, Config& simConfig_, const Config& experimentConfig_);
+public:
+    Experiment(SimState& simState_,
+               Config& simConfig_,
+               const Config& experimentConfig_);
 
     virtual ~Experiment() = default;
 
