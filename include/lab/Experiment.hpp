@@ -15,10 +15,10 @@ public:
     virtual ~Experiment() = default;
 
     virtual void onExperimentStart();
+    virtual void onBoidNumChangeStart(int boidCount);
     virtual void onVersionStart(const std::string& version);
-    virtual void onBoidConfigStart(int boidCount);
     virtual void onTick(int tick, double stepMs);
-    virtual void onBoidConfigEnd(int boidCount);
     virtual void onVersionEnd(const std::string& version);
+    virtual void onBoidNumChangeEnd(int boidCount);
     virtual void onExperimentEnd();
 };

@@ -15,7 +15,7 @@ class TimedExecutionExperiment : public Experiment {
 public:
     using Experiment::Experiment;
 
-    std::vector<TimedExecutionEntry> results;
+    std::unordered_map<std::string, TimedExecutionEntry*> results;
 
 private:
     TimedExecutionEntry* currentEntry = nullptr;
@@ -24,9 +24,10 @@ private:
     double accumulatedMs = 0.0;
 
 public:
+    void onExperimentStart() override;
     void onVersionStart(const std::string& version) override;
-    void onBoidConfigStart(int boidCount) override;
+    void onBoidNumChangeStart(int boidCount) override;
     void onTick(int tick, double stepMs) override;
-    void onBoidConfigEnd(int boidCount) override;
+    void onVersionEnd(const std::string& version) override;
     void onExperimentEnd() override;
 };

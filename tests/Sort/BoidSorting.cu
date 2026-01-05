@@ -2,7 +2,6 @@
 #include <iostream>
 #include <cuda_runtime.h>
 
-
 namespace {
     #define CHECK_ERROR( error ) ( HandleError( error, __FILE__, __LINE__ ) )
 
@@ -16,10 +15,8 @@ namespace {
     }
 } // anonymous namespace
 
-
 __global__ void fillPadding(int* dHash, int* dIndex, int boidCount, int N, int sentinel);
 __global__ void bitonicSortStepKernel(int* dHash, int* dIndex, int j, int k, int N);
-
 
 void sortBoidsByHash(int boidCount, int* dHash, int* dIndex, int blockSize) {
     if (boidCount <= 1)

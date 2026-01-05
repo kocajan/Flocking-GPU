@@ -80,13 +80,11 @@ __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, 
     int neighborCount = 0;
     int distantNeighborCount = 0;
 
-    // Get current boid's cell hash
-    int currentBoidCellHash = params.dGrid.hashBasic[currentBoidIdx];
-
-    // Get current boid's cell coordinates
-    int cX = params.dGrid.cellX[currentBoidCellHash];
-    int cY = params.dGrid.cellY[currentBoidCellHash];
-    int cZ = params.dGrid.cellZ[currentBoidCellHash];
+    // Calculate the current boid's cell hash from the position
+    int cX = static_cast<int>(pos.x / params.dGrid.cellSize);
+    int cY = static_cast<int>(pos.y / params.dGrid.cellSize);
+    int cZ = params.is2D ? 0 : static_cast<int>(pos.z / params.dGrid.cellSize);
+    int currentBoidCellHash = calculateCellHash(cX, cY, cZ, params);
 
     int totalCellInNeighborhood = 3 * 3 * (params.is2D ? 1 : 3);
     int zMin = params.is2D ? 0 : -1;
@@ -505,15 +503,11 @@ __device__ void resolveObstacleAndWallAvoidance(ParallelParameters::GPUParams& p
     float obsWeightSum = 0.0f;
     float obsCount = 0;
 
-    // Get current boid's cell hash
-    int currentBoidCellHash = (type == BoidType::Basic)
-        ? params.dGrid.hashBasic[currentBoidIdx]
-        : params.dGrid.hashPredator[currentBoidIdx];
-
-    // Get current boid's cell coordinates
-    int cX = params.dGrid.cellX[currentBoidCellHash];
-    int cY = params.dGrid.cellY[currentBoidCellHash];
-    int cZ = params.dGrid.cellZ[currentBoidCellHash];
+    // Calculate the current boid's cell hash from the position
+    int cX = static_cast<int>(pos.x / params.dGrid.cellSize);
+    int cY = static_cast<int>(pos.y / params.dGrid.cellSize);
+    int cZ = params.is2D ? 0 : static_cast<int>(pos.z / params.dGrid.cellSize);
+    int currentBoidCellHash = calculateCellHash(cX, cY, cZ, params);
 
     int totalCellInNeighborhood = 3 * 3 * (params.is2D ? 1 : 3);
     int zMin = params.is2D ? 0 : -1;
@@ -847,15 +841,11 @@ __device__ void resolveObstacleCollisions(ParallelParameters::GPUParams& params,
     const float rBoid = (type == BoidType::Basic) ? 
         params.basicBoidRadius : params.predatorBoidRadius;
 
-    // Get current boid's cell hash
-    int currentBoidCellHash = (type == BoidType::Basic)
-        ? params.dGrid.hashBasic[currentBoidIdx]
-        : params.dGrid.hashPredator[currentBoidIdx];
-
-    // Get current boid's cell coordinates
-    int cX = params.dGrid.cellX[currentBoidCellHash];
-    int cY = params.dGrid.cellY[currentBoidCellHash];
-    int cZ = params.dGrid.cellZ[currentBoidCellHash];
+    // Calculate the current boid's cell hash from the position
+    int cX = static_cast<int>(pos.x / params.dGrid.cellSize);
+    int cY = static_cast<int>(pos.y / params.dGrid.cellSize);
+    int cZ = params.is2D ? 0 : static_cast<int>(pos.z / params.dGrid.cellSize);
+    int currentBoidCellHash = calculateCellHash(cX, cY, cZ, params);
 
     int totalCellInNeighborhood = 3 * 3 * (params.is2D ? 1 : 3);
     int zMin = params.is2D ? 0 : -1;

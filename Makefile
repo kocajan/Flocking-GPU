@@ -1,29 +1,29 @@
 # =========================
 # Compiler / flags
 # =========================
-CXX := g++
-CC  := gcc
-NVCC := nvcc
+CXX     := g++
+CC      := gcc
+NVCC    := nvcc
 
-CXXFLAGS := -std=c++20 -O2 -Wall -Wextra \
+CXXFLAGS := -std=c++20 -O2 -Wall -Wextra -MMD -MP \
             -Iinclude \
             -Ithird_party \
             -Ithird_party/glad/include \
-			-Ithird_party/giflib
+            -Ithird_party/giflib
 
-CFLAGS := -O2 -Wall -Wextra \
+CFLAGS := -O2 -Wall -Wextra -MMD -MP \
           -Ithird_party/glad/include
 
-NVCCFLAGS := -std=c++20 -O2 \
+NVCCFLAGS := -std=c++20 -O2 -MMD -MP \
              -Iinclude \
              -Ithird_party \
              -Ithird_party/glad/include \
-			 -Ithird_party/giflib
+             -Ithird_party/giflib
 
 # =========================
 # Libraries
 # =========================
-LIBS := -lglfw -lGL -ldl -lpthread
+LIBS := -lglfw -lGL -ldl -lpthread -lcudart
 
 # =========================
 # Directories
@@ -48,30 +48,18 @@ C_OBJ   := $(C_SRC:%.c=$(BUILD_DIR)/%.o)
 CU_OBJ  := $(CU_SRC:%.cu=$(BUILD_DIR)/%.o)
 
 OBJ := $(CPP_OBJ) $(C_OBJ) $(CU_OBJ)
+DEPS := $(OBJ:.o=.d)
 
 # =========================
-# Targets
+# Default target
 # =========================
 all: $(BIN)
 
 $(BIN): $(OBJ)
-	$(NVCC) $^ -o $@ $(LIBS) -lcudart
+	$(NVCC) $^ -o $@ $(LIBS)
 
 # =========================
-# Run options
-# =========================
-CFG ?= cfg
-
-run: all
-	./$(BIN) run $(CFG)
-
-app: run
-
-lab: all
-	./$(BIN) experiment $(CFG)
-
-# =========================
-# Compile rules
+# Build rules
 # =========================
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
@@ -86,14 +74,29 @@ $(BUILD_DIR)/%.o: %.cu
 	$(NVCC) $(NVCCFLAGS) -c $< -o $@
 
 # =========================
+# Run helpers
+# =========================
+CFG ?= cfg
+
+run: all
+	./$(BIN) run $(CFG)
+
+lab: all
+	./$(BIN) experiment $(CFG)
+
+app: run
+
+# =========================
 # Utilities
 # =========================
 clean:
-	rm -rf $(BUILD_DIR) $(BIN)
+	rm -rf $(BUILD_DIR)
 
 fclean: clean
-	@echo "Full cleanup done."
+	rm -f $(BIN)
 
 re: fclean all
 
-.PHONY: all clean fclean re run app lab
+-include $(DEPS)
+
+.PHONY: all clean fclean re run lab app

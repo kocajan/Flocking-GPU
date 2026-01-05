@@ -1,3 +1,8 @@
+/**
+ * \file Application.cpp
+ * \brief Implementation of the main application controller and run loop.
+ */
+
 #include <iostream>
 #include <stdexcept>
 
@@ -23,10 +28,8 @@ Application::Application(const std::string& configDirPath)
     currentVersion = simState.version.string();
     simConfig = versionManager.getSimConfig(currentVersion);
 
-    // GUI setup
     gui.initializeImGui();
 
-    // Mark as initialized
     initialized = true;
 }
 
@@ -41,7 +44,7 @@ void Application::run() {
     while (gui.isRunning()) {
         gui.beginFrame(simState.worldX.number(), simState.worldY.number());
 
-        // Detect version change
+        // Detect version change (from user via GUI) and update config
         if (simState.version.string() != currentVersion) {
             currentVersion = simState.version.string();
             simConfig = versionManager.getSimConfig(currentVersion);
@@ -49,6 +52,7 @@ void Application::run() {
 
         simulationUpdate(simState, simConfig, gui.getInteraction());
 
+        // Check whether the simulation or version settings need reset (from user via GUI)
         if (simState.resetVersionSettings.binary())
             simConfig.resetAll();
 

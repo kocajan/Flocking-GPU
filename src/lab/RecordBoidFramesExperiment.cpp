@@ -6,33 +6,32 @@
 #include "core/Types.hpp"
 #include "lab/RecordBoidFramesExperiment.hpp"
 
-void RecordBoidFramesExperiment::onVersionStart(const std::string& v)
-{
-    version = v;
+void RecordBoidFramesExperiment::onBoidNumChangeStart(int boidCount) {
+    this->boidCount = boidCount;
 }
 
-void RecordBoidFramesExperiment::onBoidConfigStart(int boidCount)
-{
+void RecordBoidFramesExperiment::onVersionStart(const std::string& version) {
     frameIndex = 0;
 
-    frameDir =
-        experimentConfig.string("outputDirPath") +
-        "/boid_data/" + version +
-        "/boid_config_" + std::to_string(boidCount);
+    // Check whether to record or not (record only on boidCount min and max -> first and last)
+    NumberRange boidRange = experimentConfig.get("numBoids").numberRange();
+    record = (boidCount == static_cast<int>(boidRange.min) || boidCount == static_cast<int>(boidRange.max));
 
-    std::filesystem::create_directories(frameDir);
+    if (record) {
+        frameDir = experimentConfig.string("outputDirPath") + "/boid_data/" + version 
+                                            + "/boid_config_" + std::to_string(boidCount);
+
+        std::filesystem::create_directories(frameDir);
+    }
 }
 
-void RecordBoidFramesExperiment::onTick(int tick, double)
-{
+void RecordBoidFramesExperiment::onTick(int tick, double) {
+    if (!record)
+        return;
+        
     const auto& boids = simState.boids;
     char path[256];
-    std::snprintf(
-        path, sizeof(path),
-        "%s/frame_%05d.txt",
-        frameDir.c_str(),
-        frameIndex++
-    );
+    std::snprintf(path, sizeof(path), "%s/frame_%05d.txt", frameDir.c_str(), frameIndex++);
 
     std::ofstream out(path);
     if (!out.is_open())

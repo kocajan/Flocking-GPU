@@ -10,12 +10,13 @@ public:
     using Experiment::Experiment;
 
 private:
-    std::string version;
+    int boidCount = 0;
+    bool record = true;
     std::string frameDir;
     int frameIndex = 0;
 
 public:
     void onVersionStart(const std::string& version) override;
-    void onBoidConfigStart(int boidCount) override;
+    void onBoidNumChangeStart(int boidCount) override;
     void onTick(int tick, double stepMs) override;
 };

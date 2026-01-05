@@ -8,14 +8,14 @@ Experiment::Experiment(SimState& simState_, Config& simConfig_, const Config& ex
 
 void Experiment::onExperimentStart() {}
 
-void Experiment::onVersionStart(const std::string& version) {}
+void Experiment::onBoidNumChangeStart(int /*boidCount*/) {}
 
-void Experiment::onBoidConfigStart(int boidCount) {}
+void Experiment::onVersionStart(const std::string& /*version*/) {}
 
-void Experiment::onTick(int tick, double stepMs) {}
+void Experiment::onTick(int /*tick*/, double /*stepMs*/) {}
 
-void Experiment::onBoidConfigEnd(int boidCount) {}
+void Experiment::onVersionEnd(const std::string& /*version*/) {}
 
-void Experiment::onVersionEnd(const std::string& version) {}
+void Experiment::onBoidNumChangeEnd(int /*boidCount*/) {}
 
 void Experiment::onExperimentEnd() {}

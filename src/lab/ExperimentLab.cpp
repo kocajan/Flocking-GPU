@@ -9,7 +9,6 @@
 #include "simulator/SimulatorHelpers.hpp"
 #include "lab/Experiment.hpp"
 #include "lab/TimedExecutionExperiment.hpp"
-#include "lab/RenderFramesExperiment.hpp"
 #include "lab/RecordBoidFramesExperiment.hpp"
 
 
@@ -43,16 +42,13 @@ void ExperimentLab::runExperiments(const std::string& experimentConfigsDirPath) 
 
         // Create timed execution and render frames experiment instances
         TimedExecutionExperiment experimentTimed(adjustedSimState, adjustedSimConfig, experimentConfig);
-        RenderFramesExperiment experimentRender(adjustedSimState, adjustedSimConfig, experimentConfig);
         RecordBoidFramesExperiment experimentRecord(adjustedSimState, adjustedSimConfig, experimentConfig);
 
         // Run both experiments
-        // printf("\n - Running Timed Execution Experiment...\n");
-        // runExperimentScenario(experimentTimed);
-        printf("\n - Running Render Frames Experiment...\n");
-        runExperimentScenario(experimentRender);
-        // printf("\n - Running Record Boid Frames Experiment...\n");
-        // runExperimentScenario(experimentRecord);
+        printf("\n - Running Timed Execution Experiment...\n");
+        runExperimentScenario(experimentTimed);
+        printf("\n - Running Record Boid Frames Experiment...\n");
+        runExperimentScenario(experimentRecord);
 
         std::cout << "\nCompleted experiment: " << experimentConfig.getConfigId() << "\n\n";
     }
@@ -88,23 +84,34 @@ void ExperimentLab::runExperimentScenario(Experiment& experiment) {
     // Get experiment parameters from the experiment config
     const int totalTicks  = static_cast<int>(experiment.experimentConfig.number("totalTicks"));
     const int warmupTicks = static_cast<int>(experiment.experimentConfig.number("warmupTicks"));
+    const int intialStateTicks = static_cast<int>(experiment.experimentConfig.number("initialStateTicks"));
 
     std::vector<std::string> versions = getVersionsToExperimentWith(experiment.experimentConfig);
     NumberRange boidRange = experiment.experimentConfig.get("numBoids").numberRange();
 
     // Run experiment pipeline
     experiment.onExperimentStart();
-    for (const std::string& version : versions) {
-        printf("  - Starting version: %s\n", version.c_str());
-        experiment.simState.version.string() = version;
-        experiment.onVersionStart(version);
+    for (int numBoids = boidRange.min; numBoids <= boidRange.max; numBoids += boidRange.step) {
+        printf("    - Running with %d boids...\n", numBoids);
 
-        for (int numBoids = boidRange.min; numBoids <= boidRange.max; numBoids += boidRange.step) {
-            printf("    - Running with %d boids...\n", numBoids);
-            // Initialize data for this experiment run
-            initializeDataForExperiment(experiment.experimentConfig,experiment.simState,numBoids);
-            
-            experiment.onBoidConfigStart(numBoids);
+        // Initialize data for this experiment run
+        initializeDataForExperiment(experiment.experimentConfig, experiment.simState,numBoids);
+        
+        // First, run the simulation to get the desired SimState - we want to measure 'steady state' performance
+        experiment.simState.version.string() = "parallelNaive";
+        for (int tick = 0; tick < intialStateTicks; ++tick) {
+            simulationStep(experiment.simState, experiment.simConfig);
+        }
+        const SimState simStatePersistent = experiment.simState;
+
+        experiment.onBoidNumChangeStart(numBoids);
+
+        for (const std::string& version : versions) {
+            printf("  - Starting version: %s\n", version.c_str());
+            experiment.simState = simStatePersistent;
+            experiment.simState.version.string() = version;
+
+            experiment.onVersionStart(version);
             // Run simulation steps
             for (int tick = 0; tick < totalTicks; ++tick) {
 
@@ -119,13 +126,10 @@ void ExperimentLab::runExperimentScenario(Experiment& experiment) {
 
                 experiment.onTick(tick, dt.count());
             }
-
-            experiment.onBoidConfigEnd(numBoids);
+            experiment.onVersionEnd(version);
         }
-
-        experiment.onVersionEnd(version);
+        experiment.onBoidNumChangeEnd(numBoids);
     }
-
     experiment.onExperimentEnd();
 }
 

@@ -1,48 +1,29 @@
+/**
+ * \file
+ * \brief Entry point of the application. Selects execution mode and runs either the
+ *        main application or the experiment laboratory.
+ */
+
 #include <string>
 #include <iostream>
 #include <filesystem>
 
 #include "app/Application.hpp"
 #include "lab/ExperimentLab.hpp"
+#include "utils/mainUtils.hpp"
 
-namespace {
-
-void printUsage() {
-    std::cerr
-        << "Flocking Simulation — run modes\n\n"
-        << "Usage:\n"
-        << "  flocking run <cfg_dir>\n"
-        << "  flocking experiment <cfg_dir>\n"
-        << "  flocking help\n\n"
-        << "Modes:\n"
-        << "  run         Launch interactive GUI simulation.\n"
-        << "              <cfg_dir> defaults to ./cfg if omitted.\n\n"
-        << "  experiment  Run headless experiment pipeline.\n"
-        << "              Uses the same config + simulation core,\n"
-        << "              but without GUI, input or pause logic.\n\n"
-        << "  help, -h, --help\n"
-        << "              Show this help message.\n";
-}
-
-std::string resolveConfigPathOrFail(int argc, char** argv, int indexFallback = 2) {
-    std::string configPath = (argc > indexFallback ? argv[indexFallback] : "cfg");
-
-    if (!std::filesystem::exists(configPath)) {
-        std::cerr << "Error: config path does not exist: " << configPath << '\n';
-        printUsage();
-        std::exit(1);
-    }
-
-    return configPath;
-}
-
-bool isHelpMode(const std::string& mode) {
-    return (mode == "help" || mode == "-h" || mode == "--help");
-}
-
-} // namespace
-
-
+/**
+ * \brief Program entry point.
+ *
+ * Supported modes:
+ * - "run" — runs the main application
+ * - "experiment" — runs experiment laboratory workflows
+ * - "help", "-h", "--help" — shows usage information
+ *
+ * \param argc Number of command-line arguments.
+ * \param argv Array of command-line argument strings.
+ * \return Exit status code (0 on success, non-zero on error).
+ */
 int main(int argc, char** argv) {
     if (argc <= 1) {
         printUsage();
@@ -57,15 +38,16 @@ int main(int argc, char** argv) {
     }
 
     if (mode == "run") {
-            const std::string configPath = resolveConfigPathOrFail(argc, argv);
+        /// Path to configuration directory for application run mode
+        const std::string configPath = resolveConfigPath(argc, argv);
 
-            Application app(configPath);
-            app.run();
-            return 0;
-    }
+        Application app(configPath);
+        app.run();
+        return 0;
 
-    if (mode == "experiment") {
-        const std::string configPath = resolveConfigPathOrFail(argc, argv);
+    } else if (mode == "experiment") {
+        /// Path to configuration directory for experiment mode
+        const std::string configPath = resolveConfigPath(argc, argv);
 
         ExperimentLab laboratory(configPath);
         laboratory.runExperiments(configPath + "/experiments");
