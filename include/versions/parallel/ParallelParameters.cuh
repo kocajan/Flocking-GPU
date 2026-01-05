@@ -1,3 +1,18 @@
+/**
+ * \file ParallelParameters.cuh
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Runtime parameter container for the optimized parallel GPU simulation.
+ *
+ * This structure groups:
+ *  - CPU scheduling configuration
+ *  - GPU runtime parameters
+ *  - device boid buffers
+ *  - spatial grid data
+ *
+ * Values are initialized from SimState + Config and transferred to GPU memory.
+ */
+
 #pragma once
 
 #include <cstdint>
@@ -10,6 +25,19 @@
 #include "core/DeviceStructures.hpp"
 
 
+/**
+ * \brief Combined CPU+GPU parameter bundle for the optimized parallel simulation.
+ *
+ * CPUParams:
+ *  - scheduling configuration
+ *  - reference to host boid buffers
+ *
+ * GPUParams:
+ *  - device boid arrays
+ *  - spatial grid buffers
+ *  - simulation constants and flags
+ *  - vision, dynamics, and interaction parameters
+ */
 struct ParallelParameters {
     struct GPUParams {
         // Boid data — device pointers
@@ -90,7 +118,7 @@ struct ParallelParameters {
         // Simulation configuration
         int blockSize;
 
-        // Boid data — device pointers
+        // Boid data — host reference
         Boids &hBoids;
     };
 
@@ -100,7 +128,28 @@ struct ParallelParameters {
     // GPU parameter block
     GPUParams gpu;
 
-    // Constructor / destructor
+    /**
+     * \brief Construct parallel simulation parameters and allocate GPU resources.
+     *
+     * Responsibilities:
+     *  - read simulation constants and flags from SimState + Config
+     *  - compute normalized weights and derived world metrics
+     *  - allocate device memory for boid arrays
+     *  - allocate spatial grid buffers
+     *  - copy initial boid data from host to device
+     *
+     * \param[in,out] s Simulation state containing host boid buffers.
+     * \param[in] c Configuration source (numeric + binary parameters).
+     */
     ParallelParameters(SimState& s, const Config& c);
+
+    /**
+     * \brief Destroy parameter object and release GPU resources.
+     *
+     * Responsibilities:
+     *  - copy boid data back from device to host
+     *  - free all device boid buffers
+     *  - free spatial grid buffers
+     */
     ~ParallelParameters();
 };

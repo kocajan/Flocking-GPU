@@ -1,24 +1,25 @@
+/**
+ * \file ParallelParameters.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of GPU parameter initialization for the optimized parallel simulation.
+ *
+ * Responsibilities:
+ *  - compute derived constants and normalized configuration values
+ *  - allocate GPU boid buffers and copy host data to device
+ *  - construct spatial grid and allocate grid buffers
+ *  - release device resources and copy results back on destruction
+ */
+
 #include <cmath>
 #include <iostream>
 #include <algorithm>
 #include <cuda_runtime.h>
 
-#include "versions/parallel/ParallelParameters.hpp"
+#include "versions/parallel/ParallelParameters.cuh"
+#include "utils/simStepParallelUtils.cuh"
 #include "core/SimState.hpp"
 #include "config/Config.hpp"
-
-
-namespace {
-    #define CHECK_ERROR( error ) ( HandleError( error, __FILE__, __LINE__ ) )
-
-    static void HandleError(cudaError_t error, const char* file, int line) { 
-        if (error != cudaSuccess) { 
-            std::cout << cudaGetErrorString(error) << " in " << file << " at line " << line << std::endl; 
-            int w = scanf(" "); 
-            exit(EXIT_FAILURE); 
-        } 
-    }
-} // anonymous namespace
 
 
 ParallelParameters::ParallelParameters(SimState& s, const Config& c)
@@ -29,14 +30,14 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
         return std::clamp(percent / 100.0f, 0.0f, 1.0f);
     };
 
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // CPU parameters
-    // ################################################################
+    // ---------------------------------------------------------------------------
     cpu.blockSize = 256;
 
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // GPU parameters - basic
-    // ################################################################
+    // ---------------------------------------------------------------------------
     
     // Flags
     gpu.is2D = (s.dimensions.string() == "2D");
@@ -116,9 +117,9 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
     gpu.interaction.type = s.interaction.type;
     gpu.interaction.point = s.interaction.point;
 
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // GPU parameters - Boids
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // Port boid counts
     gpu.dBoids.basicBoidCount = cpu.hBoids.basicBoidCount;
     gpu.dBoids.predatorBoidCount = cpu.hBoids.predatorBoidCount;
@@ -175,9 +176,9 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
     // - OBSTACLE BOIDS
     CHECK_ERROR(cudaMemcpy(gpu.dBoids.posObstacle, cpu.hBoids.posObstacle.data(), obstacleArraysSize, cudaMemcpyHostToDevice));
 
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // GPU parameters - Grid
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // Define spatial partitioning parameters
     gpu.dGrid.cellSize = std::max(std::max(gpu.visionRangeBasic, gpu.visionRangePredator), gpu.obstacleBoidRadius * 1.1f);
     if (gpu.dGrid.cellSize > gpu.eps) {

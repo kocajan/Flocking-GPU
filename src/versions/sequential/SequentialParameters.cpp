@@ -1,3 +1,10 @@
+/**
+ * \file SequentialParameters.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of parameter initialization for the optimized sequential backend.
+ */
+
 #include <algorithm>
 
 #include "versions/sequential/SequentialParameters.hpp"
@@ -7,7 +14,8 @@
 
 SequentialParameters::SequentialParameters(SimState& s,const Config& c) 
     : boids(s.boids) {
-    // Define helper function for converting percentage weights
+
+    // Helper for converting percentage values to normalized weights
     auto percentToWeight = [](float percent) {
         return std::clamp(percent / 100.0f, 0.0f, 1.0f);
     };
@@ -61,11 +69,10 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     obstacleAvoidanceMultiplier = c.number("obstacleAvoidanceMultiplier");
     mouseInteractionMultiplier  = c.number("mouseInteractionMultiplier");
 
-    // Flocking weights (normalized 0–1 later in behavior code)
+    // Flocking weights
     cohesionWeightBasic = percentToWeight(c.number("cohesionBasic"));
     alignmentWeightBasic = percentToWeight(c.number("alignmentBasic"));
     separationWeightBasic = percentToWeight(c.number("separationBasic"));
-
     targetAttractionWeightBasic = percentToWeight(c.number("targetAttractionBasic"));
 
     // Calculate max speed based on the longest world edge
@@ -102,10 +109,16 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     numStepsToStopDueToMaxDrag = 100.0f;
 
     // Neighbor selection
-    maxNeighborsBasic = static_cast<float>(s.boids.basicBoidCount) * percentToWeight(c.number("neighbourAccuracy"));
+    maxNeighborsBasic =
+        static_cast<float>(s.boids.basicBoidCount) *
+        percentToWeight(c.number("neighbourAccuracy"));
     
     // Cell parameters
-    cellSize = std::max(std::max(visionRangeBasic, visionRangePredator), obstacleBoidRadius * 1.1f);
+    cellSize = std::max(
+        std::max(visionRangeBasic, visionRangePredator),
+        obstacleBoidRadius * 1.1f
+    );
+
     if (cellSize > eps) {
         numCellsX = static_cast<int>(std::ceil(worldX / cellSize));
         numCellsY = static_cast<int>(std::ceil(worldY / cellSize));

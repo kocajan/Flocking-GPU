@@ -1,8 +1,24 @@
+/**
+ * \file ParallelSimStepKernels.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of optimized neighborhood-aware simulation kernels.
+ *
+ * Structure:
+ *  - kernel entry points (basic / predator)
+ *  - behavior resolution inside local grid neighborhoods
+ *  - shared physics utilities and collision handling
+ */
+
 #include <cmath>
 #include <cuda_runtime.h>
 
-#include "versions/parallel/ParallelParameters.hpp"
+#include "versions/parallel/kernels/ParallelSimStepKernels.cuh"
+
 #include "core/DeviceStructures.hpp"
+#include "utils/simStepParallelUtils.cuh"
+#include "versions/parallel/ParallelParameters.cuh"
+
 
 // Forward declarations
 __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, int boidIdx);
@@ -18,13 +34,6 @@ __device__ void resolveWallCollisions(ParallelParameters::GPUParams& params, int
 __device__ void resolveObstacleCollisions(ParallelParameters::GPUParams& params, int i, BoidType type);
 
 __device__ inline int calculateCellHash(int cx, int cy, int cz, const ParallelParameters::GPUParams& params);
-
-__device__ inline float sqrLen(const Vec3& v);
-__device__ inline Vec3 normalize(const Vec3& v, float eps);
-__device__ inline float periodicDelta(float d, float worldSize);
-__device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelParameters::GPUParams& params);
-__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce);
-__device__ inline void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier);
 
 
 __global__ void simulationStepParallelBasicBoidsKernel(ParallelParameters::GPUParams params) {
@@ -63,6 +72,18 @@ __global__ void simulationStepParallelPredatorBoidsKernel(ParallelParameters::GP
     resolveRest(params, currentPredatorBoidIdx, BoidType::Predator);
 }
 
+/**
+ * Resolve flocking behavior for a single basic boid using
+ * neighbors from the surrounding grid cells.
+ *
+ * Gathers:
+ *  - separation inside protected radius
+ *  - cohesion outside protected radius
+ *  - alignment across full vision range
+ *  - predator avoidance information
+ *
+ * Writes acceleration contribution into boid accumulator.
+ */
 __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     // Get reference to boids
     DeviceBoids& boids = params.dBoids;
@@ -119,7 +140,8 @@ __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, 
             const Vec3 oPos = boids.posBasic[otherIdx];
             const Vec3 oVel = boids.velBasic[otherIdx];
 
-            Vec3 distVect = periodicDeltaVec(pos, oPos, params);
+            Vec3 distVect = periodicDeltaVec(pos, oPos, params.is2D, params.bounce,
+                                             params.worldX, params.worldY, params.worldZ);
             float dist2 = sqrLen(distVect);
 
             if (dist2 > params.visionRangeBasic2)
@@ -184,7 +206,8 @@ __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, 
     }
 
     // Target attraction
-    Vec3 toTarget = periodicDeltaVec(pos, target, params);
+    Vec3 toTarget = periodicDeltaVec(pos, target, params.is2D, params.bounce,
+                                     params.worldX, params.worldY, params.worldZ);
     float toTarget2 = sqrLen(toTarget);
 
     if (toTarget2 < params.eps)
@@ -250,7 +273,8 @@ __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, 
             int predIdx = params.dGrid.indexPredator[predIdxPredators];
 
             Vec3 pPos = boids.posPredator[predIdx];
-            Vec3 distVec = periodicDeltaVec(pPos, pos, params);
+            Vec3 distVec = periodicDeltaVec(pPos, pos, params.is2D, params.bounce,
+                                            params.worldX, params.worldY, params.worldZ);
 
             float dist = sqrtf(sqrLen(distVec));
             if (dist < params.eps)
@@ -303,6 +327,15 @@ __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, 
     boids.accBasic[currentBoidIdx] = acc;
 }
 
+/**
+ * Resolve predator behavior and stamina / rest cycle.
+ *
+ * Responsibilities:
+ *  - cruising force toward preferred speed
+ *  - chase nearest target boid in range
+ *  - stamina drain and recovery
+ *  - target reset for next frame
+ */
 __device__ void resolvePredatorBoidBehavior(ParallelParameters::GPUParams& params, int currentBoidIdx) {
     // Get boids
     DeviceBoids& boids = params.dBoids;
@@ -350,7 +383,8 @@ __device__ void resolvePredatorBoidBehavior(ParallelParameters::GPUParams& param
         // Chasing
         const Vec3& tPos = boids.posBasic[targetIdx];
 
-        Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params);
+        Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params.is2D, params.bounce,
+                                            params.worldX, params.worldY, params.worldZ);
         Vec3 toTargetDir = normalize(toTargetVec, params.eps);
 
         float dist = sqrtf(sqrLen(toTargetVec));
@@ -387,6 +421,13 @@ __device__ void resolvePredatorBoidBehavior(ParallelParameters::GPUParams& param
     boids.accPredator[currentBoidIdx] = acc;
 }
 
+/**
+ * Execute the shared post-behavior pipeline:
+ *  - mouse interaction
+ *  - obstacle + wall avoidance
+ *  - dynamics integration
+ *  - wall / obstacle collision handling
+ */
 __device__ void resolveRest(ParallelParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Resolve mouse interactions
     resolveMouseInteraction(params, currentBoidIdx, type);
@@ -411,6 +452,11 @@ __device__ void resolveRest(ParallelParameters::GPUParams& params, int currentBo
     }
 }
 
+
+/**
+ * Apply mouse attraction / repulsion interaction force
+ * for a single boid of the given type.
+ */
 __device__ void resolveMouseInteraction(ParallelParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -438,7 +484,8 @@ __device__ void resolveMouseInteraction(ParallelParameters::GPUParams& params, i
     acc.y = 0.0f;
     acc.z = 0.0f;
 
-    Vec3 diff = periodicDeltaVec(interaction.point, pos, params);
+    Vec3 diff = periodicDeltaVec(interaction.point, pos, params.is2D, params.bounce,
+                                params.worldX, params.worldY, params.worldZ);
 
     float dist2 = sqrLen(diff);
     if (dist2 < params.eps)
@@ -470,6 +517,10 @@ __device__ void resolveMouseInteraction(ParallelParameters::GPUParams& params, i
     }
 }
 
+/**
+ * Perform neighborhood-based obstacle avoidance +
+ * continuous wall repulsion (when bounce enabled).
+ */
 __device__ void resolveObstacleAndWallAvoidance(ParallelParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -534,7 +585,8 @@ __device__ void resolveObstacleAndWallAvoidance(ParallelParameters::GPUParams& p
 
             const Vec3& oPos = boids.posObstacle[obsIdx];
 
-            Vec3 diff = periodicDeltaVec(oPos, pos, params);
+            Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce,
+                                        params.worldX, params.worldY, params.worldZ);
             diff.z = 0.0f;
 
             float centerDist = sqrtf(sqrLen(diff));
@@ -607,6 +659,11 @@ __device__ void resolveObstacleAndWallAvoidance(ParallelParameters::GPUParams& p
     }
 }
 
+/**
+ * Integrate acceleration into velocity and position,
+ * including drag, clamping to min/max speed,
+ * and optional noise blending.
+ */
 __device__ void resolveDynamics(ParallelParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -715,6 +772,9 @@ __device__ void resolveDynamics(ParallelParameters::GPUParams& params, int curre
     }
 }
 
+/**
+ * Dispatch wall + obstacle collision handling.
+ */
 __device__ void resolveCollisions(ParallelParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -726,6 +786,10 @@ __device__ void resolveCollisions(ParallelParameters::GPUParams& params, int cur
     resolveObstacleCollisions(params, currentBoidIdx, type);
 }
 
+/**
+ * Handle world-boundary collisions or wrapping,
+ * depending on bounce mode.
+ */
 __device__ void resolveWallCollisions(ParallelParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -820,6 +884,10 @@ __device__ void resolveWallCollisions(ParallelParameters::GPUParams& params, int
     }
 }
 
+/**
+ * Handle collisions against obstacle spheres
+ * inside neighboring grid cells.
+ */
 __device__ void resolveObstacleCollisions(ParallelParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -872,7 +940,8 @@ __device__ void resolveObstacleCollisions(ParallelParameters::GPUParams& params,
 
             const Vec3& oPos = boids.posObstacle[obsIdx];
 
-            Vec3 diff = periodicDeltaVec(oPos, pos, params);
+            Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce,
+                                         params.worldX, params.worldY, params.worldZ);
             diff.z = 0.0f;
 
             float dist2 = sqrLen(diff);
@@ -910,45 +979,10 @@ __device__ void resolveObstacleCollisions(ParallelParameters::GPUParams& params,
     }
 }
 
-__device__ inline float sqrLen(const Vec3& v) {
-    return v.x*v.x + v.y*v.y + v.z*v.z;
-}
-
-__device__ inline Vec3 normalize(const Vec3& v, float eps) {
-    float l2 = sqrLen(v);
-    if (l2 < eps) {
-        return {0,0,0};
-    }
-
-    float inv = rsqrtf(l2);
-    return { v.x*inv, v.y*inv, v.z*inv };
-}
-
-__device__ inline float periodicDelta(float d, float worldSize) {
-    if (d >  0.5f * worldSize) d -= worldSize;
-    if (d < -0.5f * worldSize) d += worldSize;
-    return d;
-}
-
-__device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelParameters::GPUParams& params) {
-    Vec3 distVec = {
-        to.x - from.x,
-        to.y - from.y,
-        params.is2D ? 0.0f : (to.z - from.z)
-    };
-
-    if (params.bounce)
-        return distVec;
-        
-    distVec.x = periodicDelta(distVec.x, params.worldX);
-    distVec.y = periodicDelta(distVec.y, params.worldY);
-
-    if (!params.is2D)
-        distVec.z = periodicDelta(distVec.z, params.worldZ);
-
-    return distVec;
-}
-
+/**
+ * Compute a valid flattened grid hash from cell coordinates,
+ * applying either boundary clamping (bounce) or wrap-around.
+ */
 __device__ inline int calculateCellHash(int cX, int cY, int cZ, const ParallelParameters::GPUParams& params) {
     const DeviceGrid& grid = params.dGrid;
 
@@ -973,15 +1007,3 @@ __device__ inline int calculateCellHash(int cX, int cY, int cZ, const ParallelPa
     // Flatten index
     return (cZ * grid.numCellsY + cY) * grid.numCellsX + cX;
 }
-
-__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce) {
-    float k = maxForce * w;
-    return Vec3{ d.x * k, d.y * k, d.z * k };
-};
-
-__device__ inline void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier) {
-    if (d < visualRange) {
-        float weight = __expf(-0.3f * d);
-        accAxis += axisSign * (maxForce * weight * multiplier);
-    }
-};

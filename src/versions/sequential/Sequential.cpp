@@ -1,11 +1,24 @@
-#include <cmath>
-#include <algorithm>
+/**
+ * \file Sequential.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of the optimized sequential flocking simulation.
+ *
+ * Structure:
+ *  - step dispatcher
+ *  - per-type simulation loops
+ *  - behavior resolution
+ *  - interaction handling
+ *  - dynamics & collisions
+ */
 
 #include "versions/sequential/Sequential.hpp"
-#include "versions/sequential/SequentialParameters.hpp" 
+
+#include "utils/simStepUtils.hpp"
 #include "versions/sequential/SpatialGrid.hpp"
+#include "versions/sequential/SequentialParameters.hpp"
 
-
+ 
 void simulationStepSequentialBasicBoids(SequentialParameters& params, SpatialGrid& grid);
 void simulationStepSequentialPredatorBoids(SequentialParameters& params, SpatialGrid& grid);
 
@@ -20,12 +33,6 @@ void resolveDynamics(SequentialParameters& params, int currentBoidIdx, BoidType 
 void resolveCollisions(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx, BoidType type);
 void resolveWallCollisions(SequentialParameters& params, int currentBoidIdx, BoidType type);
 void resolveObstacleCollisions(SequentialParameters& params, SpatialGrid& grid, int currentBoidIdx, BoidType type);
-
-inline float periodicDelta(float d, float worldSize);
-inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const SequentialParameters& params);
-
-static inline Vec3 normalize(const Vec3& v, const float eps = 1e-5f);
-static inline float sqrLen(const Vec3& v);
 
 
 void simulationStepSequential(SequentialParameters& params) {
@@ -110,7 +117,8 @@ void resolveBasicBoidBehavior(SequentialParameters& params, SpatialGrid& grid, i
         const Vec3& oVel = boids.velBasic[otherIdx];
 
         // Compute distance vector
-        Vec3 distVec = periodicDeltaVec(pos, oPos, params);
+        Vec3 distVec = periodicDeltaVec(pos, oPos, params.is2D, params.bounce, 
+                                        params.worldX, params.worldY, params.worldZ);
 
         // Get squared distance
         float dist2 = sqrLen(distVec);
@@ -177,7 +185,8 @@ void resolveBasicBoidBehavior(SequentialParameters& params, SpatialGrid& grid, i
     }
 
     // Move toward local target
-    Vec3 toTarget = periodicDeltaVec(pos, target, params);
+    Vec3 toTarget = periodicDeltaVec(pos, target, params.is2D, params.bounce, 
+                                    params.worldX, params.worldY, params.worldZ);
     float toTargetDist2 = sqrLen(toTarget);
     
     // Recalculate the targetWeight to include the squared distance to target
@@ -226,7 +235,8 @@ void resolveBasicBoidBehavior(SequentialParameters& params, SpatialGrid& grid, i
         Vec3& pPos = boids.posPredator[predIdx];
 
         // Compute distance vector
-        Vec3 distVect = periodicDeltaVec(pPos, pos, params);
+        Vec3 distVect = periodicDeltaVec(pPos, pos, params.is2D, params.bounce, 
+                                         params.worldX, params.worldY, params.worldZ);
 
         float dist = std::sqrt(sqrLen(distVect));
         if (dist < params.eps)
@@ -324,7 +334,8 @@ void resolvePredatorBoidBehavior(SequentialParameters& params, int currentBoidId
         // Chasing
         const Vec3& tPos = boids.posBasic[targetIdx];
 
-        Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params);
+        Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params.is2D, params.bounce, 
+                                            params.worldX, params.worldY, params.worldZ);
         Vec3 toTargetDir = normalize(toTargetVec, params.eps);
 
         float dist = std::sqrt(sqrLen(toTargetVec));
@@ -413,7 +424,8 @@ void resolveMouseInteraction(SequentialParameters& params, int currentBoidIdx, B
     acc.y = 0.0f;
     acc.z = 0.0f;
 
-    Vec3 diff = periodicDeltaVec(interaction.point, pos, params);
+    Vec3 diff = periodicDeltaVec(interaction.point, pos, params.is2D, params.bounce, 
+                                 params.worldX, params.worldY, params.worldZ);
 
     float dist2 = sqrLen(diff);
     if (dist2 < params.eps)
@@ -478,7 +490,8 @@ void resolveObstacleAndWallAvoidance(SequentialParameters& params, SpatialGrid& 
     for (int obsIdx : obsIdxSet) {
         const Vec3& oPos = boids.posObstacle[obsIdx];
 
-        Vec3 diff = periodicDeltaVec(oPos, pos, params);
+        Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce, 
+                                    params.worldX, params.worldY, params.worldZ);
         diff.z = 0.0f; // Ignore vertical component for obstacle avoidance
 
         float centerDist = std::sqrt(sqrLen(diff));
@@ -773,7 +786,8 @@ void resolveObstacleCollisions(SequentialParameters& params, SpatialGrid& grid, 
     for (int obsIdx : obsIdxSet) {
         const Vec3& oPos = boids.posObstacle[obsIdx];
 
-        Vec3 diff = periodicDeltaVec(oPos, pos, params);
+        Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce, 
+                                     params.worldX, params.worldY, params.worldZ);
         diff.z = 0.0f; // Ignore vertical component for obstacle collisions
 
         float dist2 = sqrLen(diff);
@@ -804,48 +818,4 @@ void resolveObstacleCollisions(SequentialParameters& params, SpatialGrid& grid, 
             vel.z = vReflect.z * params.bounceFactor;
         }
     }
-}
-
-inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const SequentialParameters& params) {
-    // Raw difference (to - from)
-    Vec3 distVec{
-        to.x - from.x,
-        to.y - from.y,
-        params.is2D ? 0.0f : (to.z - from.z)
-    };
-
-    // In bounce mode use plain Euclidean space
-    if (params.bounce) {
-        return distVec;
-    }
-
-    // In wrapping mode adjust by world size
-    distVec.x = periodicDelta(distVec.x, params.worldX);
-    distVec.y = periodicDelta(distVec.y, params.worldY);
-    
-    if (!params.is2D) {
-        distVec.z = periodicDelta(distVec.z, params.worldZ);
-    }
-
-    return distVec;
-}
-
-inline float periodicDelta(float d, float worldSize) {
-    if (d >  0.5f * worldSize) d -= worldSize;
-    if (d < -0.5f * worldSize) d += worldSize;
-    return d;
-}
-
-static inline Vec3 normalize(const Vec3& v, const float eps) {
-    float l2 = sqrLen(v);
-    if (l2 < eps) {
-        return {0.0f, 0.0f, 0.0f};
-    }
-    
-    float inv = 1.0f / std::sqrt(l2);
-    return { v.x * inv, v.y * inv, v.z * inv };
-}
-
-static inline float sqrLen(const Vec3& v) {
-    return v.x * v.x + v.y * v.y + v.z * v.z;
 }

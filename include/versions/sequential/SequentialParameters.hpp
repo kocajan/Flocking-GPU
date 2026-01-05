@@ -1,3 +1,10 @@
+/**
+ * \file SequentialParameters.hpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Parameter container for the optimized sequential simulation backend.
+ */
+
 #pragma once
 
 #include <cstdint>
@@ -9,15 +16,17 @@
 #include "config/Config.hpp"
 #include "core/SimState.hpp"
 
-
+/**
+ * \brief Aggregates simulation constants and derived runtime parameters.
+ *
+ * Parameters are computed from the configuration and simulation state and
+ * reused throughout the optimized sequential simulation implementation.
+ */
 struct SequentialParameters {
-    // Reference to boid array
+
+    // Simulation data references and mode flags
     Boids& boids;
-
-    // Interaction
     Interaction interaction;
-
-    // Simulation modes
     bool is2D;
     bool bounce;
 
@@ -26,68 +35,77 @@ struct SequentialParameters {
     float predatorBoidRadius;
     float obstacleBoidRadius;
 
-    // World bounds
+    // World dimensions
     float worldX;
     float worldY;
     float worldZ;
 
-    // Constants
+    // Core numeric constants
     float eps;
     float dt;
 
-    // Vision
+    // Vision ranges
     float visionRangeBasic;
     float visionRangeBasic2;
     float visionRangePredator;
 
-    // Forces / multipliers
+    // Force and interaction multipliers
     float maxForce;
     float obstacleAvoidanceMultiplier;
     float mouseInteractionMultiplier;
 
-    // Flocking weights
+    // Flocking behavior weights
     float cohesionWeightBasic;
     float alignmentWeightBasic;
     float separationWeightBasic;
     float targetAttractionWeightBasic;
 
-    // Speeds (basic)
+    // Basic boid speed limits
     float cruisingSpeedBasic;
     float maxSpeedBasic;
     float minSpeedBasic;
 
-    // Speeds (predator)
+    // Predator speed limits
     float cruisingSpeedPredator;
     float maxSpeedPredator;
     float minSpeedPredator;
 
-    // Predator stamina
+    // Predator stamina parameters
     float maxStaminaPredator;
     float staminaRecoveryRatePredator;
     float staminaDrainRatePredator;
 
-    // Dynamics
+    // Motion dynamics
     float drag;
     float noise;
     float numStepsToStopDueToMaxDrag;
 
-    // Collision / bounce
+    // Boundary interaction parameters
     float bounceFactor;
 
-    // Neighbor limit
+    // Neighbor evaluation limit
     float maxNeighborsBasic;
 
-    // Cached distances
+    // Cached geometric distance bounds
     float maxDistanceBetweenPoints;
     float maxDistanceBetweenPoints2;
 
-    // Grid parameters
+    // Spatial grid parameters
     float cellSize;
     int numCellsX;
     int numCellsY;
     int numCellsZ;
 
-    // Constructor / destructor
+    /**
+     * \brief Construct parameter set from simulation state and configuration.
+     *
+     * \param[in] s Simulation state object.
+     * \param[in] c Configuration source.
+     */
     SequentialParameters(SimState& s, const Config& c);
+
+    /**
+     * \brief Destructor.
+     */
     ~SequentialParameters();
 };

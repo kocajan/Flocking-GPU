@@ -1,3 +1,15 @@
+/**
+ * \file ParallelNaiveParameters.cuh
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief CPU–GPU parameter container for the parallel-naive simulation backend.
+ *
+ * This structure:
+ *  - stores host-side scheduling parameters
+ *  - stores GPU-side simulation constants and buffers
+ *  - prepares data for CUDA kernels
+ */
+
 #pragma once
 
 #include <cstdint>
@@ -97,7 +109,22 @@ struct ParallelNaiveParameters {
     // GPU parameter block
     GPUParams gpu;
 
-    // Constructor / destructor
+    /**
+     * \brief Construct CPU–GPU parameter state from simulation state and configuration.
+     *
+     * Initializes derived constants, prepares scheduling parameters,
+     * allocates device memory, and uploads boid data to the GPU.
+     *
+     * \param[in,out] s Simulation state providing source buffers.
+     * \param[in] c Configuration object used to derive runtime parameters.
+     */
     ParallelNaiveParameters(SimState& s, const Config& c);
+
+    /**
+     * \brief Destroy parameter state and synchronize device buffers back to CPU.
+     *
+     * Copies simulation results from GPU to host memory and frees
+     * all allocated device resources.
+     */
     ~ParallelNaiveParameters();
 };

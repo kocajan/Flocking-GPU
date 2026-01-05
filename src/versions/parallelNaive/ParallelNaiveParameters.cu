@@ -1,24 +1,26 @@
+/**
+ * \file ParallelNaiveParameters.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of CPU–GPU parameter initialization for the parallel-naive backend.
+ *
+ * Responsibilities:
+ *  - derives simulation constants
+ *  - allocates GPU memory
+ *  - transfers boid buffers to device
+ *  - synchronizes results back to CPU on destruction
+ */
+
 #include <cmath>
 #include <iostream>
 #include <algorithm>
 #include <cuda_runtime.h>
 
-#include "versions/parallelNaive/ParallelNaiveParameters.hpp"
+#include "versions/parallelNaive/ParallelNaiveParameters.cuh"
+
 #include "core/SimState.hpp"
 #include "config/Config.hpp"
-
-
-namespace {
-    #define CHECK_ERROR( error ) ( HandleError( error, __FILE__, __LINE__ ) )
-
-    static void HandleError(cudaError_t error, const char* file, int line) { 
-        if (error != cudaSuccess) { 
-            std::cout << cudaGetErrorString(error) << " in " << file << " at line " << line << std::endl; 
-            int w = scanf(" "); 
-            exit(EXIT_FAILURE); 
-        } 
-    }
-} // anonymous namespace
+#include "utils/simStepParallelUtils.cuh"
 
 
 ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
@@ -29,14 +31,14 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
         return std::clamp(percent / 100.0f, 0.0f, 1.0f);
     };
 
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // CPU parameters
-    // ################################################################
+    // ---------------------------------------------------------------------------
     cpu.blockSize = 256;
 
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // GPU parameters - basic
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // Flags
     gpu.is2D = (s.dimensions.string() == "2D");
     gpu.bounce = c.binary("bounce");
@@ -115,9 +117,9 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     gpu.interaction.type = s.interaction.type;
     gpu.interaction.point = s.interaction.point;
 
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // GPU parameters - Boids
-    // ################################################################
+    // ---------------------------------------------------------------------------
     // Port boid counts
     gpu.dBoids.basicBoidCount = cpu.hBoids.basicBoidCount;
     gpu.dBoids.predatorBoidCount = cpu.hBoids.predatorBoidCount;

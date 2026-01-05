@@ -1,3 +1,10 @@
+/**
+ * \file SpatialGrid.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of the spatial hashing grid for neighbor queries.
+ */
+
 #include <cmath>
 #include <algorithm>
 #include <unordered_set>
@@ -12,8 +19,8 @@ SpatialGrid::SpatialGrid(const SequentialParameters& params)
       numCellsZ(params.numCellsZ),
       is2D(params.is2D),
       bounce(params.bounce),
-      isBuilt(false)
-{
+      isBuilt(false) {
+
     if (numCellsX <= 0 || numCellsY <= 0 || numCellsZ <= 0) {
         hasZeroCells = true;
         numCellsX = numCellsY = numCellsZ = 0;
@@ -44,21 +51,23 @@ int SpatialGrid::worldToCellIndex(float p, float worldSize, int cellCount) const
 
     int c = (int)std::floor(p / cellSize);
 
-    if (c < 0)      c += cellCount;
+    if (c < 0) c += cellCount;
     if (c >= cellCount) c -= cellCount;
 
     return c;
 }
 
-void SpatialGrid::insertPointObject(std::vector<Cell>& grid, const SequentialParameters& params, int idx, Vec3& pos) {
+void SpatialGrid::insertPointObject(std::vector<Cell>& grid, const SequentialParameters& params, 
+                                    int idx, Vec3& pos) {
     int cx = worldToCellIndex(pos.x, params.worldX, numCellsX);
     int cy = worldToCellIndex(pos.y, params.worldY, numCellsY);
     int cz = is2D ? 0 : worldToCellIndex(pos.z, params.worldZ, numCellsZ);
-    grid[flattenIndex(cx,cy,cz)].items.push_back(idx);
+
+    grid[flattenIndex(cx, cy, cz)].items.push_back(idx);
 }
 
-
-void SpatialGrid::insertRadialObject(std::vector<Cell>& grid, const SequentialParameters& params, int idx, Vec3& pos, float radius) {
+void SpatialGrid::insertRadialObject(std::vector<Cell>& grid, const SequentialParameters& params, 
+                                     int idx, Vec3& pos, float radius) {
     float minX = pos.x - radius;
     float maxX = pos.x + radius;
     float minY = pos.y - radius;
@@ -107,7 +116,6 @@ void SpatialGrid::insertObstacleBoids(const SequentialParameters& params) {
     }
 }
 
-
 void SpatialGrid::build(const SequentialParameters& params) {
     if (hasZeroCells) {
         isBuilt = true;
@@ -128,45 +136,48 @@ void SpatialGrid::build(const SequentialParameters& params) {
     isBuilt = true;
 }
 
-const std::vector<int>& SpatialGrid::getNeighborIndices(const SequentialParameters& params, 
-                                                        int boidIndex, BoidType boidType,
-                                                        BoidType neighborType) const {
+const std::vector<int>& SpatialGrid::getNeighborIndices(const SequentialParameters& params, int boidIndex, 
+                                                        BoidType boidType, BoidType neighborType) const {
     scratch.clear();
 
     if (hasZeroCells)
         return scratch;
 
     const std::vector<Cell>* grid =
-        (neighborType == BoidType::Basic) ? &basicCells :
+        (neighborType == BoidType::Basic)    ? &basicCells :
         (neighborType == BoidType::Predator) ? &predatorCells :
         (neighborType == BoidType::Obstacle) ? &obstacleCells :
                                                nullptr;
 
     if (!grid) {
-        printf("Warning: Requested neighbor type has no associated grid. (type=%d)\n", static_cast<int>(neighborType));
+        printf("Warning: Requested neighbor type has no associated grid. (type=%d)\n",
+               static_cast<int>(neighborType));
         return scratch;
     }
 
-    const Vec3& p = 
-        (boidType == BoidType::Basic) ? params.boids.posBasic[boidIndex] :
+    const Vec3& p =
+        (boidType == BoidType::Basic)    ? params.boids.posBasic[boidIndex] :
         (boidType == BoidType::Predator) ? params.boids.posPredator[boidIndex] :
         (boidType == BoidType::Obstacle) ? params.boids.posObstacle[boidIndex] :
-                                             Vec3{-1, -1, -1};
+                                           Vec3{-1, -1, -1};
 
     if (p.x < 0 && p.y < 0 && p.z < 0) {
-        printf("Warning: Invalid boid position when querying neighbors. (type=%d, idx=%d)\n", static_cast<int>(boidType), boidIndex);
+        printf("Warning: Invalid boid position when querying neighbors. (type=%d, idx=%d)\n",
+               static_cast<int>(boidType), boidIndex);
         return scratch;
     }
 
     int cx = worldToCellIndex(p.x, params.worldX, numCellsX);
     int cy = worldToCellIndex(p.y, params.worldY, numCellsY);
     int cz = is2D ? 0 : worldToCellIndex(p.z, params.worldZ, numCellsZ);
+
     int zmin = is2D ? 0 : -1;
     int zmax = is2D ? 0 :  1;
 
     for (int dx = -1; dx <= 1; ++dx)
     for (int dy = -1; dy <= 1; ++dy)
     for (int dz = zmin; dz <= zmax; ++dz) {
+
         int nx = cx + dx;
         int ny = cy + dy;
         int nz = cz + dz;
@@ -197,6 +208,7 @@ const std::vector<int>& SpatialGrid::getNeighborIndices(const SequentialParamete
             scratch.insert(scratch.end(), cell.begin(), cell.end());
     }
 
+    // Obstacles may span multiple cells -> remove duplicates
     if (neighborType == BoidType::Obstacle) {
         std::unordered_set<int> uniqueIndices(scratch.begin(), scratch.end());
         scratch.assign(uniqueIndices.begin(), uniqueIndices.end());
@@ -204,4 +216,3 @@ const std::vector<int>& SpatialGrid::getNeighborIndices(const SequentialParamete
 
     return scratch;
 }
-

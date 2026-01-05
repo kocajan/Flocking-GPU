@@ -1,13 +1,22 @@
-#include "versions/parallel/ParallelParameters.hpp"
+/**
+ * \file CellResetKernels.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of CUDA kernels for clearing and rebuilding grid cell ranges.
+ *
+ * Structure:
+ *  - device helper for hash → (cx,cy,cz) conversion
+ *  - kernelResetCells: reset cell metadata and coordinates
+ *  - kernelBuildCellRanges: compute [start,end) index ranges per cell
+ */
+
 #include "core/DeviceStructures.hpp"
+#include "versions/parallel/ParallelParameters.cuh"
+#include "versions/parallel/kernels/CellResetKernels.cuh"
 
 
-__device__ inline void unflattenIndexDevice(int hash, int numCellsX, int numCellsY, int& cX, int& cY, int& cZ) {
-    cX = hash % numCellsX;
-    int t = hash / numCellsX;
-    cY = t % numCellsY;
-    cZ = t / numCellsY;
-}
+__device__ inline void unflattenIndexDevice(int hash, int numCellsX, int numCellsY, int& cX, int& cY, int& cZ);
+
 
 __global__ void kernelResetCells(DeviceGrid dGrid) {
     int hash = blockIdx.x * blockDim.x + threadIdx.x;
@@ -58,4 +67,21 @@ __global__ void kernelBuildCellRanges(int boidCount, int* dHash, int* dCellStart
     if (currentBoidIdx == boidCount - 1 || hash != dHash[currentBoidIdx + 1]) {
         dCellEnd[hash] = currentBoidIdx + 1; // end is exclusive
     }
+}
+
+/**
+ * \brief Convert flattened cell hash index into 3D cell coordinates.
+ *
+ * \param[in] hash Linear cell index.
+ * \param[in] numCellsX Cell count along X.
+ * \param[in] numCellsY Cell count along Y.
+ * \param[in, out] cX Output cell index X.
+ * \param[in, out] cY Output cell index Y.
+ * \param[in, out] cZ Output cell index Z.
+ */
+__device__ inline void unflattenIndexDevice(int hash, int numCellsX, int numCellsY, int& cX, int& cY, int& cZ) {
+    cX = hash % numCellsX;
+    int t = hash / numCellsX;
+    cY = t % numCellsY;
+    cZ = t / numCellsY;
 }

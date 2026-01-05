@@ -11,13 +11,13 @@
 
 #include "simulator/SimulationStep.hpp"
 
-#include "versions/parallel/Parallel.hpp"
+#include "versions/parallel/Parallel.cuh"
 #include "versions/sequential/Sequential.hpp"
-#include "versions/parallelNaive/ParallelNaive.hpp"
+#include "versions/parallelNaive/ParallelNaive.cuh"
 #include "versions/sequentialNaive/SequentialNaive.hpp"
-#include "versions/parallel/ParallelParameters.hpp"
+#include "versions/parallel/ParallelParameters.cuh"
 #include "versions/sequential/SequentialParameters.hpp"
-#include "versions/parallelNaive/ParallelNaiveParameters.hpp"
+#include "versions/parallelNaive/ParallelNaiveParameters.cuh"
 #include "versions/sequentialNaive/SequentialNaiveParameters.hpp"
 
 

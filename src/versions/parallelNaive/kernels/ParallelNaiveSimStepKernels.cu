@@ -1,7 +1,24 @@
+/**
+ * \file ParallelNaiveSimStepKernels.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of CUDA kernels for the parallel-naive simulation step.
+ *
+ * Structure:
+ *  - kernel entry points
+ *  - per-type behavior resolution
+ *  - interaction and avoidance routines
+ *  - dynamics and collision handlers
+ */
+
 #include <cmath>
 #include <cuda_runtime.h>
 
-#include "versions/parallelNaive/ParallelNaiveParameters.hpp"
+#include "versions/parallelNaive/ParallelNaiveParameters.cuh"
+
+#include "core/Types.hpp"
+#include "core/DeviceStructures.hpp"
+#include "utils/simStepParallelUtils.cuh"
 
 
 // Forward declarations
@@ -16,13 +33,6 @@ __device__ void resolveCollisions(ParallelNaiveParameters::GPUParams& params, in
 
 __device__ void resolveWallCollisions(ParallelNaiveParameters::GPUParams& params, int i, BoidType type);
 __device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& params, int i, BoidType type);
-
-__device__ inline float sqrLen(const Vec3& v);
-__device__ inline Vec3 normalize(const Vec3& v, float eps);
-__device__ inline float periodicDelta(float d, float worldSize);
-__device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelNaiveParameters::GPUParams& params);
-__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce);
-__device__ inline void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier);
 
 
 __global__ void simulationStepParallelNaiveBasicBoidsKernel(ParallelNaiveParameters::GPUParams params) {
@@ -61,6 +71,20 @@ __global__ void simulationStepParallelNaivePredatorBoidsKernel(ParallelNaivePara
     resolveRest(params, currentPredatorBoidIdx, BoidType::Predator);
 }
 
+/**
+ * \brief Resolve flocking behavior for a single basic boid.
+ *
+ * The function:
+ *  - scans all other basic boids within vision range
+ *  - computes separation / cohesion / alignment forces
+ *  - evaluates predator avoidance
+ *  - applies local target attraction and cruising force
+ *
+ * Executed per-thread inside the basic-boid kernel.
+ *
+ * \param[in,out] params GPU runtime parameter block.
+ * \param[in] currentBoidIdx Index of the processed basic boid.
+ */
 __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
     // Get reference to boids
     DeviceBoids& boids = params.dBoids;
@@ -91,7 +115,8 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
         const Vec3 oVel = boids.velBasic[otherIdx];
 
         // Compute distance vector
-        Vec3 distVec = periodicDeltaVec(pos, oPos, params);
+        Vec3 distVec = periodicDeltaVec(pos, oPos, params.is2D, params.bounce,
+                                        params.worldX, params.worldY, params.worldZ);
 
         // Get squared distance
         float d2 = sqrLen(distVec);
@@ -158,7 +183,8 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     }
 
     // Move toward local target
-    Vec3 toTarget = periodicDeltaVec(pos, target, params);
+    Vec3 toTarget = periodicDeltaVec(pos, target, params.is2D, params.bounce,
+                                     params.worldX, params.worldY, params.worldZ);
     float toTargetDist2 = sqrLen(toTarget);
     
     // Recalculate the targetWeight to include the squared distance to target
@@ -206,7 +232,8 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
         Vec3& pPos = boids.posPredator[predIdx];
 
         // Compute distance vector
-        Vec3 distVect = periodicDeltaVec(pPos, pos, params);
+        Vec3 distVect = periodicDeltaVec(pPos, pos, params.is2D, params.bounce,
+                                         params.worldX, params.worldY, params.worldZ);
 
         float dist = std::sqrt(sqrLen(distVect));
         if (dist < params.eps)
@@ -264,6 +291,20 @@ __device__ void resolveBasicBoidBehavior(ParallelNaiveParameters::GPUParams& par
     boids.accBasic[currentBoidIdx] = acc;
 }
 
+/**
+ * \brief Resolve chasing and stamina behavior for a predator boid.
+ *
+ * The function:
+ *  - maintains cruising motion
+ *  - accelerates toward the selected target boid
+ *  - drains stamina while chasing
+ *  - enters and exits rest mode when exhausted
+ *
+ * Executed per-thread inside the predator-boid kernel.
+ *
+ * \param[in,out] params GPU runtime parameter block.
+ * \param[in] currentBoidIdx Index of the processed predator boid.
+ */
 __device__ void resolvePredatorBoidBehavior(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx) {
     // Get boids
     DeviceBoids& boids = params.dBoids;
@@ -307,7 +348,8 @@ __device__ void resolvePredatorBoidBehavior(ParallelNaiveParameters::GPUParams& 
         // Chasing
         const Vec3& tPos = boids.posBasic[targetIdx];
 
-        Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params);
+        Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params.is2D, params.bounce,
+                                            params.worldX, params.worldY, params.worldZ);
         Vec3 toTargetDir = normalize(toTargetVec, params.eps);
 
         float dist = std::sqrt(sqrLen(toTargetVec));
@@ -344,6 +386,21 @@ __device__ void resolvePredatorBoidBehavior(ParallelNaiveParameters::GPUParams& 
     boids.accPredator[currentBoidIdx] = acc;
 }
 
+/**
+ * \brief Apply interaction handling, dynamics, and collisions for one boid.
+ *
+ * The function dispatches:
+ *  - mouse interaction
+ *  - obstacle and wall avoidance
+ *  - dynamics integration
+ *  - collision resolution
+ *
+ * Also enforces 2D mode by zeroing Z-components.
+ *
+ * \param[in,out] params GPU runtime parameter block.
+ * \param[in] currentBoidIdx Index of the processed boid.
+ * \param[in] type Boid type (Basic / Predator).
+ */
 __device__ void resolveRest(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Resolve mouse interactions
     resolveMouseInteraction(params, currentBoidIdx, type);
@@ -368,6 +425,16 @@ __device__ void resolveRest(ParallelNaiveParameters::GPUParams& params, int curr
     }
 }
 
+/**
+ * \brief Apply mouse attraction / repulsion force to a boid.
+ *
+ * The function:
+ *  - computes distance to interaction point
+ *  - scales force by squared distance within world range
+ *  - overrides previous acceleration when active
+ *
+ * Unsupported boid types are ignored with warning.
+ */
 __device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -395,7 +462,8 @@ __device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& para
     acc.y = 0.0f;
     acc.z = 0.0f;
 
-    Vec3 diff = periodicDeltaVec(interaction.point, pos, params);
+    Vec3 diff = periodicDeltaVec(interaction.point, pos, params.is2D, params.bounce,
+                                 params.worldX, params.worldY, params.worldZ);
 
     float dist2 = sqrLen(diff);
     if (dist2 < params.eps)
@@ -427,6 +495,14 @@ __device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& para
     }
 }
 
+/**
+ * \brief Resolve obstacle avoidance and wall repulsion forces.
+ *
+ * The function:
+ *  - evaluates proximity to circular obstacles
+ *  - applies weighted exponential steering away from them
+ *  - optionally repels from world boundaries when bounce mode is enabled
+ */
 __device__ void resolveObstacleAndWallAvoidance(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -463,7 +539,8 @@ __device__ void resolveObstacleAndWallAvoidance(ParallelNaiveParameters::GPUPara
     for (int obsIdx = 0; obsIdx < boids.obstacleBoidCount; ++obsIdx) {
         const Vec3& oPos = boids.posObstacle[obsIdx];
 
-        Vec3 diff = periodicDeltaVec(oPos, pos, params);
+        Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce,
+                                     params.worldX, params.worldY, params.worldZ);
         diff.z = 0.0f;
 
         float centerDist = sqrtf(sqrLen(diff));
@@ -535,6 +612,15 @@ __device__ void resolveObstacleAndWallAvoidance(ParallelNaiveParameters::GPUPara
     }
 }
 
+/**
+ * \brief Integrate acceleration, velocity and position for one boid.
+ *
+ * The function:
+ *  - applies drag
+ *  - blends steering with noise direction
+ *  - enforces min/max speed limits
+ *  - advances position using Euler integration
+ */
 __device__ void resolveDynamics(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -643,6 +729,9 @@ __device__ void resolveDynamics(ParallelNaiveParameters::GPUParams& params, int 
     }
 }
 
+/**
+ * \brief Dispatch collision handling for walls and obstacles.
+ */
 __device__ void resolveCollisions(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -654,6 +743,16 @@ __device__ void resolveCollisions(ParallelNaiveParameters::GPUParams& params, in
     resolveObstacleCollisions(params, currentBoidIdx, type);
 }
 
+/**
+ * \brief Handle world-boundary collisions.
+ *
+ * In bounce mode:
+ *  - reflect velocity
+ *  - clamp boid inside world
+ *
+ * In wrap mode:
+ *  - apply toroidal wrapping
+ */
 __device__ void resolveWallCollisions(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -748,6 +847,14 @@ __device__ void resolveWallCollisions(ParallelNaiveParameters::GPUParams& params
     }
 }
 
+/**
+ * \brief Handle collisions with circular obstacle boids.
+ *
+ * The function:
+ *  - pushes boids out of penetration
+ *  - reflects velocity along obstacle normal
+ *  - scales bounce using bounce factor
+ */
 __device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -772,7 +879,8 @@ __device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& pa
     for (int obsIdx = 0; obsIdx < boids.obstacleBoidCount; ++obsIdx) {
         const Vec3& oPos = boids.posObstacle[obsIdx];
 
-        Vec3 diff = periodicDeltaVec(oPos, pos, params);
+        Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce,
+                                     params.worldX, params.worldY, params.worldZ);
         diff.z = 0.0f;
 
         float dist2 = sqrLen(diff);
@@ -808,54 +916,3 @@ __device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& pa
         boids.velPredator[currentBoidIdx] = vel;
     }
 }
-
-__device__ inline float sqrLen(const Vec3& v) {
-    return v.x*v.x + v.y*v.y + v.z*v.z;
-}
-
-__device__ inline Vec3 normalize(const Vec3& v, float eps) {
-    float l2 = sqrLen(v);
-    if (l2 < eps) {
-        return {0,0,0};
-    }
-
-    float inv = rsqrtf(l2);
-    return { v.x*inv, v.y*inv, v.z*inv };
-}
-
-__device__ inline float periodicDelta(float d, float worldSize) {
-    if (d >  0.5f * worldSize) d -= worldSize;
-    if (d < -0.5f * worldSize) d += worldSize;
-    return d;
-}
-
-__device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const ParallelNaiveParameters::GPUParams& params) {
-    Vec3 distVec = {
-        to.x - from.x,
-        to.y - from.y,
-        params.is2D ? 0.0f : (to.z - from.z)
-    };
-
-    if (params.bounce)
-        return distVec;
-        
-    distVec.x = periodicDelta(distVec.x, params.worldX);
-    distVec.y = periodicDelta(distVec.y, params.worldY);
-
-    if (!params.is2D)
-        distVec.z = periodicDelta(distVec.z, params.worldZ);
-
-    return distVec;
-}
-
-__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce) {
-    float k = maxForce * w;
-    return Vec3{ d.x * k, d.y * k, d.z * k };
-};
-
-__device__ inline void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier) {
-    if (d < visualRange) {
-        float weight = __expf(-0.3f * d);
-        accAxis += axisSign * (maxForce * weight * multiplier);
-    }
-};

@@ -1,31 +1,28 @@
+/**
+ * \file Parallel.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of the optimized parallel simulation step.
+ *
+ * Orchestration code coordinating:
+ *  - grid reset and hashing
+ *  - bitonic sorting by cell hash
+ *  - cell range construction
+ *  - execution of simulation kernels
+ */
+
 #include <cstdio>
 #include <iostream>
 #include <cuda_runtime.h>
 
-#include "versions/parallel/Parallel.hpp"
-#include "versions/parallel/ParallelParameters.hpp"
-#include "versions/parallel/BoidSorting.hpp"
 #include "core/DeviceStructures.hpp"
-
-namespace {
-    #define CHECK_ERROR( error ) ( HandleError( error, __FILE__, __LINE__ ) )
-
-    static void HandleError(cudaError_t error, const char* file, int line) { 
-        if (error != cudaSuccess) { 
-            std::cout << cudaGetErrorString(error) << " in " << file << " at line " << line << std::endl; 
-            int w = scanf(" "); 
-            exit(EXIT_FAILURE); 
-        } 
-    }
-} // anonymous namespace
-
-__global__ void simulationStepParallelBasicBoidsKernel(ParallelParameters::GPUParams params);
-__global__ void simulationStepParallelPredatorBoidsKernel(ParallelParameters::GPUParams params);
-
-__global__ void kernelComputeHashes(ParallelParameters::GPUParams params, Vec3* dPos, int boidCount, int* dHash, int* dIndex);
-__global__ void kernelResetCells(DeviceGrid dGrid);
-__global__ void kernelBuildCellRanges(int boidCount, int* dHash, int* dCellStart, int* dCellEnd);
-__global__ void bitonicSortStepKernel(int* dHash, int* dIndex, int j, int k, int boidCount);
+#include "versions/parallel/Parallel.cuh"
+#include "utils/simStepParallelUtils.cuh"
+#include "versions/parallel/BoidSorting.cuh"
+#include "versions/parallel/ParallelParameters.cuh"
+#include "versions/parallel/kernels/HashesKernels.cuh"
+#include "versions/parallel/kernels/CellResetKernels.cuh"
+#include "versions/parallel/kernels/ParallelSimStepKernels.cuh"
 
 
 void simulationStepParallel(ParallelParameters& params) {

@@ -1,3 +1,10 @@
+/**
+ * \file SequentialNaiveParameters.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of parameter initialization for the sequential naive backend.
+ */
+
 #include <algorithm>
 
 #include "versions/sequentialNaive/SequentialNaiveParameters.hpp"
@@ -7,12 +14,12 @@
 
 SequentialNaiveParameters::SequentialNaiveParameters(SimState& s, const Config& c) 
     : boids(s.boids) {
-    // Define helper function for converting percentage weights
+
+    /// Helper lambda for converting percentage values to normalized weights.
     auto percentToWeight = [](float percent) {
         return std::clamp(percent / 100.0f, 0.0f, 1.0f);
     };
     
-    // Interaction
     interaction = s.interaction;
 
     // Dimensionality
@@ -61,12 +68,12 @@ SequentialNaiveParameters::SequentialNaiveParameters(SimState& s, const Config& 
     obstacleAvoidanceMultiplier = c.number("obstacleAvoidanceMultiplier");
     mouseInteractionMultiplier  = c.number("mouseInteractionMultiplier");
 
-    // Flocking weights (normalized 0–1 later in behavior code)
+    // Flocking weights
     cohesionWeightBasic = percentToWeight(c.number("cohesionBasic"));
     alignmentWeightBasic = percentToWeight(c.number("alignmentBasic"));
     separationWeightBasic = percentToWeight(c.number("separationBasic"));
-
     targetAttractionWeightBasic = percentToWeight(c.number("targetAttractionBasic"));
+
     // Calculate max speed based on the longest world edge
     float maxSpeed = longestWorldEdge / 10.0f;
 
@@ -101,7 +108,8 @@ SequentialNaiveParameters::SequentialNaiveParameters(SimState& s, const Config& 
     numStepsToStopDueToMaxDrag = 100.0f;
 
     // Neighbor selection
-    maxNeighborsBasic = static_cast<float>(s.boids.basicBoidCount) * percentToWeight(c.number("neighbourAccuracy"));
+    maxNeighborsBasic = static_cast<float>(s.boids.basicBoidCount)
+                        * percentToWeight(c.number("neighbourAccuracy"));
 }
 
 SequentialNaiveParameters::~SequentialNaiveParameters() {

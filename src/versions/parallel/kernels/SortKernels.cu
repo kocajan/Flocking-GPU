@@ -1,4 +1,18 @@
+/**
+ * \file SortKernels.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of CUDA padding and bitonic sort kernels for hash/index buffers.
+ *
+ * Structure:
+ *  - fillPadding: marks padded region beyond boid count
+ *  - bitonicSortStepKernel: one compare–swap step of bitonic network
+ */
+
 #include <cuda_runtime.h>
+
+#include "versions/parallel/kernels/SortKernels.cuh"
+
 
 __global__ void fillPadding(int* dHash, int* dIndex, int boidCount, int N, int sentinel) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -7,7 +21,7 @@ __global__ void fillPadding(int* dHash, int* dIndex, int boidCount, int N, int s
     if (i < boidCount || i >= N) return;
 
     dHash[i]  = sentinel;
-    dIndex[i] = -1;
+    dIndex[i] = -1; 
 }
 
 // One step of the bitonic sort network over N elements.

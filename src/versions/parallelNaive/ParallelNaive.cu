@@ -1,26 +1,23 @@
+/**
+ * \file ParallelNaive.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of the parallel-naive GPU flocking simulation step.
+ *
+ * Structure:
+ *  - kernel launch scheduling
+ *  - per-type kernel execution
+ *  - CUDA error checking and synchronization
+ */
+
 #include <cstdio>
 #include <iostream>
 #include <cuda_runtime.h>
 
-#include "versions/parallelNaive/ParallelNaive.hpp"
-#include "versions/parallelNaive/ParallelNaiveParameters.hpp"
-
-
-namespace {
-    #define CHECK_ERROR( error ) ( HandleError( error, __FILE__, __LINE__ ) )
-
-    static void HandleError(cudaError_t error, const char* file, int line) { 
-        if (error != cudaSuccess) { 
-            std::cout << cudaGetErrorString(error) << " in " << file << " at line " << line << std::endl; 
-            int w = scanf(" "); 
-            exit(EXIT_FAILURE); 
-        } 
-    }
-} // anonymous namespace
-
-
-__global__ void simulationStepParallelNaiveBasicBoidsKernel(ParallelNaiveParameters::GPUParams params);
-__global__ void simulationStepParallelNaivePredatorBoidsKernel(ParallelNaiveParameters::GPUParams params);
+#include "utils/simStepParallelUtils.cuh"
+#include "versions/parallelNaive/ParallelNaive.cuh"
+#include "versions/parallelNaive/ParallelNaiveParameters.cuh"
+#include "versions/parallelNaive/kernels/ParallelNaiveSimStepKernels.cuh"
 
 
 void simulationStepParallelNaive(ParallelNaiveParameters& params) {

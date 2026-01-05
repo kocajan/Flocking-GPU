@@ -1,8 +1,21 @@
-#include <cmath>
-#include <algorithm>
+/**
+ * \file SequentialNaive.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of the sequential-naive flocking simulation.
+ *
+ * Structure:
+ *  - step dispatcher
+ *  - per-type simulation loops
+ *  - behavior resolution
+ *  - interaction handling
+ *  - dynamics & collisions
+ *
+ */
 
+#include "utils/simStepUtils.hpp"
 #include "versions/sequentialNaive/SequentialNaive.hpp"
-#include "versions/sequentialNaive/SequentialNaiveParameters.hpp" 
+#include "versions/sequentialNaive/SequentialNaiveParameters.hpp"
 
 
 void simulationStepSequentialNaiveBasicBoids(SequentialNaiveParameters& params);
@@ -20,12 +33,6 @@ void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx, Bo
 void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type);
 void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type);
 
-inline float periodicDelta(float d, float worldSize);
-inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const SequentialNaiveParameters& params);
-
-static inline Vec3 normalize(const Vec3& v, const float eps = 1e-5f);
-static inline float sqrLen(const Vec3& v);
-
 
 void simulationStepSequentialNaive(SequentialNaiveParameters& params) {
     // Process basic boids
@@ -35,6 +42,11 @@ void simulationStepSequentialNaive(SequentialNaiveParameters& params) {
     simulationStepSequentialNaivePredatorBoids(params);
 }
 
+/**
+ * \brief Simulates one timestep for all basic boids in a sequential-naive manner.
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ */
 void simulationStepSequentialNaiveBasicBoids(SequentialNaiveParameters& params) {
     // Get boids
     Boids& boids = params.boids;
@@ -51,6 +63,11 @@ void simulationStepSequentialNaiveBasicBoids(SequentialNaiveParameters& params) 
     }
 }
 
+/**
+ * \brief Simulates one timestep for all predator boids in a sequential-naive manner.
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ */
 void simulationStepSequentialNaivePredatorBoids(SequentialNaiveParameters& params) {
     // Get boids
     Boids& boids = params.boids;
@@ -67,6 +84,13 @@ void simulationStepSequentialNaivePredatorBoids(SequentialNaiveParameters& param
     }
 }
 
+/**
+ * \brief Computes flocking behavior forces for a basic boid
+ *        (separation, cohesion, alignment, target attraction, predator avoidance).
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ * \param[in]     currentBoidIdx Index of the processed basic boid.
+ */
 void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx) {
     // Get reference to boids
     Boids& boids = params.boids;
@@ -103,7 +127,8 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
         const Vec3& oVel = boids.velBasic[otherIdx];
 
         // Compute distance vector
-        Vec3 distVec = periodicDeltaVec(pos, oPos, params);
+        Vec3 distVec = periodicDeltaVec(pos, oPos, params.is2D, params.bounce, 
+                                        params.worldX, params.worldY, params.worldZ);
 
         // Get squared distance
         float d2 = sqrLen(distVec);
@@ -170,7 +195,8 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
     }
 
     // Move toward local target
-    Vec3 toTarget = periodicDeltaVec(pos, target, params);
+    Vec3 toTarget = periodicDeltaVec(pos, target, params.is2D, params.bounce, 
+                                     params.worldX, params.worldY, params.worldZ);
     float toTargetDist2 = sqrLen(toTarget);
     
     // Recalculate the targetWeight to include the squared distance to target
@@ -218,7 +244,8 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
         Vec3& pPos = boids.posPredator[predIdx];
 
         // Compute distance vector
-        Vec3 distVect = periodicDeltaVec(pPos, pos, params);
+        Vec3 distVect = periodicDeltaVec(pPos, pos, params.is2D, params.bounce, 
+                                         params.worldX, params.worldY, params.worldZ);
 
         float dist = std::sqrt(sqrLen(distVect));
         if (dist < params.eps)
@@ -273,6 +300,13 @@ void resolveBasicBoidBehavior(SequentialNaiveParameters& params, int currentBoid
     }
 }
 
+/**
+ * \brief Computes predator steering behavior including cruising, pursuit,
+ *        stamina consumption, and rest-state transitions.
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ * \param[in]     currentBoidIdx Index of the processed predator boid.
+ */
 void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentBoidIdx) {
     // Get boids
     Boids& boids = params.boids;
@@ -316,7 +350,8 @@ void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentB
         //Chasing
         const Vec3& tPos = boids.posBasic[targetIdx];
 
-        Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params);
+        Vec3 toTargetVec = periodicDeltaVec(pos, tPos, params.is2D, params.bounce, 
+                                            params.worldX, params.worldY, params.worldZ);
         Vec3 toTargetDir = normalize(toTargetVec, params.eps);
 
         float dist = std::sqrt(sqrLen(toTargetVec));
@@ -345,6 +380,14 @@ void resolvePredatorBoidBehavior(SequentialNaiveParameters& params, int currentB
     targetDist = -1.0f;
 }
 
+/**
+ * \brief Applies remaining simulation effects for a boid
+ *        (interaction, avoidance, dynamics, and collision handling).
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ * \param[in]     currentBoidIdx Index of the processed boid.
+ * \param[in]     type Type of the processed boid (basic or predator).
+ */
 void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
     // Resolve mouse interactions
     resolveMouseInteraction(params, currentBoidIdx, type);
@@ -369,6 +412,13 @@ void resolveRest(SequentialNaiveParameters& params, int currentBoidIdx, BoidType
     }
 }
 
+/**
+ * \brief Applies mouse-based attract/repel interaction force to the specified boid.
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ * \param[in]     currentBoidIdx Index of the processed boid.
+ * \param[in]     type Type of the processed boid (basic or predator).
+ */
 void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -405,7 +455,8 @@ void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidI
     acc.y = 0.0f;
     acc.z = 0.0f;
 
-    Vec3 diff = periodicDeltaVec(interaction.point, pos, params);
+    Vec3 diff = periodicDeltaVec(interaction.point, pos, params.is2D, params.bounce, 
+                                 params.worldX, params.worldY, params.worldZ);
 
     float dist2 = sqrLen(diff);
     if (dist2 < params.eps)
@@ -434,6 +485,13 @@ void resolveMouseInteraction(SequentialNaiveParameters& params, int currentBoidI
     }
 }
 
+/**
+ * \brief Applies obstacle avoidance steering and optional wall repulsion to a boid.
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ * \param[in]     currentBoidIdx Index of the processed boid.
+ * \param[in]     type Type of the processed boid (basic or predator).
+ */
 void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -469,7 +527,8 @@ void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int curr
     for (int obsIdx = 0; obsIdx < boids.obstacleBoidCount; ++obsIdx) {
         const Vec3& oPos = boids.posObstacle[obsIdx];
 
-        Vec3 diff = periodicDeltaVec(oPos, pos, params);
+        Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce, 
+                                     params.worldX, params.worldY, params.worldZ);
         diff.z = 0.0f; // Ignore vertical component for obstacle avoidance
 
         float centerDist = std::sqrt(sqrLen(diff));
@@ -546,6 +605,14 @@ void resolveObstacleAndWallAvoidance(SequentialNaiveParameters& params, int curr
     }
 }
 
+/**
+ * \brief Integrates acceleration, velocity, and position for a boid,
+ *        applies noise, drag, and enforces speed limits.
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ * \param[in]     currentBoidIdx Index of the processed boid.
+ * \param[in]     type Type of the processed boid (basic or predator).
+ */
 void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -641,6 +708,13 @@ void resolveDynamics(SequentialNaiveParameters& params, int currentBoidIdx, Boid
     pos.z += vel.z * params.dt;
 }
 
+/**
+ * \brief Resolves collisions for a boid by dispatching wall and obstacle collision handlers.
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ * \param[in]     currentBoidIdx Index of the processed boid.
+ * \param[in]     type Type of the processed boid (basic or predator).
+ */
 void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -652,6 +726,13 @@ void resolveCollisions(SequentialNaiveParameters& params, int currentBoidIdx, Bo
     resolveObstacleCollisions(params, currentBoidIdx, type);
 }
 
+/**
+ * \brief Resolves interactions with world boundaries using bounce or periodic wrapping.
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ * \param[in]     currentBoidIdx Index of the processed boid.
+ * \param[in]     type Type of the processed boid (basic or predator).
+ */
 void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -736,6 +817,13 @@ void resolveWallCollisions(SequentialNaiveParameters& params, int currentBoidIdx
     }
 }
 
+/**
+ * \brief Resolves collisions with obstacle boids using push-out correction and bounce reflection.
+ *
+ * \param[in,out] params Simulation state and configuration parameters.
+ * \param[in]     currentBoidIdx Index of the processed boid.
+ * \param[in]     type Type of the processed boid (basic or predator).
+ */
 void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoidIdx, BoidType type) {
     // Check if right type
     if (type != BoidType::Basic && type != BoidType::Predator) {
@@ -761,7 +849,8 @@ void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoi
     for (int obsIdx = 0; obsIdx < boids.obstacleBoidCount; ++obsIdx) {
         const Vec3& oPos = boids.posObstacle[obsIdx];
 
-        Vec3 diff = periodicDeltaVec(oPos, pos, params);
+        Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce, 
+                                     params.worldX, params.worldY, params.worldZ);
         diff.z = 0.0f; // Ignore vertical component for obstacle collisions
 
         float dist2 = sqrLen(diff);
@@ -792,48 +881,4 @@ void resolveObstacleCollisions(SequentialNaiveParameters& params, int currentBoi
             vel.z = vReflect.z * params.bounceFactor;
         }
     }
-}
-
-inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, const SequentialNaiveParameters& params) {
-    // Raw difference (to - from)
-    Vec3 distVec{
-        to.x - from.x,
-        to.y - from.y,
-        params.is2D ? 0.0f : (to.z - from.z)
-    };
-
-    // In bounce mode use plain Euclidean space
-    if (params.bounce) {
-        return distVec;
-    }
-
-    // In wrapping mode adjust by world size
-    distVec.x = periodicDelta(distVec.x, params.worldX);
-    distVec.y = periodicDelta(distVec.y, params.worldY);
-    
-    if (!params.is2D) {
-        distVec.z = periodicDelta(distVec.z, params.worldZ);
-    }
-
-    return distVec;
-}
-
-inline float periodicDelta(float d, float worldSize) {
-    if (d >  0.5f * worldSize) d -= worldSize;
-    if (d < -0.5f * worldSize) d += worldSize;
-    return d;
-}
-
-static inline Vec3 normalize(const Vec3& v, const float eps) {
-    float l2 = sqrLen(v);
-    if (l2 < eps) {
-        return {0.0f, 0.0f, 0.0f};
-    }
-    
-    float inv = 1.0f / std::sqrt(l2);
-    return { v.x * inv, v.y * inv, v.z * inv };
-}
-
-static inline float sqrLen(const Vec3& v) {
-    return v.x * v.x + v.y * v.y + v.z * v.z;
 }
