@@ -2,7 +2,7 @@
  * \file Types.hpp
  * \author Jan Koča
  * \date 01-05-2026
- * \brief Core math, interaction, configuration, and parameter range types used across the simulation.
+ * \brief Core math, interaction, boid, configuration, and parameter range types used across the simulation.
  */
 
 #pragma once
@@ -11,12 +11,11 @@
 #include <string>
 #include <vector>
 #include <variant>
+#include <chrono>
 
-//
 // ----------------------------------------------------------------------------
 //  Basic math + color types
 // ----------------------------------------------------------------------------
-//
 
 /**
  * \struct Vec3
@@ -39,11 +38,9 @@ struct Color {
     int a;
 };
 
-//
 // ----------------------------------------------------------------------------
 //  Boid types
 // ----------------------------------------------------------------------------
-//
 
 /**
  * \enum BoidType
@@ -56,11 +53,37 @@ enum class BoidType : uint8_t {
     Empty     ///< No boid / unused entry.
 };
 
-//
 // ----------------------------------------------------------------------------
-//  Interaction types (runtime mouse / environment actions)
+//  Interaction types (from GUI perspective)
 // ----------------------------------------------------------------------------
-//
+
+/**
+ * \enum MouseInteractionType
+ * \brief Type of mouse interaction mapped to world coordinates.
+ */
+enum class MouseInteractionType : uint8_t {
+    LeftClickOnWorld,  ///< Left mouse click drag.
+    RightClickOnWorld  ///< Right mouse click drag.
+};
+
+/**
+ * \struct MouseInteractionEvent
+ * \brief Runtime mouse interaction state with timestamps and world position.
+ */
+struct MouseInteractionEvent {
+    MouseInteractionType type;
+    bool active;
+    float worldX;
+    float worldY;
+    float lastWorldX;
+    float lastWorldY;
+    std::chrono::high_resolution_clock::time_point timestamp;
+    std::chrono::high_resolution_clock::time_point lastTimestamp;
+};
+
+// ----------------------------------------------------------------------------
+//  Interaction types (from simulation perspective)
+// ----------------------------------------------------------------------------
 
 /**
  * \enum InteractionType
@@ -81,11 +104,9 @@ struct Interaction {
     Vec3 point{0.0f, 0.0f, 0.0f};                 ///< Interaction world position.
 };
 
-//
 // ----------------------------------------------------------------------------
 //  Config parameter types (UI + configuration system)
 // ----------------------------------------------------------------------------
-//
 
 /**
  * \enum ParamType
@@ -111,11 +132,9 @@ enum class ParamRender {
     Input
 };
 
-//
 // ----------------------------------------------------------------------------
 //  Parameter ranges
 // ----------------------------------------------------------------------------
-//
 
 /**
  * \struct NumberRange
@@ -153,11 +172,9 @@ struct EnumRange {
     std::vector<std::string> options; ///< Enumeration value list.
 };
 
-//
 // ----------------------------------------------------------------------------
 //  Unified parameter storage
 // ----------------------------------------------------------------------------
-//
 
 /**
  * \typedef ParamValue

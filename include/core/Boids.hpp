@@ -1,5 +1,5 @@
 /**
- * \file
+ * \file Boids.hpp
  * \author Jan Koča
  * \date 01-05-2026
  * \brief CPU-side SoA container storing boid population data and lifecycle helpers.

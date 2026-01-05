@@ -1,3 +1,10 @@
+/**
+ * \file ParameterJsonParser.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of JSON configuration parameter parser.
+ */
+
 #include <cassert>
 
 #include "json/ParameterJsonParser.hpp"

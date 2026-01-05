@@ -1,5 +1,13 @@
+/**
+ * \file JsonLoader.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of JSON file loading utilities.
+ */
+
 #include <fstream>
 #include <cassert>
+#include <filesystem>
 
 #include "json/JsonLoader.hpp"
 

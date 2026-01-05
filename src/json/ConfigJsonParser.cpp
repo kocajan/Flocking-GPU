@@ -1,11 +1,16 @@
+/**
+ * \file ConfigJsonParser.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of JSON configuration object parser.
+ */
+
 #include <cassert>
 
 #include "json/ConfigJsonParser.hpp"
 #include "json/ParameterJsonParser.hpp"
 
-
-Config parseConfig(const nlohmann::json& root)
-{
+Config parseConfig(const nlohmann::json& root) {
     assert(root.contains("id"));
     assert(root.contains("parameters"));
     assert(root.at("parameters").is_object());

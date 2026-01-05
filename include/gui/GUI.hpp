@@ -1,3 +1,16 @@
+/**
+ * \file GUI.hpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Graphical user interface for simulation control, rendering, and interaction.
+ *
+ * Provides:
+ * - platform & OpenGL / ImGui initialization
+ * - world rendering and parameter UI panels
+ * - mouse interaction mapping (screen → world)
+ * - per–frame lifecycle control
+ */
+
 #pragma once
 
 #include <vector>
@@ -11,45 +24,64 @@
 #include "core/Types.hpp"
 
 
+// Forward declaration of GLFWwindow
 struct GLFWwindow;
 
-// ============================================================
-// Interaction
-// ============================================================
-
-enum class MouseInteractionType : uint8_t {
-    LeftClickOnWorld,
-    RightClickOnWorld
-};
-
-struct MouseInteractionEvent {
-    MouseInteractionType type;
-    bool active;
-    float worldX;
-    float worldY;
-    float lastWorldX;
-    float lastWorldY;
-    std::chrono::high_resolution_clock::time_point timestamp;
-    std::chrono::high_resolution_clock::time_point lastTimestamp;
-};
-
-// ============================================================
-// GUI
-// ============================================================
-
+/**
+ * \class GUI
+ * \brief GUI subsystem responsible for rendering, event handling, and world view.
+ */
 class GUI {
 public:
+
+    /**
+     * \brief Initialize OS window, GL context, and platform backend.
+     *
+     * \param[in] title Window title string.
+     * \return true on success, false on failure.
+     */
     bool initializePlatform(const char* title);
+
+    /**
+     * \brief Initialize ImGui context and rendering backend.
+     */
     void initializeImGui();
 
+    /**
+     * \brief Check whether the GUI window is still running.
+     *
+     * \return true if window is active, false if close requested.
+     */
     bool isRunning() const;
 
+    /**
+     * \brief Begin a new frame, poll events, and update world view.
+     *
+     * \param[in] worldW World width.
+     * \param[in] worldH World height.
+     */
     void beginFrame(float worldW, float worldH);
+
+    /**
+     * \brief Render world and control panels.
+     */
     void render(Config& simConfig, SimState& simState);
+
+    /**
+     * \brief Finalize frame and present rendered output.
+     */
     void endFrame();
 
+    /**
+     * \brief Shutdown GUI, destroy window, and terminate platform state.
+     */
     void shutdown();
 
+    /**
+     * \brief Get current mouse interaction state.
+     *
+     * \return Reference to interaction data.
+     */
     MouseInteractionEvent& getInteraction();
 
 private:
@@ -70,6 +102,10 @@ private:
 private:
     GLFWwindow* window = nullptr;
 
+    /**
+     * \struct WorldViewRect
+     * \brief Screen-space viewport bounds and scaling of world units.
+     */
     struct WorldViewRect {
         float originX = 0.0f;
         float originY = 0.0f;
@@ -86,6 +122,6 @@ private:
 
     float pressX = 0.0f;
     float pressY = 0.0f;
-    
+
     static GUI* instance;
 };
