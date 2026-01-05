@@ -1,3 +1,10 @@
+/**
+ * \file VersionManager.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of version configuration management utilities.
+ */
+
 #include "core/VersionManager.hpp"
 
 
@@ -29,9 +36,9 @@ VersionManager::VersionManager(const std::vector<Config>& versionsInput) {
     versions = ConfigParameter::Enum(
         "version",
         "Version",
-        "Simulation version",
-        versionIds.front(),   // default = first version
-        versionIds            // options
+        "Version of the simulation configuration.",
+        versionIds.front(),
+        versionIds
     );
 }
 

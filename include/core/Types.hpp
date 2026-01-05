@@ -1,23 +1,37 @@
+/**
+ * \file Types.hpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Core math, interaction, configuration, and parameter range types used across the simulation.
+ */
+
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 #include <variant>
-#include <string>
-#include <cassert>
 
 //
-// ============================================================================
+// ----------------------------------------------------------------------------
 //  Basic math + color types
-// ============================================================================
+// ----------------------------------------------------------------------------
 //
 
+/**
+ * \struct Vec3
+ * \brief 3D vector with single-precision components.
+ */
 struct Vec3 {
     float x;
     float y;
     float z;
 };
 
+/**
+ * \struct Color
+ * \brief RGBA color in integer channel representation.
+ */
 struct Color {
     int r;
     int g;
@@ -25,213 +39,69 @@ struct Color {
     int a;
 };
 
-
 //
-// ============================================================================
-//  Interaction types (runtime mouse / environment actions)
-// ============================================================================
-//
-
-enum class InteractionType : uint8_t {
-    Repel,
-    Attract,
-    Empty
-};
-
-struct Interaction {
-    InteractionType type{InteractionType::Empty};
-    Vec3 point{0.0f, 0.0f, 0.0f};
-};
-
-struct DeviceInteraction {
-    uint8_t type;
-    Vec3 point;
-};
-
-
-//
-// ============================================================================
-//  Boids
-// ============================================================================
+// ----------------------------------------------------------------------------
+//  Boid types
+// ----------------------------------------------------------------------------
 //
 
+/**
+ * \enum BoidType
+ * \brief Type identifier for boids in mixed populations.
+ */
 enum class BoidType : uint8_t {
-    Basic,
-    Predator,
-    Obstacle,
-    Empty
-};
-
-struct Boids {
-    // Core SoA fields
-    // - Basic boids
-    std::vector<Vec3> posBasic;
-    std::vector<Vec3> velBasic;
-    std::vector<Vec3> accBasic;
-    std::vector<Vec3> targetPointBasic;
-
-    // - Predator boids
-    std::vector<Vec3> posPredator;
-    std::vector<Vec3> velPredator;
-    std::vector<Vec3> accPredator;
-    std::vector<Vec3> targetPointPredator;
-
-    std::vector<float> staminaPredator;
-    std::vector<uint8_t> restingPredator;
-
-    std::vector<int> targetBoidIdxPredator;
-    std::vector<float> targetBoidDistancePredator;
-    std::vector<BoidType> targetBoidTypePredator;
-
-    // - Obstacle boids
-    std::vector<Vec3> posObstacle;
-
-    // Bookkeeping by boid type
-    int basicBoidCount = 0;
-    int predatorBoidCount = 0;
-    int obstacleBoidCount = 0;
-
-    // Lifecycle helpers
-    void resizeBasic(int n) {
-        basicBoidCount = n;
-
-        posBasic.resize(n);
-        velBasic.resize(n);
-        accBasic.resize(n);
-        targetPointBasic.resize(n);
-    }
-
-    void resizePredator(int n) {
-        predatorBoidCount = n;
-
-        posPredator.resize(n);
-        velPredator.resize(n);
-        accPredator.resize(n);
-        targetPointPredator.resize(n);
-
-        staminaPredator.resize(n);
-        restingPredator.resize(n);
-
-        targetBoidIdxPredator.resize(n);
-        targetBoidDistancePredator.resize(n);
-        targetBoidTypePredator.resize(n);
-    }
-
-    void resizeObstacle(int n) {
-        obstacleBoidCount = n;
-
-        posObstacle.resize(n);
-    }
-
-    void clear() {
-        posBasic.clear();
-        velBasic.clear();
-        accBasic.clear();
-        targetPointBasic.clear();
-
-        posPredator.clear();
-        velPredator.clear();
-        accPredator.clear();
-        targetPointPredator.clear();    
-        staminaPredator.clear();
-        restingPredator.clear();
-        targetBoidIdxPredator.clear();
-        targetBoidDistancePredator.clear();
-        targetBoidTypePredator.clear();
-
-        posObstacle.clear();
-
-        basicBoidCount = 0;
-        predatorBoidCount = 0;
-        obstacleBoidCount = 0;
-    }
-};
-
-// GPU-side mirror of Boids struct
-struct DeviceBoids {
-    // Core SoA fields
-    // - Basic boids
-    Vec3* posBasic = nullptr;
-    Vec3* velBasic = nullptr;
-    Vec3* accBasic = nullptr;
-    Vec3* targetPointBasic = nullptr;
-
-    // - Predator boids
-    Vec3* posPredator = nullptr;
-    Vec3* velPredator = nullptr;
-    Vec3* accPredator = nullptr;
-    Vec3* targetPointPredator = nullptr;
-
-    float* staminaPredator = nullptr;
-    uint8_t* restingPredator = nullptr;
-
-    int* targetBoidIdxPredator = nullptr;
-    float* targetBoidDistancePredator = nullptr;
-    uint8_t* targetBoidTypePredator = nullptr;
-
-    // - Obstacle boids
-    Vec3* posObstacle = nullptr;
-
-    // Bookkeeping by boid type
-    int basicBoidCount = 0;
-    int predatorBoidCount = 0;
-    int obstacleBoidCount = 0;
-};
-
-// Grid
-struct DeviceGrid {
-    // Basic boid grid
-    int* hashBasic;
-    int* indexBasic;
-
-    int* cellStartBasic;
-    int* cellEndBasic;
-
-    // Predator boid grid
-    int* hashPredator;
-    int* indexPredator;
-
-    int* cellStartPredator;
-    int* cellEndPredator;
-
-    // Obstacle boid grid
-    int* hashObstacle;
-    int* indexObstacle;
-
-    int* cellStartObstacle;
-    int* cellEndObstacle;
-
-    // Spatial partitioning
-    // - Cell grid coordinates
-    int* cellX;
-    int* cellY;
-    int* cellZ;
-
-    float cellSize;
-    
-    int numCellsX;
-    int numCellsY;
-    int numCellsZ;
-
-    int totalCells;
+    Basic,    ///< Standard flocking boid.
+    Predator, ///< Predator boid.
+    Obstacle, ///< Static obstacle boid.
+    Empty     ///< No boid / unused entry.
 };
 
 //
-// ============================================================================
+// ----------------------------------------------------------------------------
+//  Interaction types (runtime mouse / environment actions)
+// ----------------------------------------------------------------------------
+//
+
+/**
+ * \enum InteractionType
+ * \brief Type of runtime interaction effect applied in the simulation.
+ */
+enum class InteractionType : uint8_t {
+    Repel,   ///< Repulsive interaction.
+    Attract, ///< Attractive interaction.
+    Empty    ///< No interaction.
+};
+
+/**
+ * \struct Interaction
+ * \brief Runtime interaction state with type and world-space point.
+ */
+struct Interaction {
+    InteractionType type{InteractionType::Empty}; ///< Interaction mode.
+    Vec3 point{0.0f, 0.0f, 0.0f};                 ///< Interaction world position.
+};
+
+//
+// ----------------------------------------------------------------------------
 //  Config parameter types (UI + configuration system)
-// ============================================================================
+// ----------------------------------------------------------------------------
 //
 
+/**
+ * \enum ParamType
+ * \brief Underlying data type of a configuration parameter.
+ */
 enum class ParamType {
-    Number,
-    Binary,
-    String,
-    Enum
+    Number, ///< Floating-point numeric parameter.
+    Binary, ///< Boolean parameter.
+    String, ///< Text parameter.
+    Enum    ///< Enumerated string parameter.
 };
 
-//
-// Preferred rendering style in GUI
-//
+/**
+ * \enum ParamRender
+ * \brief Preferred rendering style for a configuration parameter in GUI.
+ */
 enum class ParamRender {
     Checkbox,
     Button,
@@ -241,44 +111,58 @@ enum class ParamRender {
     Input
 };
 
-
 //
-// ============================================================================
+// ----------------------------------------------------------------------------
 //  Parameter ranges
-// ============================================================================
+// ----------------------------------------------------------------------------
 //
 
-// Number parameter limits
+/**
+ * \struct NumberRange
+ * \brief Limits and step size for numeric parameters.
+ */
 struct NumberRange {
-    float min  = 0.0f;
-    float max  = 1.0f;
-    float step = 0.01f;
+    float min = 0.0f;  ///< Minimum allowed value.
+    float max = 1.0f;  ///< Maximum allowed value.
+    float step = 0.01f;///< Increment step.
 };
 
-// Boolean parameter flags
+/**
+ * \struct BinaryRange
+ * \brief Flags restricting allowed boolean states.
+ */
 struct BinaryRange {
-    bool allowTrue  = true;
-    bool allowFalse = true;
+    bool allowTrue  = true; ///< Whether true is allowed.
+    bool allowFalse = true; ///< Whether false is allowed.
 };
 
-// String parameter constraints
+/**
+ * \struct StringRange
+ * \brief Constraints for string parameters.
+ */
 struct StringRange {
-    bool freeText = true;                 // allow arbitrary input
-    std::vector<std::string> options;     // optional allowed values
+    bool freeText = true;                 ///< Whether arbitrary text input is allowed.
+    std::vector<std::string> options;     ///< Optional finite list of allowed values.
 };
 
-// Enum parameter options
+/**
+ * \struct EnumRange
+ * \brief Allowed values for enumerated parameters.
+ */
 struct EnumRange {
-    std::vector<std::string> options;
+    std::vector<std::string> options; ///< Enumeration value list.
 };
 
-
 //
-// ============================================================================
+// ----------------------------------------------------------------------------
 //  Unified parameter storage
-// ============================================================================
+// ----------------------------------------------------------------------------
 //
 
+/**
+ * \typedef ParamValue
+ * \brief Variant storing runtime parameter value.
+ */
 using ParamValue = std::variant<
     bool,
     int,
@@ -286,6 +170,10 @@ using ParamValue = std::variant<
     std::string
 >;
 
+/**
+ * \typedef ParamRange
+ * \brief Variant storing parameter domain / constraint definition.
+ */
 using ParamRange = std::variant<
     NumberRange,
     BinaryRange,

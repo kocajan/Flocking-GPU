@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include "core/Types.hpp"
+#include "core/Boids.hpp"
 #include "config/Config.hpp"
 #include "core/SimState.hpp"
 

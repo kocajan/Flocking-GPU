@@ -1,4 +1,5 @@
 #include "versions/parallel/ParallelParameters.hpp"
+#include "core/DeviceStructures.hpp"
 
 
 __device__ inline void unflattenIndexDevice(int hash, int numCellsX, int numCellsY, int& cX, int& cY, int& cZ) {

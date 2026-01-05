@@ -113,8 +113,8 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
     gpu.maxNeighborsBasic = static_cast<int>(static_cast<float>(cpu.hBoids.basicBoidCount) * percentToWeight(c.number("neighbourAccuracy")));
 
     // World interaction
-    gpu.dInteraction.type = static_cast<uint8_t>(s.interaction.type);
-    gpu.dInteraction.point = s.interaction.point;
+    gpu.interaction.type = s.interaction.type;
+    gpu.interaction.point = s.interaction.point;
 
     // ################################################################
     // GPU parameters - Boids

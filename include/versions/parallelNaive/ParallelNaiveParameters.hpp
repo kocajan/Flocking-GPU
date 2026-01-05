@@ -4,8 +4,10 @@
 #include <vector>
 
 #include "core/Types.hpp"
+#include "core/Boids.hpp"
 #include "core/SimState.hpp"
 #include "config/Config.hpp"
+#include "core/DeviceStructures.hpp"
 
 
 struct ParallelNaiveParameters {
@@ -14,7 +16,7 @@ struct ParallelNaiveParameters {
         DeviceBoids dBoids;
 
         // Interaction
-        DeviceInteraction dInteraction;
+        Interaction interaction;
 
         // Simulation flags
         bool is2D;

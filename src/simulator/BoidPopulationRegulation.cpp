@@ -10,14 +10,14 @@
 
 
 void regulateBoidPopulation(SimState& s) {
-    simulator::regulateType(
+    regulateBoidPopulation(
         s,
         BoidType::Basic,
         s.boids.basicBoidCount,
         static_cast<int>(s.basicBoidCountTarget.number())
     );
 
-    simulator::regulateType(
+    regulateBoidPopulation(
         s,
         BoidType::Predator,
         s.boids.predatorBoidCount,
@@ -25,7 +25,7 @@ void regulateBoidPopulation(SimState& s) {
     );
 
     if (s.deleteObstacles.binary()) {
-        simulator::removeBoids(
+        removeBoids(
             s.boids,
             BoidType::Obstacle,
             s.boids.obstacleBoidCount,

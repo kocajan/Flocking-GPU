@@ -386,9 +386,9 @@ __device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& para
             ? boids.accBasic[currentBoidIdx] 
             : boids.accPredator[currentBoidIdx];
 
-    const DeviceInteraction& interaction = params.dInteraction;
+    const Interaction& interaction = params.interaction;
 
-    if (interaction.type == static_cast<uint8_t>(InteractionType::Empty))
+    if (interaction.type == InteractionType::Empty)
         return;
 
     acc.x = 0.0f;
@@ -409,7 +409,7 @@ __device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& para
     Vec3 dir = normalize(diff, params.eps);
     Vec3 weightedForce = makeWeightedForce(dir, weight*params.mouseInteractionMultiplier, params.maxForce);
 
-    if (interaction.type == static_cast<uint8_t>(InteractionType::Attract)) {
+    if (interaction.type == InteractionType::Attract) {
         acc.x -= weightedForce.x;
         acc.y -= weightedForce.y;
         acc.z -= weightedForce.z;

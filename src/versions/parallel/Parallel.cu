@@ -5,7 +5,7 @@
 #include "versions/parallel/Parallel.hpp"
 #include "versions/parallel/ParallelParameters.hpp"
 #include "versions/parallel/BoidSorting.hpp"
-
+#include "core/DeviceStructures.hpp"
 
 namespace {
     #define CHECK_ERROR( error ) ( HandleError( error, __FILE__, __LINE__ ) )

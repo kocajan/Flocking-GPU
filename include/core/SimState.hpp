@@ -19,6 +19,7 @@
 #include <string>
 
 #include "core/Types.hpp"
+#include "core/Boids.hpp"
 #include "config/Config.hpp"
 #include "config/ConfigParameter.hpp"
 

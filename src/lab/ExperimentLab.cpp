@@ -161,7 +161,7 @@ void ExperimentLab::initializeDataForExperimentPlain(SimState& simState, int req
     b.clear();
 
     // Spawn basic boids
-    simulator::spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
+    spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
 }
 
 void ExperimentLab::initializeDataForExperimentPlainWithObstacles(SimState& simState, int requestedBasicBoidCount) {
@@ -172,11 +172,11 @@ void ExperimentLab::initializeDataForExperimentPlainWithObstacles(SimState& simS
     b.clear();
 
     // Spawn basic boids
-    simulator::spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
+    spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
 
     // Spawn obstacle boids
     const int obstacleCount = 50;
-    simulator::spawnBoids(simState, BoidType::Obstacle, simState.boids.obstacleBoidCount, obstacleCount);
+    spawnBoids(simState, BoidType::Obstacle, simState.boids.obstacleBoidCount, obstacleCount);
 }
 
 void ExperimentLab::initializeDataForExperimentPlainWithObstaclesAndPredators(SimState& simState, int requestedBasicBoidCount) {
@@ -187,15 +187,15 @@ void ExperimentLab::initializeDataForExperimentPlainWithObstaclesAndPredators(Si
     b.clear();
 
     // Spawn basic boids
-    simulator::spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
+    spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
 
     // Spawn obstacle boids
     const int obstacleCount = 50;
-    simulator::spawnBoids(simState, BoidType::Obstacle, simState.boids.obstacleBoidCount, obstacleCount);
+    spawnBoids(simState, BoidType::Obstacle, simState.boids.obstacleBoidCount, obstacleCount);
 
     // Spawn predator boids
     const int predatorCount = 5;
-    simulator::spawnBoids(simState, BoidType::Predator, simState.boids.predatorBoidCount, predatorCount);
+    spawnBoids(simState, BoidType::Predator, simState.boids.predatorBoidCount, predatorCount);
 }
 
 void ExperimentLab::initializeDataForExperimentDefault(SimState& simState, int requestedBasicBoidCount) {
@@ -206,17 +206,17 @@ void ExperimentLab::initializeDataForExperimentDefault(SimState& simState, int r
     b.clear();
 
     // Spawn basic boids
-    simulator::spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
+    spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
 
     // Spawn obstacle boids
     Vec3 obstaclePos = { simState.worldX.number() / 2.0f, simState.worldY.number() / 2.0f, 0.0f };
     Vec3 obstacleVel = { 0.0f, 0.0f, 0.0f };
-    simulator::spawnBoid(simState, BoidType::Obstacle, obstaclePos, obstacleVel);
+    spawnBoid(simState, BoidType::Obstacle, obstaclePos, obstacleVel);
     simState.boids.obstacleBoidCount++;
 
     // Spawn predator boids
     const int predatorCount = 1;
-    simulator::spawnBoids(simState, BoidType::Predator, simState.boids.predatorBoidCount, predatorCount);
+    spawnBoids(simState, BoidType::Predator, simState.boids.predatorBoidCount, predatorCount);
 }
 
 void ExperimentLab::initializeDataForExperimentDefault3D(SimState& simState, int requestedBasicBoidCount) {
@@ -227,17 +227,17 @@ void ExperimentLab::initializeDataForExperimentDefault3D(SimState& simState, int
     b.clear();
 
     // Spawn basic boids
-    simulator::spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
+    spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
 
     // Spawn obstacle boids
     Vec3 obstaclePos = { simState.worldX.number() / 2.0f, simState.worldY.number() / 2.0f, 0.0f };
     Vec3 obstacleVel = { 0.0f, 0.0f, 0.0f };
-    simulator::spawnBoid(simState, BoidType::Obstacle, obstaclePos, obstacleVel);
+    spawnBoid(simState, BoidType::Obstacle, obstaclePos, obstacleVel);
     simState.boids.obstacleBoidCount++;
     
     // Spawn predator boids
     const int predatorCount = 1;
-    simulator::spawnBoids(simState, BoidType::Predator, simState.boids.predatorBoidCount, predatorCount);
+    spawnBoids(simState, BoidType::Predator, simState.boids.predatorBoidCount, predatorCount);
 
     // Set SimState to 3D mode
     simState.dimensions.string() = "3D";
