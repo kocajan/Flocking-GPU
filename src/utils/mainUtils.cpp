@@ -1,5 +1,7 @@
 /**
  * \file mainUtils.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
  * \brief Implementation of command-line parsing and config path utilities.
  */
 

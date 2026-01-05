@@ -4,7 +4,7 @@
 #include "lab/ExperimentLab.hpp"
 
 #include "config/ConfigLoader.hpp"
-#include "config/VersionConfigLoader.hpp"
+#include "config/MultipleConfigLoader.hpp"
 #include "simulator/SimulationStep.hpp"
 #include "simulator/SimulatorHelpers.hpp"
 #include "lab/Experiment.hpp"

@@ -1,10 +1,16 @@
+/**
+ * \file Config.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of configuration container and parameter grouping utilities.
+ */
+
 #include <cassert>
 #include <iostream>
 
 #include "config/Config.hpp"
 
 
-// Constructor / destructor
 Config::~Config() = default;
 
 // Config ID management

@@ -1,4 +1,11 @@
-#include "config/VersionConfigLoader.hpp"
+/**
+ * \file MultipleConfigLoader.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of multi-file version configuration loader.
+ */
+
+#include "config/MultipleConfigLoader.hpp"
 
 #include "json/JsonLoader.hpp"
 #include "json/ConfigJsonParser.hpp"

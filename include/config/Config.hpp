@@ -1,3 +1,12 @@
+/**
+ * \file Config.hpp
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Base configuration container storing typed parameters grouped by category.
+ *
+ * Provides lookup, access helpers, grouping metadata, and reset-to-defaults support.
+ */
+
 #pragma once
 
 #include <vector>
@@ -6,24 +15,94 @@
 
 #include "config/ConfigParameter.hpp"
 
+/**
+ * \class Config
+ * \brief Generic configuration parameter set with grouping metadata.
+ *
+ * Responsibilities:
+ * - stores parameters and provides fast lookup by name
+ * - groups parameters into named categories (with ordering)
+ * - exposes typed getters and reference accessors
+ * - allows resetting all parameters to default values
+ */
 class Config {
 public:
+
+    /**
+     * \brief Construct configuration with optional identifier.
+     *
+     * \param[in] id Configuration identifier string (optional).
+     */
     explicit Config(std::string id = {}) : configId(std::move(id)) {}
+
     virtual ~Config();
 
-    // Config ID
+    // --- Configuration identifier ---
+
+    /**
+     * \brief Get configuration identifier.
+     *
+     * \return Reference to configuration id string.
+     */
     const std::string& getConfigId() const;
+
+    /**
+     * \brief Set configuration identifier.
+     *
+     * \param[in] id New configuration id value.
+     */
     void setConfigId(std::string id);
 
-    // Parameter lookup API
+    // --- Parameter lookup and access API ---
+
+    /**
+     * \brief Add a configuration parameter and assign it to a group.
+     *
+     * \param[in] param Parameter definition.
+     * \param[in] groupName Name of group to assign parameter to.
+     */
     void add(ConfigParameter param, const std::string& groupName);
+
+    /**
+     * \brief Check whether a parameter exists.
+     *
+     * \param[in] name Parameter name.
+     * \return true if parameter exists, false otherwise.
+     */
     bool has(const std::string& name) const;
+
+    /**
+     * \brief Get parameter by name.
+     *
+     * \param[in] name Parameter name.
+     * \return Reference to parameter.
+     */
     ConfigParameter& get(const std::string& name);
+
+    /**
+     * \brief Get parameter by name (const overload).
+     *
+     * \param[in] name Parameter name.
+     * \return Const reference to parameter.
+     */
     const ConfigParameter& get(const std::string& name) const;
+
+    /**
+     * \brief Get mutable list of all parameters.
+     *
+     * \return Vector of parameters.
+     */
     std::vector<ConfigParameter>& getParameters();
+
+    /**
+     * \brief Get read-only list of all parameters.
+     *
+     * \return Const vector of parameters.
+     */
     const std::vector<ConfigParameter>& getParameters() const;
 
-    // Value helpers
+    // --- Typed value helpers ---
+
     float number(const std::string& name) const;
     bool binary(const std::string& name) const;
     const std::string& string(const std::string& name) const;
@@ -32,22 +111,36 @@ public:
     bool& binaryRef(const std::string& name);
     std::string& stringRef(const std::string& name);
 
-    // Reset to defaults
+    /**
+     * \brief Reset all parameters to their default values.
+     */
     virtual void resetAll();
 
-    // Grouping metadata
+    // --- Grouping metadata accessors ---
 
-    // Parameter name -> group name
+    /**
+     * \brief Map of parameter name -> group name.
+     *
+     * \return Association table of parameter to group.
+     */
     const std::unordered_map<std::string, std::string>& getParamGroups() const {
         return paramGroupByName;
     }
 
-    // Group name -> parameter names
+    /**
+     * \brief Map of group name -> parameter names.
+     *
+     * \return Association between groups and contained parameters.
+     */
     const std::unordered_map<std::string, std::vector<std::string>>& getGroupParams() const {
         return groupParams;
     }
 
-    // Ordered list of group names
+    /**
+     * \brief Ordered list of group names.
+     *
+     * \return Group ordering as defined during insertion.
+     */
     const std::vector<std::string>& getGroupOrder() const {
         return groupOrder;
     }

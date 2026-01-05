@@ -1,7 +1,7 @@
 /**
  * \file Application.hpp
- * \author
- * \date
+ * \author Jan Koča
+ * \date 05-01-2026
  * \brief Main GUI application wrapper for the flocking simulation.
  *
  * Encapsulates initialization, configuration loading,

@@ -1,5 +1,7 @@
 /**
  * \file
+ * \author Jan Koča
+ * \date 01-05-2026
  * \brief Entry point of the application. Selects execution mode and runs either the
  *        main application or the experiment laboratory.
  */

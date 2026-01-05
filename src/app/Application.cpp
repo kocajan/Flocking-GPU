@@ -1,5 +1,7 @@
 /**
  * \file Application.cpp
+ * \author Jan Koča
+ * \date 01-05-2026
  * \brief Implementation of the main application controller and run loop.
  */
 
@@ -9,7 +11,7 @@
 #include "app/Application.hpp"
 
 #include "config/ConfigLoader.hpp"
-#include "config/VersionConfigLoader.hpp"
+#include "config/MultipleConfigLoader.hpp"
 #include "simulator/SimulationUpdate.hpp"
 
 
