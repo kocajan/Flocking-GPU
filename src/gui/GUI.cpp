@@ -87,11 +87,16 @@ bool GUI::initializePlatform(const char* title) {
 void GUI::initializeImGui() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+
+    ImGuiIO& io = ImGui::GetIO();
+    // Custom config path - TODO: hardcoded - fix later
+    io.IniFilename = "cfg/imgui.ini";
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 }
+
 
 // ============================================================
 // Frame control

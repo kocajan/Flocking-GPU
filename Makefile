@@ -31,7 +31,7 @@ LIBS := -lglfw -lGL -ldl -lpthread -lcudart
 SRC_DIR   := src
 TP_DIR    := third_party
 BUILD_DIR := build
-BIN       := flocking
+BIN       := bin/flocking   # <-- executable now goes to ./bin
 
 # =========================
 # Source discovery
@@ -56,6 +56,7 @@ DEPS := $(OBJ:.o=.d)
 all: $(BIN)
 
 $(BIN): $(OBJ)
+	@mkdir -p $(dir $@)
 	$(NVCC) $^ -o $@ $(LIBS)
 
 # =========================
