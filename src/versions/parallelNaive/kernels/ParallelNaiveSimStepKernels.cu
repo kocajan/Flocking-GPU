@@ -541,7 +541,6 @@ __device__ void resolveObstacleAndWallAvoidance(ParallelNaiveParameters::GPUPara
 
         Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce,
                                      params.worldX, params.worldY, params.worldZ);
-        diff.z = 0.0f;
 
         float centerDist = sqrtf(sqrLen(diff));
         float combinedRadius = rBoid + params.obstacleBoidRadius;
@@ -881,7 +880,6 @@ __device__ void resolveObstacleCollisions(ParallelNaiveParameters::GPUParams& pa
 
         Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce,
                                      params.worldX, params.worldY, params.worldZ);
-        diff.z = 0.0f;
 
         float dist2 = sqrLen(diff);
         float combinedRadius = rBoid + params.obstacleBoidRadius;

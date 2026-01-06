@@ -492,7 +492,6 @@ void resolveObstacleAndWallAvoidance(SequentialParameters& params, SpatialGrid& 
 
         Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce, 
                                     params.worldX, params.worldY, params.worldZ);
-        diff.z = 0.0f; // Ignore vertical component for obstacle avoidance
 
         float centerDist = std::sqrt(sqrLen(diff));
         float combinedRadius = rBoid + params.obstacleBoidRadius;
@@ -788,7 +787,6 @@ void resolveObstacleCollisions(SequentialParameters& params, SpatialGrid& grid, 
 
         Vec3 diff = periodicDeltaVec(oPos, pos, params.is2D, params.bounce, 
                                      params.worldX, params.worldY, params.worldZ);
-        diff.z = 0.0f; // Ignore vertical component for obstacle collisions
 
         float dist2 = sqrLen(diff);
         float combinedRadius = rBoid + params.obstacleBoidRadius;
