@@ -376,7 +376,7 @@ void ExperimentLab::initializeDataForExperimentDefault3D(SimState& simState, int
     spawnBoids(simState, BoidType::Basic, simState.boids.basicBoidCount, requestedBasicBoidCount);
 
     // Spawn obstacle boids
-    Vec3 obstaclePos = { simState.worldX.number() / 2.0f, simState.worldY.number() / 2.0f, 0.0f };
+    Vec3 obstaclePos = { simState.worldX.number() / 2.0f, simState.worldY.number() / 2.0f, simState.worldZ.number() / 2.0f };
     Vec3 obstacleVel = { 0.0f, 0.0f, 0.0f };
     spawnBoid(simState, BoidType::Obstacle, obstaclePos, obstacleVel);
     simState.boids.obstacleBoidCount++;
