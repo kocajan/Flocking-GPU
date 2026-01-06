@@ -236,6 +236,19 @@
         "max": 0.01,
         "step": 0.00001
       }
+    ],
+
+    "CUDA settings": [
+      {
+        "type": "number",
+        "name": "cudaBlockSize",
+        "label": "CUDA Block Size",
+        "description": "Number of threads per block for CUDA kernels",
+        "default": 1024.0,
+        "min": 32.0,
+        "max": 1024.0,
+        "step": 32.0
+      }
     ]
   }
 }

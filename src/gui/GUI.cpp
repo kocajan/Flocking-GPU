@@ -200,9 +200,16 @@ void GUI::renderControlGui(Config& simConfig, SimState& simState) {
     for (const std::string& group : simConfig.getGroupOrder()) {
 
         ImGui::Separator();
-        ImGui::TextUnformatted(group.c_str());
 
         const auto& paramsInGroup = simConfig.getGroupParams().at(group);
+
+        // Skip empty groups
+        if (paramsInGroup.empty()) {
+            printf("Warning: skipping empty parameter group '%s' (in GUI.cpp)\n", group.c_str());
+            continue;
+        }
+
+        ImGui::TextUnformatted(group.c_str());
 
         // render parameters in this group (name -> ConfigParameter lookup)
         for (const std::string& paramName : paramsInGroup) {

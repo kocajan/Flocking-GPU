@@ -34,7 +34,7 @@ ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)
     // ---------------------------------------------------------------------------
     // CPU parameters
     // ---------------------------------------------------------------------------
-    cpu.blockSize = 256;
+    cpu.blockSize = static_cast<int>(s.cudaBlockSize.number());
 
     // ---------------------------------------------------------------------------
     // GPU parameters - basic

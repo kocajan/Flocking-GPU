@@ -71,6 +71,9 @@ void SimState::resetToNewConfig(const Config& config, ConfigParameter versionPar
     // Version selector
     version = versionParam;
 
+    // CUDA block size parameter
+    cudaBlockSize = config.get("cudaBlockSize");
+
     // Reset boid population state
     boids.clear();
 }

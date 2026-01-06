@@ -86,6 +86,9 @@ public:
     // Version / implementation selector
     ConfigParameter version;
 
+    // CUDA block size parameter
+    ConfigParameter cudaBlockSize;
+
     // Boid population storage (SoA layout)
     Boids boids;
 
