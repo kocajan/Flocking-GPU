@@ -50,7 +50,7 @@ struct SequentialParameters {
     float visionRangePredator;
 
     // Force and interaction multipliers
-    float maxForce;
+    float baseForce;
     float obstacleAvoidanceMultiplier;
     float mouseInteractionMultiplier;
 

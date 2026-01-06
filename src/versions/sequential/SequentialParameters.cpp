@@ -100,8 +100,8 @@ SequentialParameters::SequentialParameters(SimState& s,const Config& c)
     staminaDrainRatePredator = c.number("predatorStaminaDrainRate");
 
     // Calculate max force based on max speed
-    float maxForcePercentage = percentToWeight(c.number("maxForce"));
-    maxForce = maxSpeed * maxForcePercentage;
+    float baseForcePercentage = percentToWeight(c.number("baseForce"));
+    baseForce = maxSpeed * baseForcePercentage;
 
     // Dynamics
     drag = percentToWeight(c.number("drag"));

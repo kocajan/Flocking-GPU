@@ -108,7 +108,7 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
     gpu.numStepsToStopDueToMaxDrag = 100.0f;
 
     // Forces
-    gpu.maxForce = maxSpeedWorld * percentToWeight(c.number("maxForce"));
+    gpu.baseForce = maxSpeedWorld * percentToWeight(c.number("baseForce"));
 
     // Neighbor selection
     gpu.maxNeighborsBasic = static_cast<int>(static_cast<float>(cpu.hBoids.basicBoidCount) * percentToWeight(c.number("neighbourAccuracy")));

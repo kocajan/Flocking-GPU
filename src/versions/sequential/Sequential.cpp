@@ -91,7 +91,7 @@ void resolveBasicBoidBehavior(SequentialParameters& params, SpatialGrid& grid, i
 
     // Define helper to make weighted forces
     auto makeWeightedForce = [&](const Vec3& dir, float weight) {
-        float k = params.maxForce * weight;
+        float k = params.baseForce * weight;
         return Vec3{ dir.x * k, dir.y * k, dir.z * k };
     };
 
@@ -321,9 +321,9 @@ void resolvePredatorBoidBehavior(SequentialParameters& params, int currentBoidId
     };
     float cruisingForceWeight = 0.5f;
     Vec3 cruisingForceW = {
-        cruisingForce.x * (params.maxForce * cruisingForceWeight),
-        cruisingForce.y * (params.maxForce * cruisingForceWeight),
-        cruisingForce.z * (params.maxForce * cruisingForceWeight)
+        cruisingForce.x * (params.baseForce * cruisingForceWeight),
+        cruisingForce.y * (params.baseForce * cruisingForceWeight),
+        cruisingForce.z * (params.baseForce * cruisingForceWeight)
     };
     acc.x += cruisingForceW.x;
     acc.y += cruisingForceW.y;
@@ -411,7 +411,7 @@ void resolveMouseInteraction(SequentialParameters& params, int currentBoidIdx, B
 
     // Define helper to make weighted forces
     auto makeWeightedForce = [&](const Vec3& dir, float weight) {
-        float k = params.maxForce * weight * params.mouseInteractionMultiplier;
+        float k = params.baseForce * weight * params.mouseInteractionMultiplier;
         return Vec3{ dir.x * k, dir.y * k, dir.z * k };
     };
 
@@ -530,9 +530,9 @@ void resolveObstacleAndWallAvoidance(SequentialParameters& params, SpatialGrid& 
         Vec3 avoidDir = normalize(avgDir, params.eps);
 
         // Apply as a single steering vector
-        acc.x += avoidDir.x * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
-        acc.y += avoidDir.y * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
-        acc.z += avoidDir.z * params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        acc.x += avoidDir.x * params.baseForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        acc.y += avoidDir.y * params.baseForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        acc.z += avoidDir.z * params.baseForce * averageWeight * params.obstacleAvoidanceMultiplier;
     }
 
     // If the boid is close to walls, apply repelling force only if bounce is enabled
@@ -544,7 +544,7 @@ void resolveObstacleAndWallAvoidance(SequentialParameters& params, SpatialGrid& 
     {
         if (d < visualRange) {
             float weight = std::exp(-0.3f * d);
-            accAxis += axisSign * (params.maxForce * weight * params.obstacleAvoidanceMultiplier);
+            accAxis += axisSign * (params.baseForce * weight * params.obstacleAvoidanceMultiplier);
         }
     };
 

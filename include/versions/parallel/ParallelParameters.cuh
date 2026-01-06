@@ -73,7 +73,7 @@ struct ParallelParameters {
         float visionRangePredator;
 
         // Forces / multipliers
-        float maxForce;
+        float baseForce;
         float obstacleAvoidanceMultiplier;
         float mouseInteractionMultiplier;
 

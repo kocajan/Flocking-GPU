@@ -237,11 +237,11 @@ __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, 
     Vec3 separationDir = normalize(personalSpace, params.eps);
     Vec3 targetDir = normalize(toTarget, params.eps);
 
-    Vec3 cohesionW = makeWeightedForce(cohesionDir, params.cohesionWeightBasic, params.maxForce);
-    Vec3 alignmentW = makeWeightedForce(alignmentDir, params.alignmentWeightBasic, params.maxForce);
-    Vec3 separationW = makeWeightedForce(separationDir, params.separationWeightBasic, params.maxForce);
-    Vec3 targetW = makeWeightedForce(targetDir, adjustedTargetWeight, params.maxForce);
-    Vec3 cruisingW = makeWeightedForce(cruisingForce, 0.1f, params.maxForce);
+    Vec3 cohesionW = makeWeightedForce(cohesionDir, params.cohesionWeightBasic, params.baseForce);
+    Vec3 alignmentW = makeWeightedForce(alignmentDir, params.alignmentWeightBasic, params.baseForce);
+    Vec3 separationW = makeWeightedForce(separationDir, params.separationWeightBasic, params.baseForce);
+    Vec3 targetW = makeWeightedForce(targetDir, adjustedTargetWeight, params.baseForce);
+    Vec3 cruisingW = makeWeightedForce(cruisingForce, 0.1f, params.baseForce);
 
     // Apply to acceleration accumulator
     acc.x += cohesionW.x + alignmentW.x + separationW.x + targetW.x + cruisingW.x;
@@ -309,7 +309,7 @@ __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, 
     // Panic mode override
     if (numPred > 0) {
         Vec3 escape = normalize(predAvoid, params.eps);
-        Vec3 escapeForceW = makeWeightedForce(escape, 2.0f, params.maxForce);
+        Vec3 escapeForceW = makeWeightedForce(escape, 2.0f, params.baseForce);
 
         // If escape force is stronger than current acceleration, override it
         if (sqrLen(escapeForceW) > sqrLen(acc)) {
@@ -369,9 +369,9 @@ __device__ void resolvePredatorBoidBehavior(ParallelParameters::GPUParams& param
 
     float cruisingForceWeight = 0.5f;
     Vec3 cruisingForceW = {
-        cruisingForce.x * (params.maxForce * cruisingForceWeight),
-        cruisingForce.y * (params.maxForce * cruisingForceWeight),
-        cruisingForce.z * (params.maxForce * cruisingForceWeight)
+        cruisingForce.x * (params.baseForce * cruisingForceWeight),
+        cruisingForce.y * (params.baseForce * cruisingForceWeight),
+        cruisingForce.z * (params.baseForce * cruisingForceWeight)
     };
 
     acc.x += cruisingForceW.x;
@@ -497,7 +497,7 @@ __device__ void resolveMouseInteraction(ParallelParameters::GPUParams& params, i
         weight = 0.0f;
 
     Vec3 dir = normalize(diff, params.eps);
-    Vec3 weightedForce = makeWeightedForce(dir, weight * params.mouseInteractionMultiplier, params.maxForce);
+    Vec3 weightedForce = makeWeightedForce(dir, weight * params.mouseInteractionMultiplier, params.baseForce);
 
     if (interaction.type == InteractionType::Attract) {
         acc.x -= weightedForce.x;
@@ -620,7 +620,7 @@ __device__ void resolveObstacleAndWallAvoidance(ParallelParameters::GPUParams& p
         float averageWeight = obsWeightSum / obsCount;
         Vec3 avoidDir = normalize(avgDir, params.eps);
 
-        float scale = params.maxForce * averageWeight * params.obstacleAvoidanceMultiplier;
+        float scale = params.baseForce * averageWeight * params.obstacleAvoidanceMultiplier;
         acc.x += avoidDir.x * scale;
         acc.y += avoidDir.y * scale;
         acc.z += avoidDir.z * scale;
@@ -638,17 +638,17 @@ __device__ void resolveObstacleAndWallAvoidance(ParallelParameters::GPUParams& p
     }
 
     // Left / right
-    repelFromWall(pos.x - rBoid, 1.0f,  acc.x, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
-    repelFromWall((params.worldX - rBoid) - pos.x, -1.0f, acc.x, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
+    repelFromWall(pos.x - rBoid, 1.0f,  acc.x, params.baseForce, visualRange, params.obstacleAvoidanceMultiplier);
+    repelFromWall((params.worldX - rBoid) - pos.x, -1.0f, acc.x, params.baseForce, visualRange, params.obstacleAvoidanceMultiplier);
 
     // Bottom / top
-    repelFromWall(pos.y - rBoid, 1.0f,  acc.y, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
-    repelFromWall((params.worldY - rBoid) - pos.y, -1.0f, acc.y, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
+    repelFromWall(pos.y - rBoid, 1.0f,  acc.y, params.baseForce, visualRange, params.obstacleAvoidanceMultiplier);
+    repelFromWall((params.worldY - rBoid) - pos.y, -1.0f, acc.y, params.baseForce, visualRange, params.obstacleAvoidanceMultiplier);
     
     if (!params.is2D) {
         // Front / back
-        repelFromWall(pos.z - rBoid, 1.0f,  acc.z, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
-        repelFromWall((params.worldZ - rBoid) - pos.z, -1.0f, acc.z, params.maxForce, visualRange, params.obstacleAvoidanceMultiplier);
+        repelFromWall(pos.z - rBoid, 1.0f,  acc.z, params.baseForce, visualRange, params.obstacleAvoidanceMultiplier);
+        repelFromWall((params.worldZ - rBoid) - pos.z, -1.0f, acc.z, params.baseForce, visualRange, params.obstacleAvoidanceMultiplier);
     }
 
     // Write back

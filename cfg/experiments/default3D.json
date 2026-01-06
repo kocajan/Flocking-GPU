@@ -220,7 +220,7 @@
       },
       {
         "type": "number",
-        "name": "maxForce",
+        "name": "baseForce",
         "label": "Max Force",
         "description": "Maximum steering force applied to boids. 0 - no steering, 100 - maximum steering",
         "default": 100.0,

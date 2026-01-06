@@ -57,14 +57,14 @@ __device__ inline Vec3 periodicDeltaVec(const Vec3& from, const Vec3& to, bool i
     return distVec;
 }
 
-__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float maxForce) {
-    float k = maxForce * w;
+__device__ inline Vec3 makeWeightedForce(const Vec3& d, float w, float baseForce) {
+    float k = baseForce * w;
     return Vec3{ d.x * k, d.y * k, d.z * k };
 };
 
-__device__ inline void repelFromWall(float d, float axisSign, float& accAxis, float maxForce, float visualRange, float multiplier) {
+__device__ inline void repelFromWall(float d, float axisSign, float& accAxis, float baseForce, float visualRange, float multiplier) {
     if (d < visualRange) {
         float weight = __expf(-0.3f * d);
-        accAxis += axisSign * (maxForce * weight * multiplier);
+        accAxis += axisSign * (baseForce * weight * multiplier);
     }
 };
