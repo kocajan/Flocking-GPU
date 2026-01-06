@@ -1,7 +1,7 @@
 /**
  * \file GUI.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Graphical user interface for simulation control, rendering, and interaction.
  *
  * Provides:

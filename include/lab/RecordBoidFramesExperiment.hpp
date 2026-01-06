@@ -1,7 +1,7 @@
 /**
  * \file RecordBoidFramesExperiment.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Experiment that records per-tick boid state snapshots to text files.
  */
 

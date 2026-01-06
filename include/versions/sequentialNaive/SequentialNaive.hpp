@@ -1,7 +1,7 @@
 /**
  * \file SequentialNaive.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Sequential CPU baseline implementation of the flocking simulation.
  *
  * This version:

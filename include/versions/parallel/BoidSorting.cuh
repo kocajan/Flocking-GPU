@@ -1,7 +1,7 @@
 /**
  * \file BoidSorting.cuh
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Host dispatcher for GPU-side sorting of boids by spatial hash.
  *
  * The sort:

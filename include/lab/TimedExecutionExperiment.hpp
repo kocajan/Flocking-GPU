@@ -1,7 +1,7 @@
 /**
  * \file TimedExecutionExperiment.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Experiment for aggregating and exporting simulation timing statistics.
  */
 

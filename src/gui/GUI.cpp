@@ -1,7 +1,7 @@
 /**
  * \file GUI.cpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Implementation of GUI rendering, interaction handling, and frame control.
  * \note Implemented with great AI assistance. 
  */

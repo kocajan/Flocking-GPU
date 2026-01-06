@@ -1,7 +1,7 @@
 /**
  * \file SequentialNaiveParameters.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Parameter container for the sequential naive simulation backend.
  */
 

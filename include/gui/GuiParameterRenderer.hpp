@@ -1,7 +1,7 @@
 /**
  * \file GuiParameterRenderer.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Rendering of configuration parameters using ImGui widgets.
  */
 

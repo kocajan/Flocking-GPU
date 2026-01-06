@@ -1,7 +1,7 @@
 /**
  * \file ParallelNaiveParameters.cuh
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief CPU–GPU parameter container for the parallel-naive simulation backend.
  *
  * This structure:

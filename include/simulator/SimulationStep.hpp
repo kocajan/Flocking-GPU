@@ -1,7 +1,7 @@
 /**
  * \file SimulationStep.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Dispatch entry point for running a single simulation step.
  *
  * Selects and executes the active simulation implementation based on

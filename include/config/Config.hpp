@@ -1,7 +1,7 @@
 /**
  * \file Config.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Base configuration container storing typed parameters grouped by category.
  *
  * Provides lookup, access helpers, grouping metadata, and reset-to-defaults support.

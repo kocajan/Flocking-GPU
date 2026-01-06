@@ -1,7 +1,7 @@
 /**
  * \file HashesKernels.cuh
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief CUDA kernel for computing spatial grid hash indices for boids.
  *
  * The kernel:

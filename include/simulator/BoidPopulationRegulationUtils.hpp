@@ -1,7 +1,7 @@
 /**
  * \file BoidPopulationRegulationUtils.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Utilities for spawning, deleting, and regulating boid populations.
  *
  * Provides helpers used by simulation and interaction systems to:

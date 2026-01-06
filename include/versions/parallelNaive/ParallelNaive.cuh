@@ -1,7 +1,7 @@
 /**
  * \file ParallelNaive.cuh
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Parallel-naive GPU implementation of the flocking simulation.
  *
  * This version:

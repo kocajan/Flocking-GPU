@@ -1,7 +1,7 @@
 /**
  * \file InteractionSystem.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Mouse-driven runtime interaction handling for simulation state.
  *
  * Maps GUI mouse events to world-space actions such as:

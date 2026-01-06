@@ -1,7 +1,7 @@
 /**
  * \file ParallelSimStepKernels.cuh
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief CUDA kernels for the optimized parallel simulation step.
  *
  * Kernels operate on:

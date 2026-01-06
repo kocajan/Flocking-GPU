@@ -1,7 +1,7 @@
 /**
  * \file SimulationUpdate.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief High-level per-frame simulation update routine.
  *
  * Performs one GUI-controlled simulation update step:

@@ -1,7 +1,7 @@
 /**
  * \file BoidPopulationRegulation.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief High-level population regulation entry point.
  *
  * Applies population regulation for each boid category using target values

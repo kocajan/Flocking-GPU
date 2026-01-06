@@ -1,7 +1,7 @@
 /**
  * \file ParallelSimStepKernels.cu
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Implementation of optimized neighborhood-aware simulation kernels.
  *
  * Structure:

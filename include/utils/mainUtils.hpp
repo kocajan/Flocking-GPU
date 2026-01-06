@@ -1,7 +1,7 @@
 /**
  * \file mainUtils.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Command-line utilities for selecting application mode and resolving configuration paths.
  *
  * Provides parsing helpers for CLI arguments and basic usage output.

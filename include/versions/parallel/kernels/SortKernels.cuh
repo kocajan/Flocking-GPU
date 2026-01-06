@@ -1,7 +1,7 @@
 /**
  * \file SortKernels.cuh
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief CUDA kernels for padding and in-place bitonic sorting of hash/index pairs.
  *
  * These kernels operate on:

@@ -1,7 +1,7 @@
 /**
  * \file ParallelParameters.cu
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Implementation of GPU parameter initialization for the optimized parallel simulation.
  *
  * Responsibilities:
@@ -34,7 +34,7 @@ ParallelParameters::ParallelParameters(SimState& s, const Config& c)
     // CPU parameters
     // ---------------------------------------------------------------------------
     cpu.blockSize = static_cast<int>(s.cudaBlockSize.number());
-    
+
     // ---------------------------------------------------------------------------
     // GPU parameters - basic
     // ---------------------------------------------------------------------------

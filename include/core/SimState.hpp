@@ -1,7 +1,7 @@
 /**
  * \file SimState.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Simulation runtime state and parameter bindings.
  *
  * Holds:

@@ -1,7 +1,7 @@
 /**
  * \file SequentialNaiveParameters.cpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Implementation of parameter initialization for the sequential naive backend.
  */
 

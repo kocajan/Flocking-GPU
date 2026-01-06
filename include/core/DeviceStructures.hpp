@@ -1,7 +1,7 @@
 /**
  * \file DeviceStructures.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief GPU-side mirror structures for simulation data stored in device memory.
  *
  * These structures correspond to CPU SoA containers but store raw pointers

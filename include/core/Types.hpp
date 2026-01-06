@@ -1,7 +1,7 @@
 /**
  * \file Types.hpp
  * \author Jan Koča
- * \date 01-05-2026
+ * \date 05-01-2026
  * \brief Core math, interaction, boid, configuration, and parameter range types used across the simulation.
  */
 
