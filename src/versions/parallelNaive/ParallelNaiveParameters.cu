@@ -218,4 +218,7 @@ ParallelNaiveParameters::~ParallelNaiveParameters() {
 
     // - OBSTACLE BOIDS
     CHECK_ERROR(cudaFree(gpu.dBoids.posObstacle));
+
+    // Final synchronization
+    CHECK_ERROR(cudaDeviceSynchronize());
 }

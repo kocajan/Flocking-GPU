@@ -59,9 +59,9 @@
         "name": "initialStateTicks",
         "label": "Initial State Ticks",
         "description": "Number of ticks for the initial state before the simulation starts.",
-        "default": 400,
-        "min": 400,
-        "max": 400,
+        "default": 100,
+        "min": 100,
+        "max": 100,
         "step": 0
       }
     ],

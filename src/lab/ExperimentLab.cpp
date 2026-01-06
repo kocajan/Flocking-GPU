@@ -65,8 +65,8 @@ void ExperimentLab::runExperiments(const std::string& experimentConfigsDirPath) 
         // Run both experiments
         printf("\n - Running Timed Execution Experiment...\n");
         runExperimentScenario(experimentTimed);
-        printf("\n - Running Record Boid Frames Experiment...\n");
-        runExperimentScenario(experimentRecord);
+        // printf("\n - Running Record Boid Frames Experiment...\n");
+        // runExperimentScenario(experimentRecord);
 
         std::cout << "\nCompleted experiment: " << experimentConfig.getConfigId() << "\n\n";
     }

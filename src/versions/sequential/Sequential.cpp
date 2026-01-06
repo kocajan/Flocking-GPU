@@ -135,14 +135,14 @@ void resolveBasicBoidBehavior(SequentialParameters& params, SpatialGrid& grid, i
         // Increment neighbor count
         neighborCount++;
 
-        // Separation - only inside protected range
-        if (dist < params.basicBoidRadius * 2.0f) {
-            float invd = 1.0f / dist;
-            personalSpace.x -= distVec.x * invd;
-            personalSpace.y -= distVec.y * invd;
-            personalSpace.z -= distVec.z * invd;
-        } else if (dist >= params.basicBoidRadius * 2.0f) {
-            // Cohesion - full vision range but outside protected range
+        // Separation
+        float invd = 1.0f / dist;
+        personalSpace.x -= distVec.x * invd;
+        personalSpace.y -= distVec.y * invd;
+        personalSpace.z -= distVec.z * invd;
+        
+        // Cohesion
+        if (dist > params.basicBoidRadius * 4.0f) {
             posSum.x += distVec.x;
             posSum.y += distVec.y;
             posSum.z += distVec.z;
@@ -275,7 +275,7 @@ void resolveBasicBoidBehavior(SequentialParameters& params, SpatialGrid& grid, i
     if (numPredators > 0) {
         // Get escape direction
         Vec3 escape = normalize(predAvoidanceDir, params.eps);
-        Vec3 escapeForceW = makeWeightedForce(escape, 2.0f);
+        Vec3 escapeForceW = makeWeightedForce(escape, 3.0f);
 
         // If escape force is stronger than current acceleration, override it
         if (sqrLen(escapeForceW) > sqrLen(acc)) {

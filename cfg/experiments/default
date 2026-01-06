@@ -1,12 +1,12 @@
 {
-  "id": "plainWithObstaclesAndPredatorsExperiment",
+  "id": "defaultSettingsExperiment",
   "parameters": {
     "Experiment": [
       {
         "type": "binary",
         "name": "description",
         "label": "Experiment Description",
-        "description": "No forces (just cruising). Max neighbor accuracy. With obstacles and predators.",
+        "description": "Experiment with default settings.",
         "default": true
       },
       {
@@ -14,7 +14,7 @@
         "name": "outputDirPath",
         "label": "Output Directory Path",
         "description": "Directory path where experiment results will be saved.",
-        "default": "/home/kocajan/magistr/3_semester/GPU/project/data/results/plainWithObstaclesAndPredators"
+        "default": "/home/kocajan/magistr/3_semester/GPU/project/data/results/default"
       },
       {
         "type": "enum",
@@ -59,9 +59,9 @@
         "name": "initialStateTicks",
         "label": "Initial State Ticks",
         "description": "Number of ticks for the initial state before the simulation starts.",
-        "default": 400,
-        "min": 400,
-        "max": 400,
+        "default": 100,
+        "min": 100,
+        "max": 100,
         "step": 0
       }
     ],
@@ -93,9 +93,9 @@
         "name": "alignmentBasic",
         "label": "Alignment Weight for Basic Boids",
         "description": "Velocity matching with neighbors. 0 - no alignment, 100 - full alignment",
-        "default": 0.0,
-        "min": 0.0,
-        "max": 0.0,
+        "default": 20.0,
+        "min": 20.0,
+        "max": 20.0,
         "step": 0.0
       },
       {
@@ -103,9 +103,9 @@
         "name": "cohesionBasic",
         "label": "Cohesion Weight for Basic Boids",
         "description": "Attraction to neighbors' center of mass. 0 - no cohesion, 100 - full cohesion",
-        "default": 0.0,
-        "min": 0.0,
-        "max": 0.0,
+        "default": 20.0,
+        "min": 20.0,
+        "max": 20.0,
         "step": 0.0
       },
       {
@@ -113,9 +113,9 @@
         "name": "separationBasic",
         "label": "Separation Weight for Basic Boids",
         "description": "Repulsion from neighbors. 0 - no separation, 100 - full separation",
-        "default": 0.0,
-        "min": 0.0,
-        "max": 0.0,
+        "default": 100.0,
+        "min": 100.0,
+        "max": 100.0,
         "step": 0.0
       },
       {
@@ -123,9 +123,9 @@
         "name": "targetAttractionBasic",
         "label": "Target Attraction Weight for Basic Boids",
         "description": "Attraction weight to the local target for basic boids. 0 - no attraction, 100 - full attraction",
-        "default": 0.0,
-        "min": 0.0,
-        "max": 0.0,
+        "default": 10.0,
+        "min": 10.0,
+        "max": 10.0,
         "step": 0.0
       },
       {
@@ -233,9 +233,9 @@
         "name": "drag",
         "label": "Drag",
         "description": "Velocity damping factor. 0 - no drag, 100 - no movement",
-        "default": 0.0,
-        "min": 0.0,
-        "max": 0.0,
+        "default": 10.0,
+        "min": 10.0,
+        "max": 10.0,
         "step": 0.0
       },
       {
@@ -263,9 +263,9 @@
         "name": "predatorStaminaRecoveryRate",
         "label": "Predator Stamina Recovery Rate",
         "description": "Stamina recovery rate for predator boids.",
-        "default": 100.0,
-        "min": 100.0,
-        "max": 100.0,
+        "default": 10.0,
+        "min": 10.0,
+        "max": 10.0,
         "step": 0.0
       },
       {
@@ -273,9 +273,9 @@
         "name": "predatorStaminaDrainRate",
         "label": "Predator Stamina Drain Rate",
         "description": "Stamina drain rate for predator boids.",
-        "default": 0.0,
-        "min": 0.0,
-        "max": 0.0,
+        "default": 20.0,
+        "min": 20.0,
+        "max": 20.0,
         "step": 0.0
       },
       {
@@ -303,9 +303,9 @@
         "name": "bounceFactor",
         "label": "Obstacle Bounce Factor",
         "description": "Velocity reduction factor upon obstacle collision. 0 - full stop, 100 - no reduction",
-        "default": 100.0,
-        "min": 100.0,
-        "max": 100.0,
+        "default": 80.0,
+        "min": 80.0,
+        "max": 80.0,
         "step": 0.0
       },
       {

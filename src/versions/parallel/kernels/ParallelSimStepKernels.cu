@@ -140,9 +140,9 @@ __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, 
             const Vec3 oPos = boids.posBasic[otherIdx];
             const Vec3 oVel = boids.velBasic[otherIdx];
 
-            Vec3 distVect = periodicDeltaVec(pos, oPos, params.is2D, params.bounce,
+            Vec3 distVec = periodicDeltaVec(pos, oPos, params.is2D, params.bounce,
                                              params.worldX, params.worldY, params.worldZ);
-            float dist2 = sqrLen(distVect);
+            float dist2 = sqrLen(distVec);
 
             if (dist2 > params.visionRangeBasic2)
                 continue;
@@ -153,19 +153,18 @@ __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, 
             if (dist < params.eps)
                 dist = params.eps;
 
-            // Gather data for behavior rules
-            if (dist < params.basicBoidRadius * 2.0f) {
-                // Separation
-                float invd = 1.0f / dist;
-                personalSpace.x -= distVect.x * invd;
-                personalSpace.y -= distVect.y * invd;
-                personalSpace.z -= distVect.z * invd;
-            } else {
-                // Cohesion
-                posSum.x += distVect.x;
-                posSum.y += distVect.y;
-                posSum.z += distVect.z;
-                ++distantNeighborCount;
+            // Separation
+            float invd = 1.0f / dist;
+            personalSpace.x -= distVec.x * invd;
+            personalSpace.y -= distVec.y * invd;
+            personalSpace.z -= distVec.z * invd;
+            
+            // Cohesion
+            if (dist > params.basicBoidRadius * 4.0f) {
+                posSum.x += distVec.x;
+                posSum.y += distVec.y;
+                posSum.z += distVec.z;
+                distantNeighborCount++;
             }
 
             // Alignment
@@ -309,7 +308,7 @@ __device__ void resolveBasicBoidBehavior(ParallelParameters::GPUParams& params, 
     // Panic mode override
     if (numPred > 0) {
         Vec3 escape = normalize(predAvoid, params.eps);
-        Vec3 escapeForceW = makeWeightedForce(escape, 2.0f, params.baseForce);
+        Vec3 escapeForceW = makeWeightedForce(escape, 3.0f, params.baseForce);
 
         // If escape force is stronger than current acceleration, override it
         if (sqrLen(escapeForceW) > sqrLen(acc)) {

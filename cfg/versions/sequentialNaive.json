@@ -37,7 +37,7 @@
         "name": "targetAttractionBasic",
         "label": "Target Attraction Weight for Basic Boids",
         "description": "Attraction weight to the local target for basic boids. 0 - no attraction, 100 - full attraction",
-        "default": 15.0,
+        "default": 10.0,
         "min": 0.0,
         "max": 100.0,
         "step": 1.0

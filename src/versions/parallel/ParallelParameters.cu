@@ -304,4 +304,7 @@ ParallelParameters::~ParallelParameters() {
     CHECK_ERROR(cudaFree(gpu.dGrid.cellX));
     CHECK_ERROR(cudaFree(gpu.dGrid.cellY));
     CHECK_ERROR(cudaFree(gpu.dGrid.cellZ));
+
+    // Final synchronization
+    CHECK_ERROR(cudaDeviceSynchronize());
 }

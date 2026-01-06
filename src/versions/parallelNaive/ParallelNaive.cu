@@ -34,7 +34,6 @@ void simulationStepParallelNaive(ParallelNaiveParameters& params) {
 
         // Check for any CUDA errors
         CHECK_ERROR(cudaPeekAtLastError());
-        CHECK_ERROR(cudaDeviceSynchronize());
     }
 
     // Process predator boids
@@ -44,7 +43,5 @@ void simulationStepParallelNaive(ParallelNaiveParameters& params) {
 
         // Check for any CUDA errors
         CHECK_ERROR(cudaPeekAtLastError());
-        CHECK_ERROR(cudaDeviceSynchronize());
     }
-
 }

@@ -59,9 +59,9 @@
         "name": "initialStateTicks",
         "label": "Initial State Ticks",
         "description": "Number of ticks for the initial state before the simulation starts.",
-        "default": 400,
-        "min": 400,
-        "max": 400,
+        "default": 100,
+        "min": 100,
+        "max": 100,
         "step": 0
       }
     ],
@@ -123,9 +123,9 @@
         "name": "targetAttractionBasic",
         "label": "Target Attraction Weight for Basic Boids",
         "description": "Attraction weight to the local target for basic boids. 0 - no attraction, 100 - full attraction",
-        "default": 15.0,
-        "min": 15.0,
-        "max": 15.0,
+        "default": 10.0,
+        "min": 10.0,
+        "max": 10.0,
         "step": 0.0
       },
       {
