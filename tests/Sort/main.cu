@@ -1,3 +1,10 @@
+/**
+ * \file tests/Sort/main.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Unit tests for Sort kernels.
+ */
+
 #include <cuda_runtime.h>
 #include <algorithm>
 #include <cassert>

@@ -1,3 +1,10 @@
+/**
+ * \file tests/Hashes/main.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Unit tests for Hashes kernels.
+ */
+
 #include <cuda_runtime.h>
 #include <vector>
 #include <cassert>
