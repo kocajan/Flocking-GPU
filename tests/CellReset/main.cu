@@ -3,11 +3,11 @@
 #include <vector>
 #include <iostream>
 
-
-// Forward-declare your kernels
 struct DeviceGrid;
+
 __global__ void kernelResetCells(DeviceGrid dGrid);
 __global__ void kernelBuildCellRanges(int boidCount, int* dHash, int* dCellStart, int* dCellEnd);
+
 
 void check(cudaError_t err) {
     if (err != cudaSuccess) {
@@ -16,7 +16,7 @@ void check(cudaError_t err) {
     }
 }
 
-// ---- DeviceGrid definition must match kernel file ----
+// DeviceGrid structure adjusted to be minimal for the tests
 struct DeviceGrid {
     int* cellStartBasic; int* cellEndBasic;
 
@@ -30,7 +30,7 @@ struct DeviceGrid {
     int totalCells;
 };
 
-// ------------------------------------------------------
+// --------- TESTS ---------
 
 void testKernelResetCells() {
     std::cout << "[TEST] kernelResetCells\n";
@@ -103,8 +103,8 @@ void testKernelResetCells() {
 void testKernelBuildCellRanges() {
     std::cout << "[TEST] kernelBuildCellRanges\n";
 
-    // sorted cell hash list
-    // cells: 0 0 0 | 1 1 | 3
+    // Sorted cell hash list
+    // - cells: 0 0 0 | 1 1 | 3
     std::vector<int> hHash = {0, 0, 0, 1, 1, 3};
     int boidCount = (int)hHash.size();
     const int numCells = 4;
@@ -129,11 +129,11 @@ void testKernelBuildCellRanges() {
     check(cudaMemcpy(hStart.data(), dStart, numCells*sizeof(int), cudaMemcpyDeviceToHost));
     check(cudaMemcpy(hEnd.data(),   dEnd,   numCells*sizeof(int), cudaMemcpyDeviceToHost));
 
-    // expected:
-    // cell 0 -> [0,3)
-    // cell 1 -> [3,5)
-    // cell 2 -> -1
-    // cell 3 -> [5,6)
+    // Expected:
+    // - cell 0 -> [0,3)
+    // - cell 1 -> [3,5)
+    // - cell 2 -> -1
+    // - cell 3 -> [5,6)
     assert(hStart[0] == 0 && hEnd[0] == 3);
     assert(hStart[1] == 3 && hEnd[1] == 5);
     assert(hStart[2] == -1 && hEnd[2] == -1);

@@ -6,7 +6,7 @@
  *
  * Structure:
  *  - device helpers mirroring SpatialGrid CPU logic
- *  - kernelComputeHashes: world position → cell index → hash
+ *  - kernelComputeHashes: world position -> cell index -> hash
  */
 
 #include "versions/parallel/ParallelParameters.cuh"

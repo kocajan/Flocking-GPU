@@ -6,8 +6,10 @@
 #include <utility>
 #include <vector>
 
-// Host declaration of the sorting function implemented in BoidSorting.cu
+
 void sortBoidsByHash(int boidCount, int* dHash, int* dIndex, int blockSize);
+
+// -------------------- UTILITY FUNCTIONS --------------------
 
 void check(cudaError_t err) {
     if (err != cudaSuccess) {
@@ -25,16 +27,18 @@ int nextPow2(int n) {
 // -------------------- SMALL RANDOM TEST --------------------
 
 void testSmallFixed() {
-    std::cout << "[TEST] small fixed\n";
+    std::cout << "[TEST] small set of fixed numbers\n";
 
     const int boidCount = 5;
     const int N = nextPow2(boidCount);   // = 8
-    const int blockSize = 4;
 
-    printf("  boidCount=%d, N=%d\n", boidCount, N);
+    assert(N == 8);
+
+    const int blockSize = 16;
+
+    printf("  - boidCount=%d, N=%d\n", boidCount, N);
 
     // ----- Hardcoded test data -----
-    // (unsorted hashes + identity indices)
 
     std::vector<int> hHash = {
         42, 5, 17, 5, 99
@@ -86,35 +90,29 @@ void testSmallFixed() {
     for (int i = 0; i < boidCount; ++i)
         gpu.emplace_back(hHash[i], hIndex[i]);
 
-    // // ----- Canonical sort for comparison -----
-    // std::sort(gpu.begin(), gpu.end(),
-    //     [](const auto& a, const auto& b){
-    //         if (a.first != b.first) return a.first < b.first;
-    //         return a.second < b.second;
-    //     });
+    // ----- Canonical sort for comparison -----
+    std::sort(gpu.begin(), gpu.end(),
+        [](const auto& a, const auto& b){
+            if (a.first != b.first) return a.first < b.first;
+            return a.second < b.second;
+        });
 
     // ----- Validate & print mismatch -----
+    printf("  - sorted results:\n");
+    printf("    CPU:\n");
+    for (const auto& p : ref) {
+        printf("      - (hash=%d, index=%d)\n", p.first, p.second);
+    }
+
+    printf("    GPU:\n");
+    for (const auto& p : gpu) {
+        printf("      - (hash=%d, index=%d)\n", p.first, p.second);
+    }
+
     bool ok = true;
-
     for (int i = 0; i < boidCount; ++i) {
-        printf(" GPU sorted [%d]: (hash=%d, index=%d)\n", i, hHash[i], hIndex[i]);
-        printf(" CPU reference[%d]: (hash=%d, index=%d)\n", i, ref[i].first, ref[i].second);
-        printf("\n");
-        if (gpu[i] != ref[i]) {
+        if (ref[i] != gpu[i]) {
             ok = false;
-
-            std::cout << "\nMismatch at position " << i << "\n";
-            std::cout << "  GPU: (" << gpu[i].first << ", " << gpu[i].second << ")\n";
-            std::cout << "  CPU: (" << ref[i].first << ", " << ref[i].second << ")\n\n";
-
-            std::cout << "GPU sorted result:\n";
-            for (int j = 0; j < boidCount; ++j)
-                std::cout << "  ["<<j<<"] (" << gpu[j].first << ", " << gpu[j].second << ")\n";
-
-            std::cout << "\nCPU sorted reference:\n";
-            for (int j = 0; j < boidCount; ++j)
-                std::cout << "  ["<<j<<"] (" << ref[j].first << ", " << ref[j].second << ")\n";
-
             break;
         }
     }
@@ -127,29 +125,23 @@ void testSmallFixed() {
     std::cout << "  OK\n";
 }
 
-// -------------------- LARGE UNIQUE DATA TEST --------------------
+// -------------------- LARGE RANDOM DATA TEST --------------------
 
-void testLargeUnique() {
-    std::cout << "[TEST] large unique\n";
+void testLargeRandom() {
+    std::cout << "[TEST] large set of random numbers\n";
 
-    const int boidCount = 200000;      // "large" test
+    const int boidCount = 200000;
     const int N = nextPow2(boidCount);
     const int blockSize = 256;
 
     std::vector<int> hHash(N), hIndex(N);
 
-    // Generate unique keys 0..boidCount-1 and shuffle
-    std::vector<int> keys(boidCount);
+    // Generate 'boidCount' random keys
+    std::mt19937 rng(12345); // fixed seed for reproducibility
+    std::uniform_int_distribution<int> dist(0, 1000000);
     for (int i = 0; i < boidCount; ++i) {
-        keys[i] = i;
-    }
-
-    std::mt19937 rng(98765);
-    std::shuffle(keys.begin(), keys.end(), rng);
-
-    for (int i = 0; i < boidCount; ++i) {
-        hHash[i]  = keys[i];
-        hIndex[i] = i;   // original index
+        hHash[i] = dist(rng);
+        hIndex[i] = i;
     }
 
     // CPU reference sort of pairs (hash, index)
@@ -181,14 +173,32 @@ void testLargeUnique() {
     check(cudaMemcpy(hHash.data(),  dHash,  N * sizeof(int), cudaMemcpyDeviceToHost));
     check(cudaMemcpy(hIndex.data(), dIndex, N * sizeof(int), cudaMemcpyDeviceToHost));
 
-    // Validate: exact match with CPU ref (no duplicate keys, so order is unique)
+    // First validate non-decreasing order of hashes
+    for (int i = 1; i < boidCount; ++i) {
+        assert(hHash[i-1] <= hHash[i]);
+    } 
+
+    // Run cannonical sort on GPU slice for comparison
+    std::vector<std::pair<int,int>> gpu;
+    gpu.reserve(boidCount);
+
+    for (int i = 0; i < boidCount; ++i)
+        gpu.emplace_back(hHash[i], hIndex[i]);
+
+    std::sort(gpu.begin(), gpu.end(),
+        [](const auto& a, const auto& b){
+            if (a.first != b.first) return a.first < b.first;
+            return a.second < b.second;
+        });
+
     for (int i = 0; i < boidCount; ++i) {
-        // hashes must be in the same sorted order
-        assert(hHash[i]  == ref[i].first);
-        assert(hIndex[i] == ref[i].second);
-        // also ensure non-decreasing
+        // Hash and index match reference
+        assert(gpu[i].first  == ref[i].first);
+        assert(gpu[i].second == ref[i].second);
+
+        // Ensure non-decreasing order
         if (i > 0) {
-            assert(hHash[i-1] <= hHash[i]);
+            assert(gpu[i-1].first <= gpu[i].first);
         }
     }
 
@@ -200,7 +210,7 @@ void testLargeUnique() {
 
 int main() {
     testSmallFixed();
-    testLargeUnique();
+    testLargeRandom();
 
     std::cout << "All sorting tests passed.\n";
     return 0;

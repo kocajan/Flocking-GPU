@@ -25,13 +25,12 @@ void sortBoidsByHash(int boidCount, int* dHash, int* dIndex, int blockSize) {
     int N = 1;
     while (N < boidCount) N <<= 1;
 
-    // pad tail: launch over FULL [0, N) and let kernel decide which to write
+    // Launch padding over [0, N) - let the kernel handle out-of-bounds
     if (N > boidCount) {
         int padBlocks = (N + blockSize - 1) / blockSize;
 
-        fillPadding<<<padBlocks, blockSize>>>(
-            dHash, dIndex, boidCount, N, std::numeric_limits<int>::max()
-        );
+        fillPadding<<<padBlocks, blockSize>>>(dHash, dIndex, boidCount, N, 
+                                              std::numeric_limits<int>::max());
 
         CHECK_ERROR(cudaPeekAtLastError());
         CHECK_ERROR(cudaDeviceSynchronize());
@@ -39,10 +38,10 @@ void sortBoidsByHash(int boidCount, int* dHash, int* dIndex, int blockSize) {
 
     int sortBlocks = (N + blockSize - 1) / blockSize;
 
-    for (int k = 2; k <= N; k <<= 1) {
-        for (int j = k >> 1; j > 0; j >>= 1) {
+    for (int outIdx = 2; outIdx <= N; outIdx <<= 1) {
+        for (int inIdx = outIdx >> 1; inIdx > 0; inIdx >>= 1) {
             bitonicSortStepKernel<<<sortBlocks, blockSize>>>(
-                dHash, dIndex, j, k, N
+                dHash, dIndex, inIdx, outIdx, N
             );
 
             CHECK_ERROR(cudaPeekAtLastError());

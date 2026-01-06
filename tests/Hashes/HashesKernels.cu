@@ -1,3 +1,19 @@
+/**
+ * \file HashesKernels.cu
+ * \author Jan Koča
+ * \date 01-05-2026
+ * \brief Implementation of CUDA kernels for computing spatial hashing of boids. (TESTING)
+ *
+ * Structure:
+ *  - device helpers mirroring SpatialGrid CPU logic
+ *  - kernelComputeHashes: world position -> cell index -> hash
+ */
+
+__device__ inline int flattenIndexDevice(int cX, int cY, int cZ, int numCellsX, int numCellsY);
+__device__ inline int worldToCellIndexDevice(float pos, float worldSize, int cellCount, float cellSize, bool bounce);
+
+
+// Minimal structures for the tests
 struct Vec3 { float x,y,z; };
 
 struct DeviceGrid {
@@ -16,49 +32,6 @@ struct GPUParams {
     float worldZ;
 };
 
-
-// Device helpers mirroring SpatialGrid logic
-__device__ inline int worldToCellIndexDevice(float pos, float worldSize, int cellCount, float cellSize, bool bounce) {
-    // Handle bounce case
-    if (bounce) {
-        // Get cell index
-        int cell = (int)floorf(pos / cellSize);
-
-        // Clamp to valid range
-        if (cell < 0) {
-            cell = 0;
-        }
-        
-        if (cell >= cellCount) { 
-            cell = cellCount - 1;
-        }
-
-        return cell;
-    }
-
-    // Wrap around the position
-    if (pos < 0.0f) {
-        pos += worldSize;
-    } else if (pos >= worldSize) {
-        pos -= worldSize;
-    }
-
-    // Calculate cell index
-    int cell = (int)floorf(pos / cellSize);
-
-    // Wrap around the cell index
-    if (cell < 0) {           
-        cell += cellCount;
-    } else if (cell >= cellCount) {
-        cell -= cellCount;
-    }
-
-    return cell;
-}
-
-__device__ inline int flattenIndexDevice(int cX, int cY, int cZ, int numCellsX, int numCellsY) {
-    return (cZ * numCellsY + cY) * numCellsX + cX;
-}
 
 __global__ void kernelComputeHashes(GPUParams params, Vec3* dPos, int boidCount, int* dHash, int* dIndex) {
     // Compute global boid index
@@ -84,4 +57,33 @@ __global__ void kernelComputeHashes(GPUParams params, Vec3* dPos, int boidCount,
     // Write out
     dHash[currentBoidIdx] = hash;
     dIndex[currentBoidIdx] = currentBoidIdx;
+}
+
+__device__ inline int worldToCellIndexDevice(float pos, float worldSize, int cellCount, float cellSize, bool bounce) {
+    if (bounce) {
+        int cell = (int)floorf(pos / cellSize);
+        if (cell < 0) cell = 0;
+        if (cell >= cellCount) cell = cellCount - 1;
+        return cell;
+    }
+
+    if (pos < 0.0f) {
+        pos += worldSize;
+    } else if (pos >= worldSize) {
+        pos -= worldSize;
+    }
+
+    int cell = (int)floorf(pos / cellSize);
+
+    if (cell < 0) {
+        cell += cellCount;
+    } else if (cell >= cellCount) {
+        cell -= cellCount;
+    }
+
+    return cell;
+}
+
+__device__ inline int flattenIndexDevice(int cX, int cY, int cZ, int numCellsX, int numCellsY) {
+    return (cZ * numCellsY + cY) * numCellsX + cX;
 }

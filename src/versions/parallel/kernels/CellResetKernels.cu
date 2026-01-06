@@ -5,7 +5,7 @@
  * \brief Implementation of CUDA kernels for clearing and rebuilding grid cell ranges.
  *
  * Structure:
- *  - device helper for hash → (cx,cy,cz) conversion
+ *  - device helper for hash -> (cx,cy,cz) conversion
  *  - kernelResetCells: reset cell metadata and coordinates
  *  - kernelBuildCellRanges: compute [start,end) index ranges per cell
  */

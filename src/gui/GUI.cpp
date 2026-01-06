@@ -204,7 +204,7 @@ void GUI::renderControlGui(Config& simConfig, SimState& simState) {
 
         const auto& paramsInGroup = simConfig.getGroupParams().at(group);
 
-        // render parameters in this group (name → ConfigParameter lookup)
+        // render parameters in this group (name -> ConfigParameter lookup)
         for (const std::string& paramName : paramsInGroup) {
             auto& p = simConfig.get(paramName);
 

@@ -7,7 +7,7 @@
  * Provides:
  * - platform & OpenGL / ImGui initialization
  * - world rendering and parameter UI panels
- * - mouse interaction mapping (screen → world)
+ * - mouse interaction mapping (screen -> world)
  * - per–frame lifecycle control
  */
 

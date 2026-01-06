@@ -20,7 +20,7 @@
  * \brief Stores simulation configurations for multiple versions and exposes a selector parameter.
  *
  * Responsibilities:
- * - keeps a map of version id → Config
+ * - keeps a map of version id -> Config
  * - provides list of available versions
  * - exposes ConfigParameter "version" enum for UI selection
  * - retrieves configuration for a given version id

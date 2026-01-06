@@ -3,6 +3,16 @@
 #include <cassert>
 #include <iostream>
 
+
+// ---------------------- TEST FRAMEWORK ----------------------
+void check(cudaError_t e) {
+    if (e != cudaSuccess) {
+        std::cerr << "CUDA error: " << cudaGetErrorString(e) << "\n";
+        std::exit(1);
+    }
+}
+
+// Structures minimal for the tests
 struct Vec3 { float x,y,z; };
 
 struct DeviceGrid {
@@ -23,22 +33,13 @@ struct GPUParams {
 
 __global__ void kernelComputeHashes(GPUParams params, Vec3* dPos, int boidCount, int* dHash, int* dIndex);
 
-void check(cudaError_t e) {
-    if (e != cudaSuccess) {
-        std::cerr << "CUDA error: " << cudaGetErrorString(e) << "\n";
-        std::exit(1);
-    }
-}
-
-int flattenRef(int cX,int cY,int cZ,int nx,int ny) {
+int flattenRef(int cX,int cY,int cZ, int nx, int ny) {
+    // From coordinates to linear index
     return (cZ * ny + cY) * nx + cX;
 }
 
-void runTest(const char* name,
-             const std::vector<Vec3>& positions,
-             GPUParams params,
-             const std::vector<int>& expected)
-{
+void runTest(const char* name, const std::vector<Vec3>& positions, 
+             GPUParams params, const std::vector<int>& expected) {
     std::cout << "[TEST] " << name << "\n";
 
     const int n = (int)positions.size();
@@ -92,17 +93,17 @@ void test2D_wrap() {
     p.worldY = p.dGrid.numCellsY * p.dGrid.cellSize; // 4
 
     std::vector<Vec3> pos = {
-        {0.1f, 0.1f, 0},   // (0,0)
-        {3.9f, 0.2f, 0},   // (3,0)
-        {4.1f, 0.2f, 0},   // wrap -> (0,0)
-        {-0.2f, 2.2f, 0},  // wrap -> (3,2)
+        {0.1f, 0.1f, 0},   // (0, 0)
+        {3.9f, 0.2f, 0},   // (3, 0)
+        {4.1f, 0.2f, 0},   // wrap -> (0, 0)
+        {-0.2f, 2.2f, 0},  // wrap -> (3, 2)
     };
 
     std::vector<int> expect = {
-        flattenRef(0,0,0,4,4),
-        flattenRef(3,0,0,4,4),
-        flattenRef(0,0,0,4,4),
-        flattenRef(3,2,0,4,4),
+        flattenRef(0, 0, 0, 4, 4),
+        flattenRef(3, 0, 0, 4, 4),
+        flattenRef(0, 0, 0, 4, 4),
+        flattenRef(3, 2, 0, 4, 4),
     };
 
     runTest("2D wrap mode", pos, p, expect);
@@ -126,8 +127,8 @@ void test2D_bounce() {
     };
 
     std::vector<int> expect = {
-        flattenRef(0,1,0,4,4),
-        flattenRef(3,2,0,4,4),
+        flattenRef(0, 1, 0, 4, 4),
+        flattenRef(3, 2, 0, 4, 4),
     };
 
     runTest("2D bounce clamp", pos, p, expect);
@@ -148,15 +149,15 @@ void test3D_wrap() {
     p.worldZ = p.dGrid.numCellsZ * p.dGrid.cellSize; // 2
 
     std::vector<Vec3> pos = {
-        {0.1f,0.1f,0.1f},  // (0,0,0)
-        {1.9f,1.9f,1.9f},  // (1,1,1)
-        {2.1f,2.1f,2.1f},  // wrap -> (0,0,0)
+        {0.1f, 0.1f, 0.1f},  // (0,0,0)
+        {1.9f, 1.9f, 1.9f},  // (1,1,1)
+        {2.1f, 2.1f, 2.1f},  // wrap -> (0,0,0)
     };
 
     std::vector<int> expect = {
-        flattenRef(0,0,0,2,2),
-        flattenRef(1,1,1,2,2),
-        flattenRef(0,0,0,2,2),
+        flattenRef(0, 0, 0, 2, 2),
+        flattenRef(1, 1, 1, 2, 2),
+        flattenRef(0, 0, 0, 2, 2),
     };
 
     runTest("3D wrap mode", pos, p, expect);
