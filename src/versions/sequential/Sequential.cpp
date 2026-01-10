@@ -433,8 +433,6 @@ void resolveMouseInteraction(SequentialParameters& params, int currentBoidIdx, B
 
     // Create weight based on distance
     float weight = dist2 / params.maxDistanceBetweenPoints2;
-    if (weight < 0.0f)
-        weight = 0.0f;
 
     // Get normalized direction
     Vec3 dir = normalize(diff, params.eps);

@@ -471,8 +471,6 @@ __device__ void resolveMouseInteraction(ParallelNaiveParameters::GPUParams& para
 
     // Calculate weight based on distance
     float weight = dist2 / params.maxDistanceBetweenPoints2;
-    if (weight < 0.0f)
-        weight = 0.0f;
 
     Vec3 dir = normalize(diff, params.eps);
     Vec3 weightedForce = makeWeightedForce(dir, weight*params.mouseInteractionMultiplier, params.baseForce);

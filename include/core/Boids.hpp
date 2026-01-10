@@ -41,11 +41,11 @@ struct Boids {
     std::vector<Vec3> accPredator;
     std::vector<Vec3> targetPointPredator;
 
-    std::vector<float>   staminaPredator;
+    std::vector<float> staminaPredator;
     std::vector<uint8_t> restingPredator;
 
-    std::vector<int>     targetBoidIdxPredator;
-    std::vector<float>   targetBoidDistancePredator;
+    std::vector<int> targetBoidIdxPredator;
+    std::vector<float> targetBoidDistancePredator;
     std::vector<BoidType> targetBoidTypePredator;
 
     // ---------------------------------------------------------------------
