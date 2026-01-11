@@ -13,7 +13,7 @@
  *
  */
 
-#include "utils/simStepUtils.hpp"
+#include "utils/SimStepUtils.hpp"
 #include "versions/sequentialNaive/SequentialNaive.hpp"
 #include "versions/sequentialNaive/SequentialNaiveParameters.hpp"
 

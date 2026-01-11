@@ -14,7 +14,7 @@
 #include <iostream>
 #include <cuda_runtime.h>
 
-#include "utils/simStepParallelUtils.cuh"
+#include "utils/SimStepParallelUtils.cuh"
 #include "versions/parallelNaive/ParallelNaive.cuh"
 #include "versions/parallelNaive/ParallelNaiveParameters.cuh"
 #include "versions/parallelNaive/kernels/ParallelNaiveSimStepKernels.cuh"

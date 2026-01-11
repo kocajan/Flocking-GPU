@@ -14,7 +14,7 @@
 #include <iostream>
 #include <cuda_runtime.h>
 
-#include "utils/simStepParallelUtils.cuh"
+#include "utils/SimStepParallelUtils.cuh"
 #include "versions/parallel/kernels/SortKernels.cuh"
 
 

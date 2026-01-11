@@ -12,7 +12,7 @@
 
 #include "app/Application.hpp"
 #include "lab/ExperimentLab.hpp"
-#include "utils/mainUtils.hpp"
+#include "utils/MainUtils.hpp"
 
 /**
  * \brief Program entry point.

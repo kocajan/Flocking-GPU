@@ -20,8 +20,7 @@ Config parseConfig(const nlohmann::json& root) {
 
     const auto& groups = root.at("parameters");
 
-    for (auto it = groups.begin(); it != groups.end(); ++it)
-    {
+    for (auto it = groups.begin(); it != groups.end(); ++it) {
         const std::string groupName = it.key();
         const auto& paramList = it.value();
 

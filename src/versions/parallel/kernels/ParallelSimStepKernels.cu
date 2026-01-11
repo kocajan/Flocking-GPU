@@ -16,7 +16,7 @@
 #include "versions/parallel/kernels/ParallelSimStepKernels.cuh"
 
 #include "core/DeviceStructures.hpp"
-#include "utils/simStepParallelUtils.cuh"
+#include "utils/SimStepParallelUtils.cuh"
 #include "versions/parallel/ParallelParameters.cuh"
 
 

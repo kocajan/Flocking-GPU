@@ -18,7 +18,7 @@
 
 #include "core/Types.hpp"
 #include "core/DeviceStructures.hpp"
-#include "utils/simStepParallelUtils.cuh"
+#include "utils/SimStepParallelUtils.cuh"
 
 
 // Forward declarations

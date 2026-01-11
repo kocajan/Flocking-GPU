@@ -14,7 +14,7 @@
 
 #include "versions/sequential/Sequential.hpp"
 
-#include "utils/simStepUtils.hpp"
+#include "utils/SimStepUtils.hpp"
 #include "versions/sequential/SpatialGrid.hpp"
 #include "versions/sequential/SequentialParameters.hpp"
 

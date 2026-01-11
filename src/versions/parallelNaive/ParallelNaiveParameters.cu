@@ -20,7 +20,7 @@
 
 #include "core/SimState.hpp"
 #include "config/Config.hpp"
-#include "utils/simStepParallelUtils.cuh"
+#include "utils/SimStepParallelUtils.cuh"
 
 
 ParallelNaiveParameters::ParallelNaiveParameters(SimState& s, const Config& c)

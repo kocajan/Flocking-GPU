@@ -17,7 +17,7 @@
 #include <cuda_runtime.h>
 
 #include "versions/parallel/ParallelParameters.cuh"
-#include "utils/simStepParallelUtils.cuh"
+#include "utils/SimStepParallelUtils.cuh"
 #include "core/SimState.hpp"
 #include "config/Config.hpp"
 
