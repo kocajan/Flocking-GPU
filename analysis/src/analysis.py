@@ -6,7 +6,6 @@ import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
-from typing import Any, List, Dict
 
 from .utils import parse_frame_file, draw_frame
 
@@ -43,6 +42,17 @@ def analyze_experiment_results(path_to_input_data: str, path_to_output: str,
                     # Run the analysis
                     analyze_timed_execution_results(versions, current_input_path, current_output_path)
 
+                if experiment == "correctness_results":
+                    # Get the output path
+                    current_output_path = os.path.join(path_to_output, scenario, experiment)
+                    current_input_path = os.path.join(path_to_input_data, scenario, "boid_data")
+
+                    # For timed execution results, analyze all versions
+                    versions = versions_to_analyze[scenario]
+
+                    # Run the analysis
+                    analyze_correctness_results(versions, current_input_path, current_output_path)
+
                 for version in versions_to_analyze[scenario]:
                     # Define current paths
                     current_input_path = os.path.join(path_to_input_data, scenario, experiment, version)
@@ -53,6 +63,9 @@ def analyze_experiment_results(path_to_input_data: str, path_to_output: str,
                         analyze_boid_data(current_input_path, current_output_path)
                     elif experiment == "timed_execution_results":
                         # Timed execution results are handled above
+                        continue
+                    elif experiment == "correctness_results":
+                        # Correctness results are handled above
                         continue
                     else:
                         print(f"Unknown experiment type: {experiment}")
@@ -102,7 +115,7 @@ def analyze_boid_data(input_path: str, output_path: str) -> None:
             print("No boid frame files found. Nothing to analyze.")
             return
 
-        rendered_images: List[str] = []
+        rendered_images: list[str] = []
 
         # Parse + render each frame
         for idx, path in enumerate(tqdm(frame_files, desc="Frames")):
@@ -141,7 +154,6 @@ def analyze_boid_data(input_path: str, output_path: str) -> None:
 
 
     print("Analysis complete.")
-
 
 def analyze_timed_execution_results(versions: list[str], input_path: str, output_path: str) -> None:
     """
@@ -200,3 +212,17 @@ def analyze_timed_execution_results(versions: list[str], input_path: str, output
     plt.savefig(os.path.join(output_path, f"timed_execution_results_{min_max_boids}_{max_num_boids}_{'_'.join(versions)}.png"))
     plt.close()
     print(f"Timed execution analysis complete. Results saved to {output_path}")
+
+    # Save combined CSV
+    combined_df = pd.DataFrame()
+    for version, df in version_data.items():
+        df = df[df['BoidCount'] <= min_max_boids]
+        df = df.rename(columns={'AvgStepTimeMs': f'AvgStepTimeMs_{version}'})
+        if combined_df.empty:
+            combined_df = df[['BoidCount', f'AvgStepTimeMs_{version}']]
+        else:
+            combined_df = pd.merge(combined_df, df[['BoidCount', f'AvgStepTimeMs_{version}']], on='BoidCount', how='outer')
+    combined_df = combined_df.sort_values(by='BoidCount')
+    combined_csv_path = os.path.join(output_path, f"timed_execution_results_combined_{min_max_boids}_{max_num_boids}_{'_'.join(versions)}.csv")
+    combined_df.to_csv(combined_csv_path, index=False)
+    print(f"Combined CSV saved to {combined_csv_path}")

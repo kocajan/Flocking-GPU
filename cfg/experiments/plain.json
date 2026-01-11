@@ -30,9 +30,9 @@
         "label": "Number of Boids",
         "description": "Total number of boids in the simulation.",
         "default": 1000,
-        "min": 1000,
-        "max": 50000,
-        "step": 1000
+        "min": 5000,
+        "max": 100000,
+        "step": 5000
       },
       {
         "type": "number",
@@ -59,9 +59,9 @@
         "name": "initialStateTicks",
         "label": "Initial State Ticks",
         "description": "Number of ticks for the initial state before the simulation starts.",
-        "default": 100,
-        "min": 100,
-        "max": 100,
+        "default": 300,
+        "min": 300,
+        "max": 300,
         "step": 0
       }
     ],

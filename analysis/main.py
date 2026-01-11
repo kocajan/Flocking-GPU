@@ -13,13 +13,20 @@ def main() -> None:
     # Define the scenarios to be analyzed
     scenarios = [
         "plain",
-        "plainWithObstacles",
+        # "plainWithObstacles",
         "plainWithObstaclesAndPredators",
-        "default",
+        # "default",
         "default3D",
     ]
 
     # Define versions to analyze for each scenario
+    # versions_to_analyze = {
+    #     "plain": ["parallelNaive", "parallel", "sequential", "sequentialNaive"],
+    #     "plainWithObstacles": ["parallelNaive", "parallel", "sequential", "sequentialNaive"],
+    #     "plainWithObstaclesAndPredators": ["parallelNaive", "parallel", "sequential", "sequentialNaive"],
+    #     "default": ["parallelNaive", "parallel", "sequential", "sequentialNaive"],
+    #     "default3D": ["parallelNaive", "parallel", "sequential", "sequentialNaive"],
+    # }
     versions_to_analyze = {
         "plain": ["parallelNaive", "parallel"],
         "plainWithObstacles": ["parallelNaive", "parallel"],

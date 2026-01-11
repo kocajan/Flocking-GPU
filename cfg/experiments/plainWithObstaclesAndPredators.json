@@ -1,0 +1,320 @@
+{
+  "id": "plainWithObstaclesAndPredatorsExperiment",
+  "parameters": {
+    "Experiment": [
+      {
+        "type": "binary",
+        "name": "description",
+        "label": "Experiment Description",
+        "description": "No forces (just cruising). Max neighbor accuracy. With obstacles and predators.",
+        "default": true
+      },
+      {
+        "type": "string",
+        "name": "outputDirPath",
+        "label": "Output Directory Path",
+        "description": "Directory path where experiment results will be saved.",
+        "default": "/home/kocajan/magistr/3_semester/GPU/project/data/results/plainWithObstaclesAndPredators"
+      },
+      {
+        "type": "enum",
+        "name": "versionsToRun",
+        "label": "Versions to Run",
+        "description": "Select which versions of the simulation to run. Has to be defined under the same name in the versions configs.",
+        "default": "parallel",
+        "options": ["parallelNaive", "parallel"]
+      },
+      {
+        "type": "number",
+        "name": "numBoids",
+        "label": "Number of Boids",
+        "description": "Total number of boids in the simulation.",
+        "default": 1000,
+        "min": 5000,
+        "max": 100000,
+        "step": 5000
+      },
+      {
+        "type": "number",
+        "name": "totalTicks",
+        "label": "Total Ticks",
+        "description": "Total number of simulation ticks for the experiment.",
+        "default": 20,
+        "min": 20,
+        "max": 20,
+        "step": 0
+      },
+      {
+        "type": "number",
+        "name": "warmupTicks",
+        "label": "Warmup Ticks",
+        "description": "Number of warmup ticks before data collection starts.",
+        "default": 5,
+        "min": 5,
+        "max": 5,
+        "step": 0
+      },
+      {
+        "type": "number",
+        "name": "initialStateTicks",
+        "label": "Initial State Ticks",
+        "description": "Number of ticks for the initial state before the simulation starts.",
+        "default": 300,
+        "min": 300,
+        "max": 300,
+        "step": 0
+      }
+    ],
+    "SimState": [
+      {
+        "type": "number",
+        "name": "basicBoidCount",
+        "label": "Number of Basic Boids",
+        "description": "Initial number of basic boids",
+        "default": 0,
+        "min": 0,
+        "max": 0,
+        "step": 0
+      },
+      {
+        "type": "number",
+        "name": "predatorBoidCount",
+        "label": "Number of Predator Boids",
+        "description": "Initial number of predator boids",
+        "default": 0,
+        "min": 0,
+        "max": 0,
+        "step": 0
+      }
+    ],
+    "SimConfig": [
+      {
+        "type": "number",
+        "name": "alignmentBasic",
+        "label": "Alignment Weight for Basic Boids",
+        "description": "Velocity matching with neighbors. 0 - no alignment, 100 - full alignment",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "cohesionBasic",
+        "label": "Cohesion Weight for Basic Boids",
+        "description": "Attraction to neighbors' center of mass. 0 - no cohesion, 100 - full cohesion",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "separationBasic",
+        "label": "Separation Weight for Basic Boids",
+        "description": "Repulsion from neighbors. 0 - no separation, 100 - full separation",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "targetAttractionBasic",
+        "label": "Target Attraction Weight for Basic Boids",
+        "description": "Attraction weight to the local target for basic boids. 0 - no attraction, 100 - full attraction",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "visionBasic",
+        "label": "Vision Radius of Basic Boids",
+        "description": "Perception radius for basic boids. 0 - no perception, 100 - global perception",
+        "default": 5.0,
+        "min": 5.0,
+        "max": 5.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "visionPredator",
+        "label": "Vision Radius of Predator Boids",
+        "description": "Perception radius for predator boids. 0 - no perception, 100 - global perception",
+        "default": 7.0,
+        "min": 7.0,
+        "max": 7.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "neighbourAccuracy",
+        "label": "Neighbor Accuracy",
+        "description": "Maximum percentage of neighbors considered when calculating boid behavior. 100 - all boids, 0 - no boids",
+        "default": 100.0,
+        "min": 100.0,
+        "max": 100.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "cruisingSpeedBasic",
+        "label": "Cruising Speed for Basic Boids",
+        "description": "Preferred cruising speed for basic boids in percentage of their maximum speed.",
+        "default": 80.0,
+        "min": 80.0,
+        "max": 80.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "maxSpeedBasic",
+        "label": "Max Speed for Basic Boids",
+        "description": "Maximum speed for basic boids. 0 - no movement, 100 - maximum available speed (200 units/s)",
+        "default": 100.0,
+        "min": 100.0,
+        "max": 100.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "minSpeedBasic",
+        "label": "Min Speed for Basic Boids",
+        "description": "Minimum speed for basic boids.",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "cruisingSpeedPredator",
+        "label": "Cruising Speed for Predator Boids",
+        "description": "Preferred cruising speed for predator boids in percentage of their maximum speed.",
+        "default": 80.0,
+        "min": 80.0,
+        "max": 80.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "maxSpeedPredator",
+        "label": "Max Speed for Predator Boids",
+        "description": "Maximum speed for predator boids. 0 - no movement, 100 - maximum available speed (200 units/s)",
+        "default": 80.0,
+        "min": 80.0,
+        "max": 80.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "minSpeedPredator",
+        "label": "Min Speed for Predator Boids",
+        "description": "Minimum speed for predator boids.",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "baseForce",
+        "label": "Max Force",
+        "description": "Maximum steering force applied to boids. 0 - no steering, 100 - maximum steering",
+        "default": 100.0,
+        "min": 100.0,
+        "max": 100.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "drag",
+        "label": "Drag",
+        "description": "Velocity damping factor. 0 - no drag, 100 - no movement",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "noise",
+        "label": "Noise",
+        "description": "Random velocity rotation strength.",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "predatorMaxStamina",
+        "label": "Predator Max Stamina",
+        "description": "Maximum stamina for predator boids.",
+        "default": 100.0,
+        "min": 100.0,
+        "max": 100.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "predatorStaminaRecoveryRate",
+        "label": "Predator Stamina Recovery Rate",
+        "description": "Stamina recovery rate for predator boids.",
+        "default": 100.0,
+        "min": 100.0,
+        "max": 100.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "predatorStaminaDrainRate",
+        "label": "Predator Stamina Drain Rate",
+        "description": "Stamina drain rate for predator boids.",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "mouseInteractionMultiplier",
+        "label": "Mouse Interaction Multiplier",
+        "description": "Multiplier for forces applied by mouse interaction.",
+        "default": 500.0,
+        "min": 500.0,
+        "max": 500.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "obstacleAvoidanceMultiplier",
+        "label": "Obstacle Avoidance Multiplier",
+        "description": "Multiplier for obstacle avoidance forces.",
+        "default": 500.0,
+        "min": 500.0,
+        "max": 500.0,
+        "step": 0.0
+      },
+      {
+        "type": "number",
+        "name": "bounceFactor",
+        "label": "Obstacle Bounce Factor",
+        "description": "Velocity reduction factor upon obstacle collision. 0 - full stop, 100 - no reduction",
+        "default": 100.0,
+        "min": 100.0,
+        "max": 100.0,
+        "step": 0.0
+      },
+      {
+        "type": "binary",
+        "name": "bounce",
+        "label": "Bounce Walls",
+        "description": "Bounce at world bounds (false = wrap)",
+        "default": true
+      }
+    ]
+  }
+}
